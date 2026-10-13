@@ -75,10 +75,10 @@ GitHub home: `youssefrigale/MeterLuma`. Keep the repository private until the im
 
 ## Verified beta checkpoint — 2026-10-13
 
-- Runtime commit: `0c439156e3a075c5d24406b6b52bedec9acdc0e8`.
-- [Native and interface build run](https://github.com/youssefrigale/MeterLuma/actions/runs/38462260553): successful Windows x64 and universal Mac packages; 8 native provider tests per platform; 30 browser checks.
-- Additional local WebKit verification: 15 checks passed. The dark tray panel also passed an additional accessibility check.
-- Six actual Windows WebView2 integration checks passed: hidden startup, single-instance panel opening, 360 × 660 logical sizing, Options navigating to Settings, panel hiding when Settings opens, and theme synchronization. See `artifacts/native-panel-check.json` and `artifacts/quick-view-windows-native.png`. These checks do not substitute for clicking the tray icon on every OS and display configuration.
-- The updated Windows executable was relaunched normally and its compact MeterLuma window appeared. The light theme from the requested reference was applied through Settings.
+- Runtime commit: `ce7795af717b4f4e3ac9da8872cc612896d1db07`.
+- [Native and interface build run](https://github.com/youssefrigale/MeterLuma/actions/runs/38470002503): successful Windows x64 and universal Mac packages; 14 native tests per platform, including frame margins, taskbar edges, scaling, and negative monitor coordinates; 32 browser checks.
+- Additional local WebKit verification: 16 checks passed, including both panel themes and Options accessibility.
+- Seven actual Windows WebView2 integration checks passed: hidden startup, single-instance panel opening, exact visible-frame taskbar alignment on first opening and reopening, 360 × 660 logical client sizing, Options navigating to Settings, panel hiding when Settings opens, and theme synchronization. The monitor work-area bottom and visible-frame bottom were both **1032 physical pixels**, a **0-pixel gap**. See `artifacts/native-panel-check.json` and `artifacts/quick-view-windows-native.png`. These checks do not substitute for clicking the tray icon on every OS and display configuration.
+- Windows client sizing and positioning account for the actual native frame and its invisible margins. The updated executable was relaunched normally and its compact MeterLuma window appeared. The chosen charcoal and amber appearance was applied through Settings.
 - Windows and Mac builds produced identical `Cargo.lock` files; the resolved native dependencies are now committed.
 - Real provider accounts, Mac GUI behavior, signing, updater, Pro features, licensing, and checkout remain unverified or unimplemented as described in `docs/launch.md`. This checkpoint is not a worldwide-release approval.
