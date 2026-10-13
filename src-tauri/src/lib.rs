@@ -1,5 +1,6 @@
 mod providers;
 mod quick;
+mod websites;
 #[cfg(any(target_os = "windows", test))]
 mod placement;
 
@@ -32,9 +33,10 @@ fn set_tray_summary(app: tauri::AppHandle, summary: String) -> Result<(), String
 
 pub fn run() {
     tauri::Builder::default()
+        .manage(quick::QuickState::default())
         .manage(providers::ProviderService::new().expect("Provider networking could not be initialized"))
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| quick::toggle(app, None)))
-        .invoke_handler(tauri::generate_handler![set_tray_summary, providers::refresh_provider, quick::show_dashboard, quit_app])
+        .invoke_handler(tauri::generate_handler![set_tray_summary, providers::refresh_provider, quick::show_dashboard, quick::resize_quick, websites::open_provider_page, quit_app])
         .setup(|app| {
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);

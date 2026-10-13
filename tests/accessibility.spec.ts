@@ -22,5 +22,11 @@ test(`${theme} compact tray panel and Options have no accessibility violations`,
     const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
     expect(results.violations).toEqual([]);
   }
+  await page.keyboard.press('Escape');
+  for (const name of ['Claude details', 'Costs', 'Settings', 'Help']) {
+    await page.getByRole('button', { name, exact: true }).click();
+    const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
+    expect(results.violations).toEqual([]);
+  }
 });
 }

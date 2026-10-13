@@ -1,7 +1,8 @@
 import { test, expect, type Page } from '@playwright/test';
 
-async function nativeBridge(page: Page, shouldFail = false) {
-  await page.addInitScript(({ shouldFail }) => {
+async function nativeBridge(page: Page, shouldFail = false, quick = false) {
+  await page.addInitScript(({ shouldFail, quick }) => {
+    localStorage.setItem('meterluma.settings.v1', JSON.stringify(quick ? { demo: false, remaining: true, enabled: ['claude'], liveProviders: ['claude'] } : { remaining: false }));
     const calls: string[] = [];
     Object.assign(window, {
       isTauri: true,
@@ -9,7 +10,7 @@ async function nativeBridge(page: Page, shouldFail = false) {
       __TAURI_INTERNALS__: {
         invoke: async (command: string, args?: { providerId?: string }) => {
           calls.push(command);
-          if (command === 'set_tray_summary') return;
+          if (command === 'set_tray_summary' || command === 'resize_quick' || command === 'open_provider_page') return;
           if (command !== 'refresh_provider' || args?.providerId !== 'claude') throw new Error('Unexpected native request');
           if (shouldFail) throw 'Your sign-in has expired. Sign in again using the provider app.';
           return {
@@ -19,7 +20,7 @@ async function nativeBridge(page: Page, shouldFail = false) {
         },
       },
     });
-  }, { shouldFail });
+  }, { shouldFail, quick });
 }
 
 async function connectClaude(page: Page) {
@@ -55,4 +56,17 @@ test('expired local credentials produce an error instead of fake zero usage', as
   await expect(page.getByText('Your sign-in has expired. Sign in again using the provider app.')).toBeVisible();
   await expect(page.getByRole('article')).toHaveCount(0);
   await expect(page.locator('.summary-grid')).not.toContainText('$0.00');
+});
+
+test('live provider details keep unavailable history separate and route website buttons through the native bridge', async ({ page }) => {
+  await nativeBridge(page, false, true);
+  await page.goto('/?view=quick');
+  await page.getByRole('button', { name: 'Claude details' }).click();
+  await expect(page.getByRole('article')).toHaveCount(1);
+  await expect(page.locator('.quick-statistics')).toContainText('Unavailable');
+  await expect(page.locator('.quick-statistics')).not.toContainText('$');
+  await expect(page.locator('.quick-models, .quick-sparkbars')).toHaveCount(0);
+  await expect(page.getByText('Reset time unavailable', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Status ↗', exact: true }).click();
+  expect(await page.evaluate(() => (window as unknown as { meterlumaTestCalls: string[] }).meterlumaTestCalls)).toContain('open_provider_page');
 });

@@ -8,7 +8,9 @@ This is an internal prototype, not a public release. The dashboard, provider vis
 
 In the desktop app, open Connections and select **Connection options**, then **Use local sign-in**. This is the point where MeterLuma reads that provider's existing local credential. Browser preview mode cannot access native credentials or fetch live limits. Live and sample spending are never mixed.
 
-The primary desktop interface is a 360 × 660 compact panel, opened by clicking the macOS menu-bar icon or Windows tray icon. It starts in the tray with the full dashboard hidden; clicking outside the panel hides it. MeterLuma has its own charcoal and amber design, a slim cost donut with Today / Yesterday / 30 Days sample ranges, provider-colored remaining-allowance bars, scrolling provider cards, and a fixed **Options** footer. Options opens Connections, Settings, or the dashboard, refreshes limits, or quits. Charcoal is the default theme, with an ivory light variant; saved theme and provider preferences stay synchronized between windows. Windows positions the panel using the clicked monitor's native work area, with its bottom edge flush against the top of a bottom taskbar; opening without an icon click also docks the panel. Top and side taskbars use their corresponding work-area edges. macOS retains menu-bar positioning and runs with an accessory activation policy. Native builds are configured through GitHub Actions for Windows and a universal Intel/Apple Silicon Mac package. Internal artifacts are unsigned.
+The primary desktop interface is a compact popup with a vertical icon sidebar: overview, individual provider details, costs, help, and settings. Provider pages show allowance bars, reset times, spending summaries, sample trends, and an explicitly illustrative model mix. Live history, token counts, and model breakdowns remain unavailable. Settings work inside the popup: refresh every 5 / 15 / 30 / 60 minutes, Left / Used bars, relative / absolute reset timers, clock format, appearance, and provider visibility and order. Provider website buttons open fixed status and usage pages in the default browser. Additional integrations, global shortcuts, and startup at login are not implemented.
+
+The popup is 360 logical pixels wide and changes height with the page (420–660 pixels), with scrolling content and a fixed Options footer. It starts hidden in the tray; clicking outside hides it. Charcoal and amber is the default appearance, with an ivory light variant. Preferences synchronize with the optional full dashboard. Windows accounts for actual client and visible-frame margins so the bottom edge docks flush against the taskbar, including after resizing; macOS retains menu-bar positioning and accessory activation. Native Windows and universal Mac packages are built through GitHub Actions. Internal artifacts are unsigned.
 
 ![MeterLuma tray panel](artifacts/quick-view.png)
 
@@ -73,7 +75,7 @@ These provider endpoints are external dependencies and can change. Unsupported r
 
 GitHub home: `youssefrigale/MeterLuma`. Keep the repository private until the implementation, licensing, and release materials are ready for owner review. Free pricing does not imply an open-source license; the owner still needs to choose the source licensing terms.
 
-## Verified beta checkpoint — 2026-10-13
+## Previous verified beta checkpoint — 2026-10-13
 
 - Runtime commit: `ce7795af717b4f4e3ac9da8872cc612896d1db07`.
 - [Native and interface build run](https://github.com/youssefrigale/MeterLuma/actions/runs/38470002503): successful Windows x64 and universal Mac packages; 14 native tests per platform, including frame margins, taskbar edges, scaling, and negative monitor coordinates; 32 browser checks.

@@ -23,7 +23,7 @@ test('provider visibility and preferences persist after reload', async ({ page }
   await expect(page.getByRole('article')).toHaveCount(2);
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await page.getByRole('button', { name: 'light theme' }).click();
-  await page.getByRole('switch', { name: 'Show remaining allowance' }).click();
+  await expect(page.getByRole('switch', { name: 'Show remaining allowance' })).toHaveAttribute('aria-checked', 'true');
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   await expect(page.getByRole('article')).toHaveCount(2);

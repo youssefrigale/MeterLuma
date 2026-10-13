@@ -7,6 +7,9 @@ export interface Settings {
   refreshMinutes: number;
   enabled: ProviderId[];
   liveProviders: ProviderId[];
+  resetStyle: 'relative' | 'absolute';
+  timeFormat: 'auto' | '12' | '24';
+  providerOrder: ProviderId[];
 }
 export interface Metric { label: string; usedPercent: number; resetAt: number | null }
 export interface Provider {
@@ -19,7 +22,7 @@ export interface Provider {
   metrics: Metric[];
   fetchedAt?: number;
 }
-export const defaults: Settings = { theme: 'dark', demo: true, remaining: false, refreshMinutes: 5, enabled: ['claude', 'codex', 'cursor'], liveProviders: [] };
+export const defaults: Settings = { theme: 'dark', demo: true, remaining: true, refreshMinutes: 5, enabled: ['claude', 'codex', 'cursor'], liveProviders: [], resetStyle: 'relative', timeFormat: 'auto', providerOrder: ['claude', 'codex', 'cursor'] };
 export const SETTINGS_KEY = 'meterluma.settings.v1';
 const providerIds: ProviderId[] = ['claude', 'codex', 'cursor'];
 
@@ -36,9 +39,12 @@ export function readSettings(): Settings {
       theme: ['dark', 'light', 'system'].includes(String(parsed.theme)) ? parsed.theme as Theme : defaults.theme,
       demo: typeof parsed.demo === 'boolean' ? parsed.demo : defaults.demo,
       remaining: typeof parsed.remaining === 'boolean' ? parsed.remaining : defaults.remaining,
-      refreshMinutes: [1, 5, 15].includes(Number(parsed.refreshMinutes)) ? Number(parsed.refreshMinutes) : defaults.refreshMinutes,
+      refreshMinutes: [1, 5, 15, 30, 60].includes(Number(parsed.refreshMinutes)) ? Number(parsed.refreshMinutes) : defaults.refreshMinutes,
       enabled: Array.isArray(enabled) ? providerIds.filter(id => enabled.includes(id)) : [...defaults.enabled],
       liveProviders: Array.isArray(liveProviders) ? providerIds.filter(id => liveProviders.includes(id)) : [],
+      resetStyle: parsed.resetStyle === 'absolute' ? 'absolute' : 'relative',
+      timeFormat: parsed.timeFormat === '12' || parsed.timeFormat === '24' ? parsed.timeFormat : 'auto',
+      providerOrder: Array.isArray(parsed.providerOrder) ? [...new Set(parsed.providerOrder.filter((id): id is ProviderId => providerIds.includes(id as ProviderId))), ...providerIds.filter(id => !(parsed.providerOrder as unknown[]).includes(id))] : [...providerIds],
     };
   } catch { return { ...defaults }; }
 }
