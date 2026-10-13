@@ -63,6 +63,8 @@ jobs:
           workspaces: src-tauri -> target
           shared-key: meter-luma-${{ matrix.platform }}-${{ matrix.targets }}
       - run: npm ci
+      - name: Prepare frontend assets for release-profile tests
+        run: npm run build
       - name: Check providers and taskbar placement
         run: cargo test --release --manifest-path src-tauri/Cargo.toml --lib
       - name: Build unsigned internal prototype
