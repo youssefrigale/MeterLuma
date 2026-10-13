@@ -19,7 +19,11 @@ export function useLiveProviders(settings: Settings) {
       try { result = { id, provider: await invoke<Provider>('refresh_provider', { providerId: id }) }; }
       catch (error) { result = { id, error: typeof error === 'string' ? error : 'This provider could not be refreshed.' }; }
       if (active) setResults(current => current.map(row => row.id === id ? result : row));
-    })).then(() => { if (active) setUpdatedAt(Date.now()); });
+      return result;
+    })).then(results => {
+      const fetched = results.flatMap(result => typeof result.provider?.fetchedAt === 'number' ? [result.provider.fetchedAt] : []);
+      if (active) setUpdatedAt(fetched.length ? Math.min(...fetched) : null);
+    });
     return () => { active = false; };
   }, [settings.demo, ids, request]);
   useEffect(() => {

@@ -17,6 +17,7 @@ export interface Provider {
   initials: string;
   spendToday: number | null;
   metrics: Metric[];
+  fetchedAt?: number;
 }
 export const defaults: Settings = { theme: 'dark', demo: true, remaining: false, refreshMinutes: 5, enabled: ['claude', 'codex', 'cursor'], liveProviders: [] };
 export const SETTINGS_KEY = 'meterluma.settings.v1';

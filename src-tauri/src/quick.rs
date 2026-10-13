@@ -1,0 +1,42 @@
+use tauri::{Manager, PhysicalPosition, Size, WebviewUrl, WebviewWindowBuilder};
+
+pub fn create(app: &tauri::App) -> tauri::Result<()> {
+    WebviewWindowBuilder::new(app, "quick", WebviewUrl::App("index.html".into()))
+        .title("MeterLuma quick view")
+        .initialization_script("window.__METERLUMA_QUICK__ = true;")
+        .inner_size(400.0, 640.0)
+        .decorations(false).resizable(false).visible(false).focused(false)
+        .always_on_top(true).skip_taskbar(true).build()?;
+    Ok(())
+}
+
+pub fn toggle(app: &tauri::AppHandle, point: Option<(f64, f64)>) {
+    let Some(window) = app.get_webview_window("quick") else { return; };
+    if window.is_visible().unwrap_or(false) { let _ = window.hide(); return; }
+    if let Some((x, y)) = point {
+        if let Ok(monitors) = window.available_monitors() {
+            if let Some(monitor) = monitors.iter().find(|monitor| {
+                let origin = monitor.position(); let size = monitor.size();
+                x >= origin.x as f64 && y >= origin.y as f64 && x < origin.x as f64 + size.width as f64 && y < origin.y as f64 + size.height as f64
+            }) {
+                let scale = monitor.scale_factor();
+                let origin = monitor.position(); let size = monitor.size();
+                let logical_height = 640.0_f64.min(size.height as f64 / scale - 40.0);
+                let width = 400.0 * scale; let height = logical_height * scale;
+                let _ = window.set_size(Size::Logical(tauri::LogicalSize::new(400.0, logical_height)));
+                let left = (x - width / 2.0).clamp(origin.x as f64 + 8.0, (origin.x as f64 + size.width as f64 - width - 8.0).max(origin.x as f64 + 8.0));
+                let top = if y > origin.y as f64 + size.height as f64 / 2.0 { y - height - 14.0 } else { y + 14.0 };
+                let top = top.clamp(origin.y as f64 + 8.0, (origin.y as f64 + size.height as f64 - height - 8.0).max(origin.y as f64 + 8.0));
+                let _ = window.set_position(PhysicalPosition::new(left as i32, top as i32));
+            }
+        }
+    } else { let _ = window.center(); }
+    let _ = window.show();
+    let _ = window.set_focus();
+}
+
+#[tauri::command]
+pub fn show_dashboard(app: tauri::AppHandle) {
+    super::show_main(&app);
+    if let Some(quick) = app.get_webview_window("quick") { let _ = quick.hide(); }
+}

@@ -70,6 +70,7 @@ pub fn map(id: ProviderId, value: &Value) -> Result<Snapshot, String> {
     Ok(Snapshot {
         id, name: name.into(), plan: value["plan_type"].as_str().unwrap_or("Subscription").into(),
         color: color.into(), initials: initials.into(), spend_today: None, metrics,
+        fetched_at: chrono::Utc::now().timestamp_millis(),
     })
 }
 

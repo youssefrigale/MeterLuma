@@ -69,4 +69,6 @@ jobs:
           path: |
             src-tauri/target/**/bundle/nsis/*.exe
             src-tauri/target/**/bundle/dmg/*.dmg
+            src-tauri/target/release/meterluma.exe
+            src-tauri/Cargo.lock
           if-no-files-found: error

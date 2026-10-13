@@ -27,6 +27,7 @@ pub struct Snapshot {
     pub initials: String,
     pub spend_today: Option<f64>,
     pub metrics: Vec<Metric>,
+    pub fetched_at: i64,
 }
 
 struct Cache {

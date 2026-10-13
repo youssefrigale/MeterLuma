@@ -193,6 +193,25 @@ tbody tr:last-child td { border: 0; }
 .detail-metrics small { grid-column: 1 / -1; color: var(--muted); font-size: 10px; }
 .detail-spend { display: flex; justify-content: space-between; margin-top: 20px; font-size: 12px; }
 .detail-spend strong { font-weight: 500; }
+.quick-view { padding: 20px; margin: 0; width: 100%; min-height: 100vh; display: flex; flex-direction: column; }
+.quick-header { display: flex; align-items: center; justify-content: space-between; }
+.quick-header .brand { padding: 0; }
+.quick-header .brand > span { font-size: 19px; }
+.quick-intro { margin: 26px 0 21px; }
+.quick-intro h1 { font-family: Georgia, serif; font-size: 25px; font-weight: 400; }
+.quick-providers { display: grid; gap: 12px; }
+.quick-provider { padding: 16px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+.quick-provider-heading { display: flex; align-items: center; gap: 9px; margin-bottom: 13px; }
+.quick-provider-heading h2 { font-size: 13px; font-weight: 500; }
+.quick-provider-heading > span:last-child { margin-left: auto; font-size: 9px; color: var(--subtle); }
+.quick-provider .provider-logo { width: 27px; height: 27px; font-size: 20px; }
+.quick-provider .provider-logo.claude { font-size: 25px; }
+.quick-metric + .quick-metric { margin-top: 13px; }
+.quick-metric > div:first-child { display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 7px; color: var(--muted); }
+.quick-metric strong { color: var(--text); font-weight: 400; }
+.quick-metric small { display: inline-block; font-size: 9px; color: var(--subtle); margin-top: 6px; }
+.quick-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 21px; margin-top: auto; }
+.quick-footer > span { display: flex; gap: 5px; align-items: center; font-size: 9px; color: var(--subtle); }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
 }

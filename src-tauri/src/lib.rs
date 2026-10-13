@@ -1,4 +1,5 @@
 mod providers;
+mod quick;
 
 use tauri::{
     menu::{Menu, MenuItem},
@@ -28,8 +29,9 @@ pub fn run() {
     tauri::Builder::default()
         .manage(providers::ProviderService::new().expect("Provider networking could not be initialized"))
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show_main(app)))
-        .invoke_handler(tauri::generate_handler![set_tray_summary, providers::refresh_provider])
+        .invoke_handler(tauri::generate_handler![set_tray_summary, providers::refresh_provider, quick::show_dashboard])
         .setup(|app| {
+            quick::create(app)?;
             let show = MenuItem::with_id(app, "show", "Open MeterLuma", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit MeterLuma", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show, &quit])?;
@@ -48,15 +50,19 @@ pub fn run() {
                     if let TrayIconEvent::Click {
                         button: MouseButton::Left,
                         button_state: MouseButtonState::Up,
+                        position,
                         ..
                     } = event {
-                        show_main(tray.app_handle());
+                        quick::toggle(tray.app_handle(), Some((position.x, position.y)));
                     }
                 })
                 .build(app)?;
             Ok(())
         })
         .on_window_event(|window, event| {
+            if window.label() == "quick" && matches!(event, tauri::WindowEvent::Focused(false)) {
+                let _ = window.hide();
+            }
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();
                 if let Err(error) = window.hide() {

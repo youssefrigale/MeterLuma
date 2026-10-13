@@ -8,7 +8,7 @@ This is an internal prototype, not a public release. The dashboard, provider vis
 
 In the desktop app, open Connections and select **Connection options**, then **Use local sign-in**. This is the point where MeterLuma reads that provider's existing local credential. Browser preview mode cannot access native credentials or fetch live limits. Live and sample spending are never mixed.
 
-The Tauri shell includes a tray/menu-bar icon, open/quit actions, a tray summary, single-instance handling, and close-to-tray behavior. Native builds are configured through GitHub Actions for Windows and a universal Intel/Apple Silicon Mac package. Internal artifacts are unsigned.
+The Tauri shell includes a tray/menu-bar icon, a compact quick-view window, open/quit actions, a tray summary, single-instance handling, and close-to-tray behavior. Left-click the icon to toggle the quick view; it hides when it loses focus. Open the full dashboard from its footer or the tray menu. The quick view follows the dashboard's saved theme and provider visibility. Native builds are configured through GitHub Actions for Windows and a universal Intel/Apple Silicon Mac package. Internal artifacts are unsigned.
 
 ![MeterLuma dashboard](artifacts/overview-dark.png)
 

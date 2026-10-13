@@ -41,6 +41,12 @@ export default function App() {
   }
 
   useEffect(() => {
+    const sync = (event: StorageEvent) => { if (event.key === SETTINGS_KEY) setSettings(readSettings()); };
+    window.addEventListener('storage', sync);
+    return () => window.removeEventListener('storage', sync);
+  }, []);
+
+  useEffect(() => {
     try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); }
     catch { setToast('Your settings could not be saved on this device.'); }
     const media = window.matchMedia('(prefers-color-scheme: dark)');
@@ -63,7 +69,7 @@ export default function App() {
   useEffect(() => {
     if (!isTauri()) return;
     void invoke('set_tray_summary', { summary: settings.demo ? `Demo preview · ${providers.length} providers · ${money(spend)} sample spend today` : `${providers.length} live providers${nextReset ? ` · ${nextReset.provider} resets in ${countdown(nextReset.resetAt, now)}` : ''}` }).catch(() => setToast('The tray summary could not be updated.'));
-  }, [settings.demo, providers.length, spend]);
+  }, [settings.demo, providers.length, spend, nextReset?.resetAt, nextReset?.provider, now]);
 
   return <div className="app-shell">
     <aside className="sidebar">
@@ -98,10 +104,10 @@ export default function App() {
 
         {page === 'settings' && <>
           <section className="panel settings-panel"><p className="eyebrow">APPEARANCE</p><SettingRow title="Theme" description="Choose your preferred light, or follow your device."><div className="segmented theme-control">{(['light', 'dark', 'system'] as const).map(theme => <button key={theme} aria-label={`${theme} theme`} aria-pressed={settings.theme === theme} className={settings.theme === theme ? 'selected' : ''} onClick={() => updateSettings({ theme })}><Icon name={theme === 'light' ? 'sun' : theme === 'dark' ? 'moon' : 'monitor'} size={15}/><span>{theme}</span></button>)}</div></SettingRow><SettingRow title="Show remaining allowance" description="Display what is left instead of what has been used."><Switch label="Show remaining allowance" checked={settings.remaining} onChange={() => updateSettings({ remaining: !settings.remaining })}/></SettingRow></section>
-          <section className="panel settings-panel"><p className="eyebrow">REFRESH & DATA</p><SettingRow title="Demo refresh interval" description="Refresh the preview timestamp. Sample values stay fixed."><select aria-label="Demo refresh interval" value={settings.refreshMinutes} onChange={event => updateSettings({ refreshMinutes: Number(event.target.value) })}><option value="1">Every minute</option><option value="5">Every 5 minutes</option><option value="15">Every 15 minutes</option></select></SettingRow><SettingRow title="Demo preview" description="Sample providers and spending. No live API requests."><Switch label="Demo preview" checked={settings.demo} onChange={() => updateSettings({ demo: !settings.demo })}/></SettingRow></section>
+          <section className="panel settings-panel"><p className="eyebrow">REFRESH & DATA</p><SettingRow title="Refresh interval" description={settings.demo ? 'Refresh the preview timestamp. Sample values stay fixed.' : 'Live usage refreshes every 5 or 15 minutes.'}><select aria-label="Refresh interval" value={settings.demo ? settings.refreshMinutes : Math.max(5, settings.refreshMinutes)} onChange={event => updateSettings({ refreshMinutes: Number(event.target.value) })}><option value="1" disabled={!settings.demo}>Every minute</option><option value="5">Every 5 minutes</option><option value="15">Every 15 minutes</option></select></SettingRow><SettingRow title="Demo preview" description="Sample providers and spending. No live API requests."><Switch label="Demo preview" checked={settings.demo} onChange={() => updateSettings({ demo: !settings.demo })}/></SettingRow></section>
           <section className="panel about-panel"><Mark size={40}/><div><h2>MeterLuma <span className="version">0.1.0 prototype</span></h2><p>All your AI usage, one glance.</p><p className="muted">{isTauri() ? 'Desktop preview' : 'Browser preview'} · Settings saved on this device</p></div><div className="about-actions"><button className="text-button" onClick={() => setDialog('pro')}>Discover Pro</button><button className="text-button" onClick={() => { updateSettings({ ...defaults, enabled: [...defaults.enabled] }); setToast('Settings reset to their defaults.'); }}>Reset settings</button></div></section>
         </>}
-        <footer className="main-footer"><span><span className="tiny-dot"/>{settings.demo ? 'Sample data only' : `${providers.length} live connections`}<span className="footer-separator">·</span> {settings.demo || live.updatedAt ? `Refreshed ${new Date(settings.demo ? refreshed : live.updatedAt!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Ready for setup'}</span><span>Made for a little peace of mind.</span></footer>
+        <footer className="main-footer"><span><span className="tiny-dot"/>{settings.demo ? 'Sample data only' : `${providers.length} live connections`}<span className="footer-separator">·</span> {settings.demo || live.updatedAt ? `${settings.demo ? 'Refreshed' : 'Fetched'} ${new Date(settings.demo ? refreshed : live.updatedAt!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Ready for setup'}</span><span>Made for a little peace of mind.</span></footer>
       </main>
     </div>
     {toast && <div role="status" className="toast"><Icon name="check" size={16}/>{toast}</div>}
