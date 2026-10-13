@@ -1,0 +1,70 @@
+name: Check and build MeterLuma
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: meterluma-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  interface:
+    name: Interface checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm test
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: browser-test-report
+          path: playwright-report/
+  desktop:
+    name: Desktop (${{ matrix.platform }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows
+            runner: windows-latest
+            targets: x86_64-pc-windows-msvc
+            args: --bundles nsis
+          - platform: macos
+            runner: macos-latest
+            targets: aarch64-apple-darwin,x86_64-apple-darwin
+            args: --target universal-apple-darwin --bundles dmg
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: Rust toolchain
+        run: |
+          rustup update stable
+          rustup default stable
+          rustup target add ${{ matrix.targets == 'aarch64-apple-darwin,x86_64-apple-darwin' && 'aarch64-apple-darwin x86_64-apple-darwin' || matrix.targets }}
+      - run: npm ci
+      - name: Build unsigned internal prototype
+        run: npm run desktop:build -- ${{ matrix.args }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: MeterLuma-${{ matrix.platform }}-unsigned-prototype
+          path: |
+            src-tauri/target/**/bundle/nsis/*.exe
+            src-tauri/target/**/bundle/dmg/*.dmg
+          if-no-files-found: error

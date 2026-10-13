@@ -1,0 +1,16 @@
+import { chromium } from '@playwright/test';
+import { mkdir } from 'node:fs/promises';
+
+await mkdir('artifacts', { recursive: true });
+const browser = await chromium.launch();
+const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+await page.goto('http://127.0.0.1:1420');
+await page.getByRole('heading', { name: 'Your AI, in view.' }).waitFor();
+await page.screenshot({ path: 'artifacts/overview-dark.png', fullPage: true });
+await page.getByRole('button', { name: 'Toggle light and dark theme' }).click();
+await page.screenshot({ path: 'artifacts/overview-light.png', fullPage: true });
+await page.getByRole('button', { name: 'Toggle light and dark theme' }).click();
+await page.setViewportSize({ width: 430, height: 780 });
+await page.screenshot({ path: 'artifacts/overview-compact.png', fullPage: true });
+await browser.close();
+console.log('Captured dark, light, and compact dashboard previews.');
