@@ -29,6 +29,13 @@ npx playwright install chromium
 npm test
 ```
 
+Optional WebKit coverage, closer to the Mac renderer:
+
+```powershell
+npx playwright install webkit
+npm run test:webkit
+```
+
 For the desktop app, install stable Rust and the OS build prerequisites from the [official Tauri instructions](https://v2.tauri.app/start/prerequisites/). On Windows this includes the Visual Studio C++ build tools and Windows SDK. On macOS this includes Xcode command-line tools.
 
 ```powershell
@@ -61,3 +68,12 @@ These provider endpoints are external dependencies and can change. Unsupported r
 ## Ownership and publishing
 
 GitHub home: `youssefrigale/MeterLuma`. Keep the repository private until the implementation, licensing, and release materials are ready for owner review. Free pricing does not imply an open-source license; the owner still needs to choose the source licensing terms.
+
+## Verified beta checkpoint — 2026-10-13
+
+- Runtime commit: `7a66195809af56821299920da5926aec47821027`.
+- [Native and interface build run](https://github.com/youssefrigale/MeterLuma/actions/runs/38427978712): successful Windows x64 and universal Mac packages; 8 native provider tests per platform; 24 browser checks.
+- Additional local WebKit verification: 12 checks passed.
+- The downloaded Windows executable was launched successfully and its MeterLuma window appeared.
+- Windows and Mac builds produced identical `Cargo.lock` files; the resolved native dependencies are now committed.
+- Real provider accounts, Mac GUI behavior, signing, updater, Pro features, licensing, and checkout remain unverified or unimplemented as described in `docs/launch.md`. This checkpoint is not a worldwide-release approval.

@@ -10,6 +10,7 @@
     "desktop:dev": "tauri dev",
     "desktop:build": "tauri build",
     "test": "playwright test",
+    "test:webkit": "playwright test --config playwright.webkit.config.ts",
     "test:ui": "playwright test --ui"
   },
   "dependencies": {
