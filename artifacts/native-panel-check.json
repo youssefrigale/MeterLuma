@@ -1,0 +1,12 @@
+{
+  "checks": [
+    "hidden startup",
+    "single-instance panel opening",
+    "native 360 × 660 sizing",
+    "Options Settings navigation",
+    "panel hides when dashboard opens",
+    "light appearance synchronized between windows"
+  ],
+  "passed": true,
+  "testedAt": "2026-10-13T20:40:27.908Z"
+}

@@ -75,9 +75,10 @@ GitHub home: `youssefrigale/MeterLuma`. Keep the repository private until the im
 
 ## Verified beta checkpoint — 2026-10-13
 
-- Runtime commit: `7a66195809af56821299920da5926aec47821027`.
-- [Native and interface build run](https://github.com/youssefrigale/MeterLuma/actions/runs/38427978712): successful Windows x64 and universal Mac packages; 8 native provider tests per platform; 24 browser checks.
-- Additional local WebKit verification: 12 checks passed.
-- The downloaded Windows executable was launched successfully and its MeterLuma window appeared.
+- Runtime commit: `0c439156e3a075c5d24406b6b52bedec9acdc0e8`.
+- [Native and interface build run](https://github.com/youssefrigale/MeterLuma/actions/runs/38462260553): successful Windows x64 and universal Mac packages; 8 native provider tests per platform; 30 browser checks.
+- Additional local WebKit verification: 15 checks passed. The dark tray panel also passed an additional accessibility check.
+- Six actual Windows WebView2 integration checks passed: hidden startup, single-instance panel opening, 360 × 660 logical sizing, Options navigating to Settings, panel hiding when Settings opens, and theme synchronization. See `artifacts/native-panel-check.json` and `artifacts/quick-view-windows-native.png`. These checks do not substitute for clicking the tray icon on every OS and display configuration.
+- The updated Windows executable was relaunched normally and its compact MeterLuma window appeared. The light theme from the requested reference was applied through Settings.
 - Windows and Mac builds produced identical `Cargo.lock` files; the resolved native dependencies are now committed.
 - Real provider accounts, Mac GUI behavior, signing, updater, Pro features, licensing, and checkout remain unverified or unimplemented as described in `docs/launch.md`. This checkpoint is not a worldwide-release approval.
