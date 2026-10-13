@@ -1,3 +1,5 @@
+mod providers;
+
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
@@ -24,8 +26,9 @@ fn set_tray_summary(app: tauri::AppHandle, summary: String) -> Result<(), String
 
 pub fn run() {
     tauri::Builder::default()
+        .manage(providers::ProviderService::new().expect("Provider networking could not be initialized"))
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show_main(app)))
-        .invoke_handler(tauri::generate_handler![set_tray_summary])
+        .invoke_handler(tauri::generate_handler![set_tray_summary, providers::refresh_provider])
         .setup(|app| {
             let show = MenuItem::with_id(app, "show", "Open MeterLuma", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit MeterLuma", true, None::<&str>)?;

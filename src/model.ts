@@ -6,18 +6,19 @@ export interface Settings {
   remaining: boolean;
   refreshMinutes: number;
   enabled: ProviderId[];
+  liveProviders: ProviderId[];
 }
-export interface Metric { label: string; usedPercent: number; resetAt: number }
+export interface Metric { label: string; usedPercent: number; resetAt: number | null }
 export interface Provider {
   id: ProviderId;
   name: string;
   plan: string;
   color: string;
   initials: string;
-  spendToday: number;
+  spendToday: number | null;
   metrics: Metric[];
 }
-export const defaults: Settings = { theme: 'dark', demo: true, remaining: false, refreshMinutes: 5, enabled: ['claude', 'codex', 'cursor'] };
+export const defaults: Settings = { theme: 'dark', demo: true, remaining: false, refreshMinutes: 5, enabled: ['claude', 'codex', 'cursor'], liveProviders: [] };
 export const SETTINGS_KEY = 'meterluma.settings.v1';
 const providerIds: ProviderId[] = ['claude', 'codex', 'cursor'];
 
@@ -29,12 +30,14 @@ export function readSettings(): Settings {
     if (!value || typeof value !== 'object') return { ...defaults };
     const parsed = value as Record<string, unknown>;
     const enabled = parsed.enabled;
+    const liveProviders = parsed.liveProviders;
     return {
       theme: ['dark', 'light', 'system'].includes(String(parsed.theme)) ? parsed.theme as Theme : defaults.theme,
       demo: typeof parsed.demo === 'boolean' ? parsed.demo : defaults.demo,
       remaining: typeof parsed.remaining === 'boolean' ? parsed.remaining : defaults.remaining,
       refreshMinutes: [1, 5, 15].includes(Number(parsed.refreshMinutes)) ? Number(parsed.refreshMinutes) : defaults.refreshMinutes,
       enabled: Array.isArray(enabled) ? providerIds.filter(id => enabled.includes(id)) : [...defaults.enabled],
+      liveProviders: Array.isArray(liveProviders) ? providerIds.filter(id => liveProviders.includes(id)) : [],
     };
   } catch { return { ...defaults }; }
 }
@@ -62,7 +65,8 @@ export const dailySpend: Record<ProviderId, number[]> = {
   cursor: [0.4, 0.6, 0.8, 0.6, 1.0, 0.8, 1.1, 0.4, 0.9, 0.7, 1.1, 0.5, 0.8, 1.02],
 };
 export function money(value: number) { return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value); }
-export function countdown(resetAt: number, now: number): string {
+export function countdown(resetAt: number | null, now: number): string {
+  if (resetAt === null) return 'Reset time unavailable';
   const minutes = Math.max(0, Math.ceil((resetAt - now) / 60_000));
   if (!minutes) return 'Reset due';
   const days = Math.floor(minutes / 1440);

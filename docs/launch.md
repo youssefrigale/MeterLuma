@@ -13,7 +13,7 @@ MeterLuma is an active project. The initial preview is complete when its interfa
 
 ## Work required before public release
 
-1. Implement real Claude, Codex, and Cursor connections with separate platform credential readers and account-isolated caches. Keep credentials out of the frontend, telemetry, logs, and exported usage.
+1. Validate the experimental Claude Code, Codex CLI, and Cursor connections. Extend credential readers for keyring-only Codex and Claude Desktop sign-ins, and cover actual subscription/enterprise variants. The current readers, native HTTP clients, account-fingerprinted caches, bounded responses, and credential-free error messages are implemented; real-account QA is outstanding.
 2. Test actual sign-in, stale tokens, account changes, API throttling, unavailable plans, and provider schema changes on Windows and macOS. Missing data must remain missing, never become a fabricated zero.
 3. Implement Pro features that will actually be sold. Define the one-time price, supported devices, upgrade policy, offline license behavior, and transfer policy before integrating checkout.
 4. Configure an owner-controlled merchant-of-record or payment account, verified webhook handling, license issuance, refunds, and tax handling. Real checkout needs the owner's business and payout setup.
