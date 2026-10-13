@@ -15,7 +15,7 @@ pub fn toggle(app: &tauri::AppHandle, point: Option<(f64, f64)>) {
     if window.is_visible().unwrap_or(false) { let _ = window.hide(); return; }
     #[cfg(target_os = "windows")]
     if position_windows(&window, point) {
-        let _ = window.show(); let _ = window.set_focus(); return;
+        let _ = window.set_focus(); return;
     }
     if let Some((x, y)) = point {
         if let Ok(monitors) = window.available_monitors() {
@@ -48,13 +48,12 @@ fn position_windows(window: &tauri::WebviewWindow, point: Option<(f64, f64)>) ->
     }).map(|monitor| monitor.scale_factor())).unwrap_or_else(|| window.scale_factor().unwrap_or(1.0));
     let width = (360.0 * scale).round() as i32;
     let height = (660.0 * scale).round() as i32;
-    let width = width.min(area.work.right - area.work.left).max(1);
-    let height = height.min(area.work.bottom - area.work.top).max(1);
     let (left, top) = super::placement::dock(area, width, height, point);
-    // Move to the target display first, then apply its physical size and final snapped position.
+    // Move to the target display before measuring its actual window-frame and client margins.
     if window.set_position(PhysicalPosition::new(left, top)).is_err() { return false; }
-    if window.set_size(Size::Physical(tauri::PhysicalSize::new(width as u32, height as u32))).is_err() { return false; }
-    window.set_position(PhysicalPosition::new(left, top)).is_ok()
+    if window.show().is_err() { return false; }
+    let Ok(handle) = window.hwnd() else { return false; };
+    super::placement::fit_window(handle.0 as *mut std::ffi::c_void, area, width, height, point)
 }
 
 #[tauri::command]
