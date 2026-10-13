@@ -1,11 +1,11 @@
 @layer base, responsive, panel;
 @layer panel {
-  .tray-panel { --panel-bg: #f5f1e9; --panel-card: #fffcf6; --panel-tabs: #eae3d6; --panel-track: #e6decd; --panel-text: #302c25; --panel-muted: #665c4b; --panel-line: #ded6c7; --panel-accent: #805117; --panel-accent-bg: #eedec1; background: var(--panel-bg); color: var(--panel-text); }
-  .tray-panel[data-theme='dark'] { --panel-bg: #191a17; --panel-card: #22241f; --panel-tabs: #2b2e27; --panel-track: #3b3f34; --panel-text: #f4f1e8; --panel-muted: #acae9f; --panel-line: #35382e; --panel-accent: #edbc75; --panel-accent-bg: #edbc7517; }
+  .tray-panel { --panel-bg: #f5f5f6; --panel-card: #fafafa; --panel-tabs: #e9e9ec; --panel-track: #dddde1; --panel-text: #19191c; --panel-muted: #626269; --panel-line: #d8d8dd; --panel-accent: #202024; --panel-accent-bg: #e3e3e7; --panel-meter: #29292d; --mark-ink: #fff; background: var(--panel-bg); color: var(--panel-text); }
+  .tray-panel[data-theme='dark'] { --panel-bg: #222225; --panel-card: #28282c; --panel-tabs: #303034; --panel-track: #3e3e44; --panel-text: #f2f2f4; --panel-muted: #b0b0b8; --panel-line: #3b3b41; --panel-accent: #f4f4f5; --panel-accent-bg: #ffffff0c; --panel-meter: #ededf0; --mark-ink: #202024; }
   .tray-panel body { min-width: 300px; background: var(--panel-bg); }
   .quick-view { position: relative; padding: 0; margin: 0; width: 100%; height: 100dvh; min-height: 0; display: flex; flex-direction: row; overflow: hidden; border: 1px solid var(--panel-line); border-radius: 14px 14px 0 0; background: var(--panel-bg); color: var(--panel-text); font-size: 12px; }
   .quick-body { display: flex; flex-direction: column; flex: 1; min-width: 0; }
-  .quick-rail { flex: 0 0 45px; padding: 14px 0 10px; display: flex; flex-direction: column; gap: 8px; border-right: 1px solid var(--panel-line); background: color-mix(in srgb, var(--panel-bg) 90%, #000); }
+  .quick-rail { flex: 0 0 45px; padding: 14px 0 10px; display: flex; flex-direction: column; gap: 8px; border-right: 1px solid var(--panel-line); background: color-mix(in srgb, var(--panel-bg) 96%, #000); }
   .quick-rail button { position: relative; display: grid; place-items: center; width: 100%; height: 40px; color: var(--provider-color, var(--panel-muted)); }
   .quick-rail button > span { font-size: 26px; line-height: 1; }
   .quick-rail > button:first-child { color: var(--panel-accent); }
@@ -62,12 +62,12 @@
   .quick-metric-title { display: flex; align-items: center; gap: 7px; margin-bottom: 9px; color: var(--panel-text); }
   .quick-metric h3 { font-size: 13px; font-weight: 500; margin: 0; }
   .quick-metric-title i { width: 5px; height: 5px; border-radius: 50%; background: #87cbb3; }
-  .quick-metric-title i.low { background: var(--panel-accent); }
+  .quick-metric-title i.low { background: #c48827; }
   .quick-metric-title i.critical { background: #f37869; }
   .quick-metric-title > span { font-size: 9px; }
   .quick-metric-title strong { font-size: 12px; font-weight: 500; color: var(--panel-text); margin-right: 2px; }
   .quick-meter { height: 9px; background: var(--panel-track); border-radius: 5px; overflow: hidden; }
-  .quick-meter > span { display: block; height: 100%; background: var(--provider-color); border-radius: inherit; }
+  .quick-meter > span { display: block; height: 100%; background: var(--panel-meter); border-radius: inherit; }
   .quick-metric-caption { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-top: 7px; line-height: 1.5; font-size: 11px; color: var(--panel-muted); }
   .quick-metric-caption > span:last-child { font-size: 10px; text-align: right; }
   .quick-footer { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 6px; margin: 0; padding: 11px 12px; border-top: 1px solid var(--panel-line); background: var(--panel-bg); }
@@ -98,7 +98,7 @@
   .quick-trend { margin: 25px 0; }
   .quick-trend h3 { display: flex; justify-content: space-between; }
   .quick-sparkbars { display: flex; align-items: end; gap: 4px; height: 42px; margin-top: 14px; }
-  .quick-sparkbars i { flex: 1; background: var(--provider-color); border-radius: 2px 2px 0 0; opacity: .8; }
+  .quick-sparkbars i { flex: 1; background: var(--panel-meter); border-radius: 2px 2px 0 0; opacity: .8; }
   .quick-models { border-top: 1px solid var(--panel-line); padding-top: 17px; }
   .quick-detail > .quick-info { margin-top: 22px; }
   .quick-detail .quick-provider-heading { margin-bottom: 12px; }

@@ -1,12 +1,13 @@
 import type { Provider } from './model';
 import { countdown, money } from './model';
 import { Icon } from './icons';
+import { ProviderLogo } from './ProviderLogo';
 
 export function ProviderCard({ provider, remaining, now, onDetails, demo = true }: { provider: Provider; remaining: boolean; now: number; onDetails: () => void; demo?: boolean }) {
   const primary = provider.metrics[0];
   return <article className="provider-card" style={{ '--provider-color': provider.color } as React.CSSProperties}>
     <header className="provider-heading">
-      <div className={`provider-logo ${provider.id}`} aria-hidden="true">{provider.initials}</div>
+      <div className={`provider-logo ${provider.id}`} aria-hidden="true"><ProviderLogo id={provider.id}/></div>
       <div><h3>{provider.name}</h3><span className="provider-plan">{provider.plan} plan</span></div>
       <span className="connection-dot" title={demo ? 'Sample connection' : 'Live connection'} />
     </header>

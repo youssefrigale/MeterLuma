@@ -22,7 +22,7 @@ export interface Provider {
   metrics: Metric[];
   fetchedAt?: number;
 }
-export const defaults: Settings = { theme: 'dark', demo: true, remaining: true, refreshMinutes: 5, enabled: ['claude', 'codex', 'cursor'], liveProviders: [], resetStyle: 'relative', timeFormat: 'auto', providerOrder: ['claude', 'codex', 'cursor'] };
+export const defaults: Settings = { theme: 'light', demo: true, remaining: true, refreshMinutes: 5, enabled: ['claude', 'codex', 'cursor'], liveProviders: [], resetStyle: 'relative', timeFormat: 'auto', providerOrder: ['claude', 'codex', 'cursor'] };
 export const SETTINGS_KEY = 'meterluma.settings.v1';
 const providerIds: ProviderId[] = ['claude', 'codex', 'cursor'];
 
@@ -52,15 +52,15 @@ export function readSettings(): Settings {
 export function sampleProviders(anchor: number): Provider[] {
   const hour = 3_600_000;
   return [
-    { id: 'claude', name: 'Claude', plan: 'Max', color: '#dca18b', initials: '✳', spendToday: 4.26, metrics: [
+    { id: 'claude', name: 'Claude', plan: 'Max', color: '#515157', initials: '✳', spendToday: 4.26, metrics: [
       { label: 'Session', usedPercent: 38, resetAt: anchor + 2.22 * hour },
       { label: 'Weekly', usedPercent: 64, resetAt: anchor + 78 * hour },
     ] },
-    { id: 'codex', name: 'Codex', plan: 'Pro', color: '#9dcbb8', initials: '⌘', spendToday: 3.14, metrics: [
+    { id: 'codex', name: 'Codex', plan: 'Pro', color: '#85858c', initials: '⌘', spendToday: 3.14, metrics: [
       { label: 'Session', usedPercent: 22, resetAt: anchor + 3.65 * hour },
       { label: 'Weekly', usedPercent: 47, resetAt: anchor + 102 * hour },
     ] },
-    { id: 'cursor', name: 'Cursor', plan: 'Pro', color: '#b8b7df', initials: '↗', spendToday: 1.02, metrics: [
+    { id: 'cursor', name: 'Cursor', plan: 'Pro', color: '#b8b8bf', initials: '↗', spendToday: 1.02, metrics: [
       { label: 'Monthly', usedPercent: 76, resetAt: anchor + 264 * hour },
     ] },
   ];

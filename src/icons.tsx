@@ -26,5 +26,5 @@ export function Icon({ name, size = 18, style }: { name: IconName; size?: number
 }
 
 export function Mark({ size = 34 }: { size?: number }) {
-  return <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="18" fill="currentColor"/><path d="M16 42V29m16 13V19m16 23V25" fill="none" stroke="#262116" strokeWidth="6" strokeLinecap="round"/><circle cx="48" cy="15" r="4" fill="#262116"/></svg>;
+  return <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="18" fill="currentColor"/><path d="M16 42V29m16 13V19m16 23V25" fill="none" stroke="var(--mark-ink, #fff)" strokeWidth="6" strokeLinecap="round"/><circle cx="48" cy="15" r="4" fill="var(--mark-ink, #fff)"/></svg>;
 }

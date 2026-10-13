@@ -5,6 +5,7 @@ import { readSettings, sampleProviders, dailySpend, money, SETTINGS_KEY, type Se
 import { useLiveProviders } from './useLiveProviders';
 import { QuickSettings } from './QuickSettings';
 import { QuickProvider, colors, thirtyDaySpend } from './QuickProvider';
+import { ProviderLogo } from './ProviderLogo';
 
 type View = 'overview' | 'costs' | 'settings' | 'help' | ProviderId;
 type Range = 'Today' | 'Yesterday' | '30 Days';
@@ -81,7 +82,7 @@ export default function QuickView() {
   return <main className="quick-view" aria-label="MeterLuma usage panel">
     <nav className="quick-rail" aria-label="Panel navigation">
       <button className={view === 'overview' ? 'active' : ''} aria-label="Overview" aria-current={view === 'overview' ? 'page' : undefined} title="Overview" onClick={() => setView('overview')}><Mark size={25}/></button>
-      <div className="quick-rail-providers">{navigationProviders.map(provider => <button key={provider.id} style={{ '--provider-color': colors[provider.id] } as CSSProperties} className={view === provider.id ? 'active' : ''} aria-label={`${provider.name} details`} aria-current={view === provider.id ? 'page' : undefined} title={provider.name} onClick={() => setView(provider.id)}><span aria-hidden="true">{provider.initials}</span></button>)}</div>
+      <div className="quick-rail-providers">{navigationProviders.map(provider => <button key={provider.id} style={{ '--provider-color': colors[provider.id] } as CSSProperties} className={view === provider.id ? 'active' : ''} aria-label={`${provider.name} details`} aria-current={view === provider.id ? 'page' : undefined} title={provider.name} onClick={() => setView(provider.id)}><ProviderLogo id={provider.id}/></button>)}</div>
       <button className={view === 'costs' ? 'active' : ''} aria-label="Costs" aria-current={view === 'costs' ? 'page' : undefined} title="Costs" onClick={() => setView('costs')}><Icon name="activity" size={21}/></button>
       <div className="quick-rail-bottom"><button className={view === 'help' ? 'active' : ''} aria-label="Help" aria-current={view === 'help' ? 'page' : undefined} title="Help" onClick={() => setView('help')}><Icon name="info" size={22}/></button><button className={view === 'settings' ? 'active' : ''} aria-label="Settings" aria-current={view === 'settings' ? 'page' : undefined} title="Settings" onClick={() => setView('settings')}><Icon name="settings" size={23}/></button></div>
     </nav>

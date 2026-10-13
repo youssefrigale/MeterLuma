@@ -10,13 +10,13 @@ In the desktop app, open Connections and select **Connection options**, then **U
 
 The primary desktop interface is a compact popup with a vertical icon sidebar: overview, individual provider details, costs, help, and settings. Provider pages show allowance bars, reset times, spending summaries, sample trends, and an explicitly illustrative model mix. Live history, token counts, and model breakdowns remain unavailable. Settings work inside the popup: refresh every 5 / 15 / 30 / 60 minutes, Left / Used bars, relative / absolute reset timers, clock format, appearance, and provider visibility and order. Provider website buttons open fixed status and usage pages in the default browser. Additional integrations, global shortcuts, and startup at login are not implemented.
 
-The popup is 360 logical pixels wide and changes height with the page (420–660 pixels), with scrolling content and a fixed Options footer. It starts hidden in the tray; clicking outside hides it. Charcoal and amber is the default appearance, with an ivory light variant. Preferences synchronize with the optional full dashboard. Windows accounts for actual client and visible-frame margins so the bottom edge docks flush against the taskbar, including after resizing; macOS retains menu-bar positioning and accessory activation. Native Windows and universal Mac packages are built through GitHub Actions. Internal artifacts are unsigned.
+The popup is 360 logical pixels wide and changes height with the page (420–660 pixels), with scrolling content and a fixed Options footer. It starts hidden in the tray; clicking outside hides it. Light gray and black is the default appearance, with a neutral graphite dark variant. Claude, OpenAI, and Cursor use their actual provider logo assets in the popup and dashboard. Preferences synchronize with the optional full dashboard. Windows accounts for actual client and visible-frame margins so the bottom edge docks flush against the taskbar, including after resizing; macOS retains menu-bar positioning and accessory activation. Native Windows and universal Mac packages are built through GitHub Actions. Internal artifacts are unsigned.
 
 ![MeterLuma tray panel](artifacts/quick-view.png)
 
 Cost ranges in the demo are simulated, including the thirty-day sample. Live mode currently displays real plan limits only, with an explicit unavailable-cost state instead of fabricated spending.
 
-![MeterLuma dashboard](artifacts/overview-dark.png)
+![MeterLuma dashboard](artifacts/overview-light.png)
 
 ## Develop
 

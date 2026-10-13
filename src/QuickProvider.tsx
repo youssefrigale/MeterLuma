@@ -9,7 +9,7 @@ const websites = {
   cursor: { status: 'https://status.cursor.com/', usage: 'https://cursor.com/dashboard' },
 };
 
-export const colors = { claude: '#e9b56d', codex: '#87cbb3', cursor: '#aaa2e8' };
+export const colors = { claude: '#515157', codex: '#85858c', cursor: '#b8b8bf' };
 const sampleModels = { claude: [['Opus', 62], ['Sonnet', 35], ['Haiku', 3]], codex: [['Codex', 78], ['Codex Mini', 22]], cursor: [['Auto', 72], ['Selected model', 28]] } as const;
 export const thirtyDaySpend = (id: ProviderId) => [...dailySpend[id], ...dailySpend[id], ...dailySpend[id]].slice(-30).reduce((sum, value) => sum + value, 0);
 
