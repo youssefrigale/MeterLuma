@@ -41,15 +41,25 @@ pub fn map(id: ProviderId, value: &Value) -> Result<Snapshot, String> {
         ProviderId::Cursor => {
             if value["enabled"].as_bool() == Some(false) { return Err("No active Cursor allowance is available for this account.".into()); }
             let plan = &value["planUsage"];
-            let reset = timestamp(&value["billingCycleEnd"]).or_else(|| timestamp(&value["billingCycleEndDate"]));
+            let reset = timestamp(&value["billingCycleEnd"])
+                .or_else(|| number(&value["billingCycleEnd"]).filter(|value| *value <= i64::MAX as f64).map(|value| value as i64))
+                .or_else(|| timestamp(&value["billingCycleEndDate"]));
+            let is_team = value["spendLimitUsage"]["limitType"].as_str() == Some("team")
+                || number(&value["spendLimitUsage"]["pooledLimit"]).is_some_and(|limit| limit > 0.0);
+            let pool_values = (number(&plan["autoPercentUsed"]), number(&plan["apiPercentUsed"]));
+            let has_pools = match pool_values {
+                (Some(auto), Some(api)) => auto > 0.0 || api > 0.0 || number(&plan["totalSpend"]) == Some(0.0),
+                _ => false,
+            };
             let total = number(&plan["totalPercentUsed"]).or_else(|| {
+                if is_team && has_pools { return None; }
                 let limit = number(&plan["limit"])?;
                 if limit <= 0.0 { return None; }
                 let spend = number(&plan["totalSpend"]).or_else(|| number(&plan["remaining"]).map(|remaining| (limit - remaining).max(0.0)))?;
                 Some(spend / limit * 100.0)
             });
             if let Some(row) = metric("Monthly", total, reset) { metrics.push(row); }
-            if metrics.is_empty() {
+            if metrics.is_empty() && has_pools {
                 for (key, label) in [("autoPercentUsed", "Cursor models"), ("apiPercentUsed", "Other models")] {
                     if let Some(row) = metric(label, number(&plan[key]), reset) { metrics.push(row); }
                 }
@@ -88,7 +98,18 @@ mod tests {
     }
     #[test]
     fn cursor_derives_usage_only_when_both_spend_and_limit_exist() {
-        let snapshot = map(ProviderId::Cursor, &json!({"planUsage": {"limit": 2000, "totalSpend": 1000}})).unwrap();
+        let snapshot = map(ProviderId::Cursor, &json!({"billingCycleEnd": 1900000000000i64, "planUsage": {"limit": 2000, "totalSpend": 1000}})).unwrap();
         assert_eq!(snapshot.metrics[0].used_percent, 50.0);
+        assert_eq!(snapshot.metrics[0].reset_at, Some(1900000000000));
+    }
+    #[test]
+    fn cursor_team_pools_do_not_turn_a_legacy_dollar_cap_into_a_total() {
+        let snapshot = map(ProviderId::Cursor, &json!({
+            "spendLimitUsage": {"limitType": "team"},
+            "planUsage": {"limit": 2000, "totalSpend": 1900, "autoPercentUsed": 35, "apiPercentUsed": 52}
+        })).unwrap();
+        assert_eq!(snapshot.metrics[0].label, "Cursor models");
+        assert_eq!(snapshot.metrics[0].used_percent, 35.0);
+        assert_eq!(snapshot.metrics[1].used_percent, 52.0);
     }
 }

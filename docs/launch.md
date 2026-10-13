@@ -9,7 +9,7 @@ MeterLuma is an active project. The initial preview is complete when its interfa
 - Core tracking stays free.
 - MeterLuma Pro is a one-time purchase.
 - GitHub owner: `youssefrigale`.
-- Proposed domain: `getmeterluma.com`; registration has not been verified or purchased.
+- Proposed domain: `getmeterluma.com`. The .com registry returned no registration on 2026-10-13; registrar availability/price still need checking. It has not been purchased.
 
 ## Work required before public release
 

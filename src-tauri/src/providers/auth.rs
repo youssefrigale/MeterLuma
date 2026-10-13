@@ -2,7 +2,7 @@ use super::ProviderId;
 use rusqlite::{Connection, OpenFlags};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
-use std::{fs, path::PathBuf};
+use std::{fs, io::Read, path::PathBuf};
 
 pub struct Credential {
     pub token: String,
@@ -12,8 +12,9 @@ pub struct Credential {
 impl Credential {
     pub fn fingerprint(&self) -> [u8; 32] {
         let mut hash = Sha256::new();
-        hash.update(&self.token);
-        if let Some(account) = &self.account_id { hash.update(account); }
+        hash.update(self.token.len().to_be_bytes());
+        hash.update(self.token.as_bytes());
+        if let Some(account) = &self.account_id { hash.update(account.as_bytes()); }
         hash.finalize().into()
     }
 }
@@ -25,7 +26,10 @@ fn home() -> Result<PathBuf, String> {
 fn read_json(path: &PathBuf) -> Result<Value, String> {
     let metadata = fs::metadata(path).map_err(|_| "No readable local sign-in was found. Sign in to the provider app first.".to_string())?;
     if metadata.len() > 1_048_576 { return Err("The local sign-in file is unexpectedly large.".into()); }
-    let bytes = fs::read(path).map_err(|_| "Your local sign-in could not be read.".to_string())?;
+    let file = fs::File::open(path).map_err(|_| "Your local sign-in could not be read.".to_string())?;
+    let mut bytes = Vec::new();
+    file.take(1_048_577).read_to_end(&mut bytes).map_err(|_| "Your local sign-in could not be read.".to_string())?;
+    if bytes.len() > 1_048_576 { return Err("The local sign-in file is unexpectedly large.".into()); }
     serde_json::from_slice(&bytes).map_err(|_| "Your local sign-in format is not supported. Sign in again using the provider app.".into())
 }
 
@@ -68,9 +72,11 @@ fn keychain(service: &str) -> Result<String, String> {
 pub fn load(id: ProviderId) -> Result<Credential, String> {
     match id {
         ProviderId::Claude => {
-            let root = std::env::var_os("CLAUDE_CONFIG_DIR").map(PathBuf::from).unwrap_or(home()?.join(".claude"));
+            let custom_root = std::env::var_os("CLAUDE_CONFIG_DIR");
+            let root = custom_root.clone().map(PathBuf::from).unwrap_or(home()?.join(".claude"));
             let path = root.join(".credentials.json");
             if path.exists() { return from_auth_json(id, &read_json(&path)?); }
+            if custom_root.is_some() { return Err("No readable Claude sign-in was found in your configured directory.".into()); }
             #[cfg(target_os = "macos")]
             {
                 let secret = keychain("Claude Code-credentials")?;
@@ -96,7 +102,7 @@ pub fn load(id: ProviderId) -> Result<Credential, String> {
                 let db = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)
                     .map_err(|_| "Cursor's local sign-in could not be opened. Close and reopen Cursor, then try again.".to_string())?;
                 db.busy_timeout(std::time::Duration::from_secs(2)).map_err(|_| "Cursor's sign-in database is unavailable.")?;
-                let raw: Result<String, _> = db.query_row("SELECT value FROM ItemTable WHERE key = 'cursorAuth/accessToken'", [], |row| row.get(0));
+                let raw: Result<String, _> = db.query_row("SELECT substr(value, 1, 65537) FROM ItemTable WHERE key = 'cursorAuth/accessToken'", [], |row| row.get(0));
                 if let Ok(raw) = raw {
                     let parsed = serde_json::from_str::<String>(&raw).unwrap_or(raw);
                     if !parsed.trim().is_empty() && parsed.len() < 65_536 {
