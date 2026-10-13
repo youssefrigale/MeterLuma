@@ -1,5 +1,11 @@
 import { test, expect } from '@playwright/test';
 
+
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    if (!localStorage.getItem('meterluma.settings.v2')) localStorage.setItem('meterluma.settings.v2', JSON.stringify({ demo: true }));
+  });
+});
 test('tray panel exposes costs, remaining limits, a fixed Options footer and dashboard access', async ({ page }) => {
   await page.goto('/?view=quick');
   await page.setViewportSize({ width: 360, height: 660 });
@@ -42,7 +48,7 @@ test('cost tabs recalculate samples and Options supports keyboard navigation to 
 });
 
 test('live tray panel shows unavailable costs without a simulated donut', async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem('meterluma.settings.v1', JSON.stringify({ demo: false })));
+  await page.addInitScript(() => localStorage.setItem('meterluma.settings.v2', JSON.stringify({ demo: false })));
   await page.goto('/?view=quick');
   await page.getByRole('button', { name: 'Costs', exact: true }).click();
   await expect(page.getByText('Cost data unavailable', { exact: true })).toBeVisible();

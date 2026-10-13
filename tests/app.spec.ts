@@ -1,5 +1,11 @@
 import { test, expect } from '@playwright/test';
 
+
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    if (!localStorage.getItem('meterluma.settings.v2')) localStorage.setItem('meterluma.settings.v2', JSON.stringify({ demo: true }));
+  });
+});
 test('dashboard labels sample data and opens provider details', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -64,8 +70,8 @@ test('Pro clearly describes a planned one-time purchase', async ({ page }) => {
   await expect(dialog).not.toBeVisible();
 });
 
-test('corrupted settings cannot break startup', async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem('meterluma.settings.v1', '{invalid json'));
+test('corrupted settings fall back to real-data setup safely', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('meterluma.settings.v2', '{invalid json'));
   await page.goto('/');
-  await expect(page.getByRole('article')).toHaveCount(3);
+  await expect(page.getByRole('article')).toHaveCount(0);
 });

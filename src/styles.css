@@ -199,3 +199,17 @@ tbody tr:last-child td { border: 0; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
 }
+
+@layer panel {
+.usage-history { margin-top: 24px; }
+.usage-history-heading { display: flex; gap: 9px; justify-content: space-between; align-items: baseline; margin: 20px 0 12px; }
+.usage-history-heading h3 { font-size: 12px; font-weight: 500; }
+.usage-history-heading span, .usage-history small { color: var(--panel-muted, var(--muted)); font-size: 9px; }
+.usage-history dl { margin: 0; display: grid; gap: 10px; }
+.usage-history dl > div { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; }
+.usage-history dt { color: var(--panel-muted, var(--muted)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.usage-history dd { margin: 0; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.usage-history-chart { height: 40px; display: flex; align-items: flex-end; gap: 3px; }
+.usage-history-chart i { flex: 1; background: var(--panel-meter, var(--accent)); border-radius: 2px 2px 0 0; }
+.usage-history-note, .usage-history > p { color: var(--panel-muted, var(--muted)); font-size: 10px; line-height: 1.6; margin: 18px 0 9px; }
+}

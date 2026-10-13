@@ -1,6 +1,6 @@
 # Try the MeterLuma beta
 
-This is an internal, unsigned prototype. Start by exploring the demo and then test a provider you already use. It does not charge for Pro or rotate another app's credentials.
+This is an internal, unsigned prototype. Start by connecting a provider you already use. Demo data is available only when explicitly enabled. It does not charge for Pro or rotate another app's credentials.
 
 ## Windows
 
@@ -12,7 +12,7 @@ The universal `MeterLuma-Mac.dmg` contains both Intel and Apple Silicon builds. 
 
 ## Explore the app
 
-1. Launch the app and click its menu-bar / tray icon. The compact panel should open near the icon; the full dashboard should start hidden. Confirm the panel says **Demo** and **Sample data only**. Costs are simulated; allowance countdowns advance.
+1. Launch the app and click its menu-bar / tray icon. The compact panel should open near the icon; the full dashboard should start hidden. Confirm the panel says **Live**. Without a connected sign-in it should show setup, with no invented usage. Connecting a provider should show its reported quotas or a sign-in error.
 2. Open **Options → Settings**, change the theme, and close/reopen the window to check that preferences persist. The Left / Used preference affects both the popup and the full dashboard. Check relative / absolute reset timers, clock format, refresh intervals, and provider ordering.
 3. On Windows, check that the panel's bottom aligns exactly with the taskbar's top, including after closing and reopening it. Use the sidebar to select Overview, a provider, Costs, Help, or Settings. In Costs, check Today / Yesterday / 30 Days; scroll provider details and confirm the Options footer stays visible. Check that changing pages resizes the popup while preserving taskbar alignment. **Options → Settings** stays inside the popup; Connections and Open dashboard open the corresponding full-window page. Check provider visibility and theme changes propagate to the panel. Clicking outside hides it. Check Windows at multiple display scales and macOS on Intel and Apple Silicon; a successful build alone does not verify tray placement or focus behavior on hardware.
 4. In Connections, select a provider's **Connection options**, then **Use local sign-in**. You must already be signed in to Claude Code, Codex CLI, or Cursor. The README lists the currently supported credential locations and limitations.
@@ -20,7 +20,7 @@ The universal `MeterLuma-Mac.dmg` contains both Intel and Apple Silicon builds. 
 6. Disconnect the provider in MeterLuma and check that its data disappears. This does not log you out of the original provider app.
 7. Use **Quit MeterLuma** in the tray menu to exit fully. Closing the dashboard window keeps the app in the tray.
 
-Live usage is cached for five minutes and shows the actual successful fetch timestamp. Unknown spend remains unavailable. The app never substitutes sample charts or invented zero values for failed live requests.
+Live usage is cached for five minutes and shows the actual successful fetch timestamp. Unknown spending remains unavailable. Claude and Codex recorded token histories are read from local session logs, clearly scoped to this device across local sign-ins. They remain available even when quota credentials need renewal. Read limits, unreadable or oversized logs are indicated as partial. No message content or credentials are returned with history.
 
 ## Release limitations
 

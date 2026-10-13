@@ -9,9 +9,9 @@ export function ProviderCard({ provider, remaining, now, onDetails, demo = true 
     <header className="provider-heading">
       <div className={`provider-logo ${provider.id}`} aria-hidden="true"><ProviderLogo id={provider.id}/></div>
       <div><h3>{provider.name}</h3><span className="provider-plan">{provider.plan} plan</span></div>
-      <span className="connection-dot" title={demo ? 'Sample connection' : 'Live connection'} />
+      <span className="connection-dot" title={demo ? 'Sample connection' : provider.fetchedAt ? 'Live connection' : 'Recorded device activity'} />
     </header>
-    <div className="quota-hero"><span className="quota-value">{Math.max(0, 100 - primary.usedPercent).toLocaleString(undefined, { maximumFractionDigits: 1 })}<small>%</small></span><span className="quota-caption">remaining<br/>{primary.label.toLowerCase()} allowance</span></div>
+    {primary ? <div className="quota-hero"><span className="quota-value">{Math.max(0, 100 - primary.usedPercent).toLocaleString(undefined, { maximumFractionDigits: 1 })}<small>%</small></span><span className="quota-caption">remaining<br/>{primary.label.toLowerCase()} allowance</span></div> : <p className="notice">Live allowances unavailable. Local history is available in Activity.</p>}
     <div className="metrics">{provider.metrics.map(metric => {
       const displayed = remaining ? Math.max(0, 100 - metric.usedPercent) : metric.usedPercent;
       return <div className="metric" key={metric.label}>

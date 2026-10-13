@@ -4,17 +4,17 @@ All your AI usage, one glance. A desktop tracker for macOS and Windows, with a f
 
 ## Current status
 
-This is an internal prototype, not a public release. The dashboard, provider visibility, theme preferences, reset countdowns, sample spending charts, and local settings work. It starts with **clearly labeled sample data** and also includes experimental native connections for Claude Code, Codex CLI, and Cursor. Those connections need real-account QA before release. Pro and checkout are not implemented.
+This is an internal prototype, not a public release. The dashboard, provider visibility, theme preferences, reset countdowns, sample spending charts, and local settings work. It starts in **real-data mode** and includes native connections for Claude Code, Codex CLI, and Cursor. Those connections need real-account QA before release. Pro and checkout are not implemented.
 
 In the desktop app, open Connections and select **Connection options**, then **Use local sign-in**. This is the point where MeterLuma reads that provider's existing local credential. Browser preview mode cannot access native credentials or fetch live limits. Live and sample spending are never mixed.
 
-The primary desktop interface is a compact popup with a vertical icon sidebar: overview, individual provider details, costs, help, and settings. Provider pages show allowance bars, reset times, spending summaries, sample trends, and an explicitly illustrative model mix. Live history, token counts, and model breakdowns remain unavailable. Settings work inside the popup: refresh every 5 / 15 / 30 / 60 minutes, Left / Used bars, relative / absolute reset timers, clock format, appearance, and provider visibility and order. Provider website buttons open fixed status and usage pages in the default browser. Additional integrations, global shortcuts, and startup at login are not implemented.
+The primary desktop interface is a compact popup with a vertical icon sidebar: overview, individual provider details, costs, help, and settings. Provider pages show allowance bars, reset times, spending summaries, sample trends, and an explicitly illustrative model mix. Claude Code and Codex local session logs supply recorded tokens, 30-day daily activity, and model shares. These are device totals across local sign-ins, not account-wide billing. Dollar spending remains unavailable. Settings work inside the popup: refresh every 5 / 15 / 30 / 60 minutes, Left / Used bars, relative / absolute reset timers, clock format, appearance, and provider visibility and order. Provider website buttons open fixed status and usage pages in the default browser. Additional integrations, global shortcuts, and startup at login are not implemented.
 
 The popup is 360 logical pixels wide and changes height with the page (420–660 pixels), with scrolling content and a fixed Options footer. It starts hidden in the tray; clicking outside hides it. Light gray and black is the default appearance, with a neutral graphite dark variant. Claude, OpenAI, and Cursor use their actual provider logo assets in the popup and dashboard. Preferences synchronize with the optional full dashboard. Windows accounts for actual client and visible-frame margins so the bottom edge docks flush against the taskbar, including after resizing; macOS retains menu-bar positioning and accessory activation. Native Windows and universal Mac packages are built through GitHub Actions. Internal artifacts are unsigned.
 
 ![MeterLuma tray panel](artifacts/quick-view.png)
 
-Cost ranges in the demo are simulated, including the thirty-day sample. Live mode currently displays real plan limits only, with an explicit unavailable-cost state instead of fabricated spending.
+Cost ranges in the demo are simulated, including the thirty-day sample. Live mode displays provider-reported limits and recorded local token activity, with an explicit unavailable-cost state instead of fabricated spending. Older saved preview settings migrate to real-data mode. Demo remains an explicit opt-in.
 
 ![MeterLuma dashboard](artifacts/overview-light.png)
 
@@ -59,7 +59,7 @@ Closing the desktop window keeps MeterLuma running in the tray. Choose **Quit Me
 - `.github/workflows/checks.yml`: interface tests and unsigned native builds.
 - `docs/launch.md`: concrete requirements for worldwide release.
 
-The app stores appearance, provider visibility, demo preferences, and selected connection IDs in browser/WebView local storage under `meterluma.settings.v1`. It never copies credentials there. There are no analytics, external fonts, billing, or account-sync servers. Pro descriptions are plans, not delivered functionality. Sample spend is an estimate in USD, not a subscription charge; live spending history is not yet implemented.
+The app stores appearance, provider visibility, demo preferences, and selected connection IDs in browser/WebView local storage under `meterluma.settings.v2`. It never copies credentials there. There are no analytics, external fonts, billing, or account-sync servers. Pro descriptions are plans, not delivered functionality. Sample spend is an estimate in USD, not a subscription charge; live spending history is not yet implemented.
 
 ## Experimental live providers
 

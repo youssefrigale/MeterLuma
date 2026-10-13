@@ -5,6 +5,7 @@ playwright-report/
 test-results/
 .tools/
 artifacts/releases/
+artifacts/local/
 .env
 .env.*
 !.env.example
