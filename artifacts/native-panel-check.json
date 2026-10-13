@@ -1,5 +1,5 @@
 {
-  "runtimeCommit": "6e556288175f6ec8491c3950a7876b94ca626b84",
+  "runtimeCommit": "1b43efe5e49fb93b2873d79f51ce1d224728ccee",
   "checks": [
     "hidden startup",
     "single-instance panel opening",
@@ -7,10 +7,11 @@
     "native 360 × 660 overview sizing",
     "Options Settings stays in the popup",
     "provider tabs isolate details",
+    "real provider logo assets load in the native webview",
     "native page resizing at 420, 520, 620 and 660 logical pixels",
     "zero taskbar gap after every page resize",
     "panel hides when dashboard opens",
-    "light and charcoal themes synchronized between windows"
+    "light-gray and graphite themes synchronized between windows"
   ],
   "alignment": {
     "panel": {
@@ -284,5 +285,5 @@
     "bottomGapPixels": 0
   },
   "passed": true,
-  "testedAt": "2026-10-13T22:42:21.254Z"
+  "testedAt": "2026-10-13T23:02:34.711Z"
 }
