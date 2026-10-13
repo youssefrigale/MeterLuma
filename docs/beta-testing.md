@@ -4,7 +4,7 @@ This is an internal, unsigned prototype. Start by exploring the demo and then te
 
 ## Windows
 
-Run the portable `MeterLuma-Windows.exe`, or use `MeterLuma-Windows-Setup.exe` if you want to install it. The app needs Microsoft WebView2. The owner machine has it installed. Seven checks against the actual Windows app passed, covering hidden startup, panel opening, native client size, zero-gap visible-frame taskbar alignment on first opening and reopening, Settings navigation, hiding the panel when Settings opens, and synchronized theme changes. Other taskbar locations, auto-hide, multiple monitors, display scales, and actual tray clicking still need manual checks.
+Run the portable `MeterLuma-Windows.exe`, or use `MeterLuma-Windows-Setup.exe` if you want to install it. The app needs Microsoft WebView2. The owner machine has it installed. Ten checks against the actual Windows app passed, covering hidden startup, panel opening, native client size, zero-gap visible-frame alignment on opening, reopening and resizing, popup Settings, provider tabs, dashboard handoff, and synchronized themes. The 420 / 520 / 620 / 660 logical-pixel page heights all retained a zero-pixel taskbar gap. Other taskbar locations, auto-hide, multiple monitors, display scales, and actual tray clicking still need manual checks.
 
 ## Mac
 

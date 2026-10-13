@@ -1,12 +1,16 @@
 {
+  "runtimeCommit": "6e556288175f6ec8491c3950a7876b94ca626b84",
   "checks": [
     "hidden startup",
     "single-instance panel opening",
     "exact taskbar alignment on first opening and reopening",
-    "native 360 × 660 sizing",
-    "Options Settings navigation",
+    "native 360 × 660 overview sizing",
+    "Options Settings stays in the popup",
+    "provider tabs isolate details",
+    "native page resizing at 420, 520, 620 and 660 logical pixels",
+    "zero taskbar gap after every page resize",
     "panel hides when dashboard opens",
-    "charcoal appearance synchronized between windows"
+    "light and charcoal themes synchronized between windows"
   ],
   "alignment": {
     "panel": {
@@ -45,6 +49,203 @@
     },
     "bottomGapPixels": 0
   },
+  "resizeMeasurements": [
+    {
+      "page": "Claude details",
+      "logicalHeight": 620,
+      "panel": {
+        "Left": 2191,
+        "Top": 410,
+        "Right": 2567,
+        "Bottom": 1039
+      },
+      "client": {
+        "Left": 0,
+        "Top": 0,
+        "Right": 360,
+        "Bottom": 620
+      },
+      "clientOrigin": {
+        "X": 2199,
+        "Y": 411
+      },
+      "visibleFrame": {
+        "Left": 2198,
+        "Top": 410,
+        "Right": 2560,
+        "Bottom": 1032
+      },
+      "work": {
+        "Left": 0,
+        "Top": 0,
+        "Right": 2560,
+        "Bottom": 1032
+      },
+      "screen": {
+        "Left": 0,
+        "Top": 0,
+        "Right": 2560,
+        "Bottom": 1080
+      },
+      "bottomGapPixels": 0
+    },
+    {
+      "page": "Costs",
+      "logicalHeight": 420,
+      "panel": {
+        "Left": 2191,
+        "Top": 610,
+        "Right": 2567,
+        "Bottom": 1039
+      },
+      "client": {
+        "Left": 0,
+        "Top": 0,
+        "Right": 360,
+        "Bottom": 420
+      },
+      "clientOrigin": {
+        "X": 2199,
+        "Y": 611
+      },
+      "visibleFrame": {
+        "Left": 2198,
+        "Top": 610,
+        "Right": 2560,
+        "Bottom": 1032
+      },
+      "work": {
+        "Left": 0,
+        "Top": 0,
+        "Right": 2560,
+        "Bottom": 1032
+      },
+      "screen": {
+        "Left": 0,
+        "Top": 0,
+        "Right": 2560,
+        "Bottom": 1080
+      },
+      "bottomGapPixels": 0
+    },
+    {
+      "page": "Help",
+      "logicalHeight": 420,
+      "panel": {
+        "Left": 2191,
+        "Top": 610,
+        "Right": 2567,
+        "Bottom": 1039
+      },
+      "client": {
+        "Left": 0,
+        "Top": 0,
+        "Right": 360,
+        "Bottom": 420
+      },
+      "clientOrigin": {
+        "X": 2199,
+        "Y": 611
+      },
+      "visibleFrame": {
+        "Left": 2198,
+        "Top": 610,
+        "Right": 2560,
+        "Bottom": 1032
+      },
+      "work": {
+        "Left": 0,
+        "Top": 0,
+        "Right": 2560,
+        "Bottom": 1032
+      },
+      "screen": {
+        "Left": 0,
+        "Top": 0,
+        "Right": 2560,
+        "Bottom": 1080
+      },
+      "bottomGapPixels": 0
+    },
+    {
+      "page": "Cursor details",
+      "logicalHeight": 520,
+      "panel": {
+        "Left": 2191,
+        "Top": 510,
+        "Right": 2567,
+        "Bottom": 1039
+      },
+      "client": {
+        "Left": 0,
+        "Top": 0,
+        "Right": 360,
+        "Bottom": 520
+      },
+      "clientOrigin": {
+        "X": 2199,
+        "Y": 511
+      },
+      "visibleFrame": {
+        "Left": 2198,
+        "Top": 510,
+        "Right": 2560,
+        "Bottom": 1032
+      },
+      "work": {
+        "Left": 0,
+        "Top": 0,
+        "Right": 2560,
+        "Bottom": 1032
+      },
+      "screen": {
+        "Left": 0,
+        "Top": 0,
+        "Right": 2560,
+        "Bottom": 1080
+      },
+      "bottomGapPixels": 0
+    },
+    {
+      "page": "Overview",
+      "logicalHeight": 660,
+      "panel": {
+        "Left": 2191,
+        "Top": 370,
+        "Right": 2567,
+        "Bottom": 1039
+      },
+      "client": {
+        "Left": 0,
+        "Top": 0,
+        "Right": 360,
+        "Bottom": 660
+      },
+      "clientOrigin": {
+        "X": 2199,
+        "Y": 371
+      },
+      "visibleFrame": {
+        "Left": 2198,
+        "Top": 370,
+        "Right": 2560,
+        "Bottom": 1032
+      },
+      "work": {
+        "Left": 0,
+        "Top": 0,
+        "Right": 2560,
+        "Bottom": 1032
+      },
+      "screen": {
+        "Left": 0,
+        "Top": 0,
+        "Right": 2560,
+        "Bottom": 1080
+      },
+      "bottomGapPixels": 0
+    }
+  ],
   "reopenedAlignment": {
     "panel": {
       "Left": 2191,
@@ -83,5 +284,5 @@
     "bottomGapPixels": 0
   },
   "passed": true,
-  "testedAt": "2026-10-13T21:27:42.508Z"
+  "testedAt": "2026-10-13T22:42:21.254Z"
 }

@@ -75,12 +75,11 @@ These provider endpoints are external dependencies and can change. Unsupported r
 
 GitHub home: `youssefrigale/MeterLuma`. Keep the repository private until the implementation, licensing, and release materials are ready for owner review. Free pricing does not imply an open-source license; the owner still needs to choose the source licensing terms.
 
-## Previous verified beta checkpoint — 2026-10-13
+## Verified beta checkpoint — 2026-10-13
 
-- Runtime commit: `ce7795af717b4f4e3ac9da8872cc612896d1db07`.
-- [Native and interface build run](https://github.com/youssefrigale/MeterLuma/actions/runs/38470002503): successful Windows x64 and universal Mac packages; 14 native tests per platform, including frame margins, taskbar edges, scaling, and negative monitor coordinates; 32 browser checks.
-- Additional local WebKit verification: 16 checks passed, including both panel themes and Options accessibility.
-- Seven actual Windows WebView2 integration checks passed: hidden startup, single-instance panel opening, exact visible-frame taskbar alignment on first opening and reopening, 360 × 660 logical client sizing, Options navigating to Settings, panel hiding when Settings opens, and theme synchronization. The monitor work-area bottom and visible-frame bottom were both **1032 physical pixels**, a **0-pixel gap**. See `artifacts/native-panel-check.json` and `artifacts/quick-view-windows-native.png`. These checks do not substitute for clicking the tray icon on every OS and display configuration.
-- Windows client sizing and positioning account for the actual native frame and its invisible margins. The updated executable was relaunched normally and its compact MeterLuma window appeared. The chosen charcoal and amber appearance was applied through Settings.
-- Windows and Mac builds produced identical `Cargo.lock` files; the resolved native dependencies are now committed.
-- Real provider accounts, Mac GUI behavior, signing, updater, Pro features, licensing, and checkout remain unverified or unimplemented as described in `docs/launch.md`. This checkpoint is not a worldwide-release approval.
+- Runtime commit: `6e556288175f6ec8491c3950a7876b94ca626b84`.
+- [Native and interface build run](https://github.com/youssefrigale/MeterLuma/actions/runs/38479038508): successful Windows x64 and universal Mac packages; 15 native tests on each platform, including provider response handling, taskbar/frame geometry, and rejection of arbitrary provider URLs; 38 Chromium interface checks.
+- Local WebKit verification: all 19 checks passed, including provider details, popup settings, saved ordering, both themes, and sidebar accessibility.
+- Ten actual Windows WebView2 integration checks passed: hidden startup, single-instance opening, initial and reopened taskbar alignment, overview sizing, popup Settings, isolated provider views, page resizing, alignment after each resize, dashboard handoff, and theme synchronization. Heights of 420, 520, 620, and 660 logical pixels all retained a **0-pixel visible-frame taskbar gap**. See `artifacts/native-panel-check.json`, `artifacts/quick-view-windows-native.png`, and `artifacts/quick-view-provider-windows-native.png`.
+- The new portable executable was verified against its build artifact and relaunched normally. Its MeterLuma quick-view window appeared and responded. Windows and Mac builds retained identical committed `Cargo.lock` files; SHA-256 checksums were generated for all local release packages.
+- Antigravity and other additional connectors, live spending/token/model history, shortcuts, startup at login, real provider-account validation, Mac GUI testing, signing, updater, Pro, licensing, and checkout remain unimplemented or unverified. This checkpoint is not a public-release approval.
