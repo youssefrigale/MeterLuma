@@ -2,10 +2,13 @@ import { test, expect } from '@playwright/test';
 
 test('quick view exposes labeled remaining limits and opens the dashboard', async ({ page }) => {
   await page.goto('/?view=quick');
+  await page.setViewportSize({ width: 400, height: 640 });
   await expect(page.getByRole('heading', { name: 'A little room to create.' })).toBeVisible();
   await expect(page.getByRole('article')).toHaveCount(3);
   await expect(page.getByRole('progressbar', { name: 'Claude Session remaining' })).toHaveAttribute('aria-valuenow', '62');
   await expect(page.getByText('Sample data only', { exact: true })).toBeVisible();
+  await expect(page.locator('.quick-header .brand')).toContainText('MeterLuma');
+  expect(await page.locator('.quick-footer').evaluate(element => element.getBoundingClientRect().bottom <= window.innerHeight)).toBe(true);
   await page.getByRole('button', { name: 'Open dashboard' }).click();
   await expect(page.getByRole('heading', { name: 'Your AI, in view.' })).toBeVisible();
 });

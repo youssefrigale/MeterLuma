@@ -12,7 +12,7 @@ await page.screenshot({ path: 'artifacts/overview-light.png', fullPage: true });
 await page.getByRole('button', { name: 'Toggle light and dark theme' }).click();
 await page.setViewportSize({ width: 430, height: 780 });
 await page.screenshot({ path: 'artifacts/overview-compact.png', fullPage: true });
-await page.setViewportSize({ width: 400, height: 700 });
+await page.setViewportSize({ width: 400, height: 640 });
 await page.goto('http://127.0.0.1:1420/?view=quick');
 await page.getByRole('heading', { name: 'A little room to create.' }).waitFor();
 await page.screenshot({ path: 'artifacts/quick-view.png', fullPage: true });
