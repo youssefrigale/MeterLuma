@@ -24,6 +24,7 @@ export interface Provider {
   metrics: Metric[];
   fetchedAt?: number;
   history?: UsageHistory;
+  historyLoading?: boolean;
 }
 export const defaults: Settings = { theme: 'light', demo: false, remaining: true, refreshMinutes: 5, enabled: ['claude', 'codex', 'cursor'], liveProviders: [], resetStyle: 'relative', timeFormat: 'auto', providerOrder: ['claude', 'codex', 'cursor'] };
 export const SETTINGS_KEY = 'meterluma.settings.v2';

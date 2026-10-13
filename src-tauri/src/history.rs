@@ -5,8 +5,8 @@ use serde_json::Value;
 use std::{collections::{BTreeMap, HashMap, HashSet}, fs, io::{BufRead, BufReader, Read}, path::{Path, PathBuf}, time::{Duration, Instant}};
 use tokio::sync::Mutex;
 
-const LINE_LIMIT: usize = 2 * 1024 * 1024;
-const BYTE_LIMIT: u64 = 256 * 1024 * 1024;
+const LINE_LIMIT: usize = 8 * 1024 * 1024;
+const BYTE_LIMIT: u64 = 8 * 1024 * 1024 * 1024;
 const FILE_LIMIT: usize = 2000;
 const RECORD_LIMIT: usize = 100_000;
 
@@ -50,6 +50,16 @@ struct Scanner {
     days: BTreeMap<String, Tokens>, models: BTreeMap<String, u64>, seen_codex: HashSet<String>,
     claude: HashMap<String, (String, String, Tokens)>, records: usize, partial: bool,
 }
+
+fn relevant(id: ProviderId, bytes: &[u8]) -> bool {
+    let prefix = String::from_utf8_lossy(&bytes[..bytes.len().min(4096)]);
+    let has_type = |kind: &str| prefix.contains(&format!("\"type\":\"{kind}\"")) || prefix.contains(&format!("\"type\": \"{kind}\""));
+    match id {
+        ProviderId::Claude => has_type("assistant"),
+        ProviderId::Codex => has_type("turn_context") || (has_type("event_msg") && has_type("token_count")),
+        ProviderId::Cursor => false,
+    }
+}
 impl Scanner {
     fn new(today: chrono::NaiveDate) -> Self {
         let days = (0..30).filter_map(|offset| today.checked_sub_days(Days::new(offset))).map(|date| (date.to_string(), Tokens::default())).collect();
@@ -83,8 +93,10 @@ impl Scanner {
             ProviderId::Claude if row["type"] == "assistant" => {
                 if !self.days.contains_key(&date) { return; }
                 let message = &row["message"];
-                let Some(key) = message["id"].as_str().filter(|key| !key.is_empty() && key.len() < 200) else { self.partial = true; return; };
+                if !message["usage"].is_object() { return; }
                 let Some(tokens) = Tokens::parse(&message["usage"], true) else { return; };
+                if tokens.total_tokens == 0 { return; }
+                let Some(key) = message["id"].as_str().filter(|key| !key.is_empty() && key.len() < 200) else { self.partial = true; return; };
                 let name = message["model"].as_str().filter(|name| !name.is_empty() && *name != "<synthetic>" && name.len() < 200).unwrap_or("Unknown model").to_string();
                 if self.claude.len() >= RECORD_LIMIT { self.partial = true; return; }
                 // Streamed assistant chunks and copied/subagent logs must not count the same message twice.
@@ -142,14 +154,14 @@ fn scan(id: ProviderId) -> Result<History, String> {
             let length = reader.by_ref().take(LINE_LIMIT as u64 + 1).read_until(b'\n', &mut bytes).map_err(|_| "Local usage logs could not be read.")?;
             if length == 0 { break; }
             if length > LINE_LIMIT {
-                scanner.partial = true;
+                if relevant(id, &bytes) { scanner.partial = true; }
                 if bytes.last() != Some(&b'\n') {
                     loop { let buffer = reader.fill_buf().map_err(|_| "Local usage logs could not be read.")?; if buffer.is_empty() { break; } let end = buffer.iter().position(|byte| *byte == b'\n'); let count = end.map(|index| index + 1).unwrap_or(buffer.len()); reader.consume(count); if end.is_some() { break; } }
                 }
                 continue;
             }
             // Only usage/model metadata is returned. Conversation content is never exposed to the UI.
-            if let Ok(row) = serde_json::from_slice::<Value>(&bytes) { scanner.parse(id, &row, &mut model, &mut previous); }
+            if relevant(id, &bytes) { if let Ok(row) = serde_json::from_slice::<Value>(&bytes) { scanner.parse(id, &row, &mut model, &mut previous); } }
         }
     }
     Ok(scanner.finish(available, today.to_string()))
@@ -202,5 +214,14 @@ mod tests {
         let today = Local::now().date_naive(); let mut scan = Scanner::new(today);
         scan.parse(ProviderId::Claude, &json!({"type":"assistant","timestamp":timestamp(),"secret":"private-token","message":{"id":"id","content":"private-message","model":"model-b","usage":{"input_tokens":5,"output_tokens":20}}}), &mut String::new(), &mut Tokens::default());
         let json = serde_json::to_string(&scan.finish(true, today.to_string())).unwrap(); assert!(!json.contains("private-token")); assert!(!json.contains("private-message"));
+    }
+    #[test]
+    fn non_usage_records_are_ignored_before_parsing_conversation_content() {
+        assert!(!relevant(ProviderId::Codex, br#"{"type":"response_item","payload":{"type":"message"}}"#));
+        assert!(relevant(ProviderId::Codex, br#"{"type":"event_msg","payload":{"type":"token_count"}}"#));
+        assert!(!relevant(ProviderId::Claude, br#"{"type":"user","message":{"content":"private"}}"#));
+        let today = Local::now().date_naive(); let mut scanner = Scanner::new(today);
+        scanner.parse(ProviderId::Claude, &json!({"type":"assistant","timestamp":timestamp(),"message":{"content":"error without usage"}}), &mut String::new(), &mut Tokens::default());
+        assert!(!scanner.partial);
     }
 }

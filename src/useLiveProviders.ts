@@ -18,8 +18,11 @@ export function useLiveProviders(settings: Settings) {
     setResults(providerIds.map(id => ({ id, loading: true })));
     void Promise.all(providerIds.map(async id => {
       let result: LiveResult;
+      const quotaRequest = invoke<Provider>('refresh_provider', { providerId: id });
+      // Show account limits while the larger local histories are still being scanned.
+      void quotaRequest.then(provider => { if (active) setResults(current => current.map(row => row.id === id ? { id, provider: { ...provider, historyLoading: true }, loading: true } : row)); }).catch(() => {});
       const [quota, activity] = await Promise.allSettled([
-        invoke<Provider>('refresh_provider', { providerId: id }),
+        quotaRequest,
         invoke<UsageHistory>('read_usage_history', { providerId: id }),
       ]);
       const history = activity.status === 'fulfilled' ? activity.value : undefined;
