@@ -1,10 +1,10 @@
-use tauri::{Manager, PhysicalPosition, Size, WebviewUrl, WebviewWindowBuilder};
+use tauri::{Emitter, Manager, PhysicalPosition, Size, WebviewUrl, WebviewWindowBuilder};
 
 pub fn create(app: &tauri::App) -> tauri::Result<()> {
     WebviewWindowBuilder::new(app, "quick", WebviewUrl::App("index.html".into()))
         .title("MeterLuma quick view")
         .initialization_script("window.__METERLUMA_QUICK__ = true;")
-        .inner_size(400.0, 640.0)
+        .inner_size(360.0, 660.0)
         .decorations(false).resizable(false).visible(false).focused(false)
         .always_on_top(true).skip_taskbar(true).build()?;
     Ok(())
@@ -21,9 +21,10 @@ pub fn toggle(app: &tauri::AppHandle, point: Option<(f64, f64)>) {
             }) {
                 let scale = monitor.scale_factor();
                 let origin = monitor.position(); let size = monitor.size();
-                let logical_height = 640.0_f64.min(size.height as f64 / scale - 40.0);
-                let width = 400.0 * scale; let height = logical_height * scale;
-                let _ = window.set_size(Size::Logical(tauri::LogicalSize::new(400.0, logical_height)));
+                let logical_height = 660.0_f64.min(size.height as f64 / scale - 40.0).max(200.0);
+                let logical_width = 360.0_f64.min(size.width as f64 / scale - 16.0).max(200.0);
+                let width = logical_width * scale; let height = logical_height * scale;
+                let _ = window.set_size(Size::Logical(tauri::LogicalSize::new(logical_width, logical_height)));
                 let left = (x - width / 2.0).clamp(origin.x as f64 + 8.0, (origin.x as f64 + size.width as f64 - width - 8.0).max(origin.x as f64 + 8.0));
                 let top = if y > origin.y as f64 + size.height as f64 / 2.0 { y - height - 14.0 } else { y + 14.0 };
                 let top = top.clamp(origin.y as f64 + 8.0, (origin.y as f64 + size.height as f64 - height - 8.0).max(origin.y as f64 + 8.0));
@@ -36,7 +37,11 @@ pub fn toggle(app: &tauri::AppHandle, point: Option<(f64, f64)>) {
 }
 
 #[tauri::command]
-pub fn show_dashboard(app: tauri::AppHandle) {
+pub fn show_dashboard(app: tauri::AppHandle, page: Option<String>) -> Result<(), String> {
+    let page = page.as_deref().unwrap_or("dashboard");
+    if !matches!(page, "dashboard" | "settings" | "connections") { return Err("Unknown page".into()); }
+    app.emit_to("main", "meterluma:navigate", page).map_err(|_| "The requested page could not be opened")?;
     super::show_main(&app);
     if let Some(quick) = app.get_webview_window("quick") { let _ = quick.hide(); }
+    Ok(())
 }

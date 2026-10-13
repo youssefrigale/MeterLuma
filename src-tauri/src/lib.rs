@@ -16,6 +16,9 @@ fn show_main(app: &tauri::AppHandle) {
 }
 
 #[tauri::command]
+fn quit_app(app: tauri::AppHandle) { app.exit(0); }
+
+#[tauri::command]
 fn set_tray_summary(app: tauri::AppHandle, summary: String) -> Result<(), String> {
     if summary.chars().count() > 160 {
         return Err("Tray summary is too long".into());
@@ -28,9 +31,11 @@ fn set_tray_summary(app: tauri::AppHandle, summary: String) -> Result<(), String
 pub fn run() {
     tauri::Builder::default()
         .manage(providers::ProviderService::new().expect("Provider networking could not be initialized"))
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show_main(app)))
-        .invoke_handler(tauri::generate_handler![set_tray_summary, providers::refresh_provider, quick::show_dashboard])
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| quick::toggle(app, None)))
+        .invoke_handler(tauri::generate_handler![set_tray_summary, providers::refresh_provider, quick::show_dashboard, quit_app])
         .setup(|app| {
+            #[cfg(target_os = "macos")]
+            app.set_activation_policy(tauri::ActivationPolicy::Accessory);
             quick::create(app)?;
             let show = MenuItem::with_id(app, "show", "Open MeterLuma", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit MeterLuma", true, None::<&str>)?;
@@ -42,7 +47,7 @@ pub fn run() {
                 .menu(&menu)
                 .show_menu_on_left_click(false)
                 .on_menu_event(|app, event| match event.id.as_ref() {
-                    "show" => show_main(app),
+                    "show" => quick::toggle(app, None),
                     "quit" => app.exit(0),
                     _ => {}
                 })

@@ -19,7 +19,7 @@ export interface Provider {
   metrics: Metric[];
   fetchedAt?: number;
 }
-export const defaults: Settings = { theme: 'dark', demo: true, remaining: false, refreshMinutes: 5, enabled: ['claude', 'codex', 'cursor'], liveProviders: [] };
+export const defaults: Settings = { theme: 'light', demo: true, remaining: false, refreshMinutes: 5, enabled: ['claude', 'codex', 'cursor'], liveProviders: [] };
 export const SETTINGS_KEY = 'meterluma.settings.v1';
 const providerIds: ProviderId[] = ['claude', 'codex', 'cursor'];
 

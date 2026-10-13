@@ -11,3 +11,13 @@ for (const theme of ['dark', 'light'] as const) {
     expect(results.violations).toEqual([]);
   });
 }
+
+test('compact tray panel and Options have no accessibility violations', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 660 });
+  await page.goto('/?view=quick');
+  for (const open of [false, true]) {
+    if (open) await page.getByRole('button', { name: 'Options', exact: true }).click();
+    const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
+    expect(results.violations).toEqual([]);
+  }
+});

@@ -1,0 +1,57 @@
+@layer base, responsive, panel;
+@layer panel {
+  .tray-panel { --panel-bg: #ffffff; --panel-card: #f4f4f5; --panel-tabs: #e8e8ea; --panel-track: #dedee2; --panel-text: #111827; --panel-muted: #57657b; --panel-line: #e5e7eb; --panel-blue: #087df5; background: var(--panel-bg); color: var(--panel-text); }
+  .tray-panel[data-theme='dark'] { --panel-bg: #1b1d21; --panel-card: #26292e; --panel-tabs: #33373e; --panel-track: #444951; --panel-text: #f1f4f8; --panel-muted: #b4bfce; --panel-line: #353b44; --panel-blue: #69b3ff; }
+  .tray-panel body { min-width: 300px; background: var(--panel-bg); }
+  .quick-view { position: relative; padding: 0; margin: 0; width: 100%; height: 100dvh; min-height: 0; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--panel-line); border-radius: 16px; background: var(--panel-bg); color: var(--panel-text); font-size: 12px; }
+  .quick-scroll { flex: 1; min-height: 0; padding: 16px 14px 18px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--panel-track) transparent; }
+  .quick-scroll:focus-visible { outline: 2px solid var(--panel-blue); outline-offset: -3px; border-radius: 12px; }
+  .quick-header { display: flex; align-items: center; gap: 5px; margin: 0 3px 10px; }
+  .quick-header h1 { font: inherit; font-size: 13px; font-weight: 600; letter-spacing: 0; }
+  .quick-info-button { color: var(--panel-muted); display: grid; place-items: center; width: 24px; height: 24px; padding: 4px; border-radius: 50%; }
+  .quick-mode { margin-left: auto; padding: 3px 8px; border-radius: 20px; font-size: 10px; color: var(--panel-muted); background: var(--panel-card); }
+  .quick-info { margin: 0 3px 12px; color: var(--panel-muted); font-size: 11px; line-height: 1.6; }
+  .quick-cost { padding: 12px; background: var(--panel-card); border-radius: 15px; }
+  .quick-tabs { display: grid; grid-template-columns: repeat(3, 1fr); padding: 3px; border-radius: 22px; background: var(--panel-tabs); }
+  .quick-tabs button { border-radius: 18px; padding: 6px 3px; color: var(--panel-muted); font-size: 10px; line-height: 1.5; }
+  .quick-tabs button.selected { background: var(--panel-bg); color: var(--panel-text); box-shadow: 0 1px 3px #00000015; }
+  .quick-cost-content { display: flex; align-items: center; gap: 13px; padding-top: 12px; }
+  .quick-donut { width: 110px; height: 110px; flex-shrink: 0; position: relative; }
+  .quick-donut svg { width: 100%; height: 100%; display: block; }
+  .quick-donut-track { fill: none; stroke: var(--panel-track); stroke-width: 22; }
+  .quick-donut > div { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 3px; }
+  .quick-donut strong { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .quick-donut span { font-size: 8px; color: var(--panel-muted); }
+  .quick-cost-legend { list-style: none; margin: 0; padding: 0; flex: 1; min-width: 0; display: grid; gap: 13px; }
+  .quick-cost-legend li { display: flex; align-items: center; gap: 7px; font-size: 11px; }
+  .quick-cost-legend i { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .quick-cost-legend strong { font-weight: 400; margin-left: auto; color: var(--panel-muted); font-variant-numeric: tabular-nums; }
+  .quick-cost-empty { display: flex; gap: 10px; align-items: center; padding: 25px 5px; color: var(--panel-muted); line-height: 1.6; }
+  .quick-cost-empty small { display: block; font-size: 10px; }
+  .quick-providers { display: grid; gap: 19px; margin-top: 20px; }
+  .quick-provider { padding: 0; border: 0; background: none; border-radius: 0; }
+  .quick-provider-heading { display: flex; align-items: baseline; gap: 5px; margin: 0 4px 9px; }
+  .quick-provider-heading h2 { font-size: 13px; font-weight: 600; }
+  .quick-provider-heading > span:last-child { font-size: 10px; color: var(--panel-muted); margin: 0; }
+  .quick-provider-logo { color: var(--panel-muted); width: 15px; font-size: 15px; align-self: center; }
+  .quick-metrics { padding: 16px 14px; border-radius: 15px; background: var(--panel-card); }
+  .quick-metric + .quick-metric { margin-top: 24px; }
+  .quick-metric h3 { font-size: 12px; font-weight: 500; margin: 0 0 7px; }
+  .quick-meter { height: 5px; background: var(--panel-track); border-radius: 3px; overflow: hidden; }
+  .quick-meter > span { display: block; height: 100%; background: var(--panel-blue); border-radius: inherit; }
+  .quick-metric-caption { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-top: 6px; line-height: 1.5; font-size: 10px; }
+  .quick-metric-caption > span:last-child { color: var(--panel-muted); text-align: right; }
+  .quick-footer { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0; padding: 12px 14px; border-top: 1px solid var(--panel-line); background: var(--panel-bg); box-shadow: 0 -8px 14px var(--panel-bg); }
+  .quick-footer > div { color: var(--panel-muted); font-size: 9px; line-height: 1.5; min-width: 0; }
+  .quick-footer small { font-size: 8px; display: block; }
+  .quick-options-button { flex-shrink: 0; display: flex; align-items: center; gap: 6px; padding: 6px 11px; background: var(--panel-bg); border: 1px solid var(--panel-line); border-radius: 20px; font-size: 12px; box-shadow: 0 1px 3px #00000010; }
+  .quick-options-button > svg { transform: rotate(90deg); }
+  .quick-options { position: absolute; bottom: 57px; right: 13px; width: 190px; padding: 5px; border: 1px solid var(--panel-line); border-radius: 12px; background: var(--panel-bg); box-shadow: 0 8px 28px #00000026; z-index: 2; }
+  .quick-options button { display: flex; align-items: center; gap: 9px; width: 100%; padding: 10px; border-radius: 7px; text-align: left; font-size: 12px; }
+  .quick-options button:hover, .quick-options button:focus { background: var(--panel-card); }
+  .quick-options hr { margin: 4px; border: 0; border-top: 1px solid var(--panel-line); }
+  .quick-empty { text-align: center; color: var(--panel-muted); padding: 30px 10px; }
+  .quick-empty button { margin: 15px auto 0; display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--panel-text); }
+  .quick-view button:focus-visible { outline-color: var(--panel-blue); outline-offset: 2px; }
+  .quick-view button { transition: none; }
+}

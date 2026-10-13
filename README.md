@@ -8,7 +8,11 @@ This is an internal prototype, not a public release. The dashboard, provider vis
 
 In the desktop app, open Connections and select **Connection options**, then **Use local sign-in**. This is the point where MeterLuma reads that provider's existing local credential. Browser preview mode cannot access native credentials or fetch live limits. Live and sample spending are never mixed.
 
-The Tauri shell includes a tray/menu-bar icon, a compact quick-view window, open/quit actions, a tray summary, single-instance handling, and close-to-tray behavior. Left-click the icon to toggle the quick view; it hides when it loses focus. Open the full dashboard from its footer or the tray menu. The quick view follows the dashboard's saved theme and provider visibility. Native builds are configured through GitHub Actions for Windows and a universal Intel/Apple Silicon Mac package. Internal artifacts are unsigned.
+The primary desktop interface is a 360 × 660 compact panel, opened by clicking the macOS menu-bar icon or Windows tray icon. It starts in the tray with the full dashboard hidden; clicking outside the panel hides it. The panel has a cost donut with Today / Yesterday / 30 Days sample ranges, blue remaining-allowance bars, scrolling provider sections, and a fixed **Options** footer. Options opens Connections, Settings, or the dashboard, refreshes limits, or quits. Light is the default theme; saved theme and provider preferences stay synchronized between windows. macOS runs with an accessory activation policy. Native builds are configured through GitHub Actions for Windows and a universal Intel/Apple Silicon Mac package. Internal artifacts are unsigned.
+
+![MeterLuma tray panel](artifacts/quick-view.png)
+
+Cost ranges in the demo are simulated, including the thirty-day sample. Live mode currently displays real plan limits only, with an explicit unavailable-cost state instead of fabricated spending.
 
 ![MeterLuma dashboard](artifacts/overview-dark.png)
 

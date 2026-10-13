@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { isTauri, invoke } from '@tauri-apps/api/core';
+import { isTauri } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import { Icon, Mark, type IconName } from './icons';
 import { defaults, readSettings, sampleProviders, countdown, money, dailySpend, SETTINGS_KEY, type Settings, type Provider, type ProviderId } from './model';
 import { ProviderCard } from './ProviderCard';
@@ -17,7 +18,10 @@ const pages: { id: Page; name: string; icon: IconName }[] = [
 
 export default function App() {
   const [settings, setSettings] = useState(readSettings);
-  const [page, setPage] = useState<Page>('dashboard');
+  const [page, setPage] = useState<Page>(() => {
+    const requested = new URLSearchParams(window.location.search).get('page');
+    return pages.some(page => page.id === requested) ? requested as Page : 'dashboard';
+  });
   const [anchor] = useState(Date.now);
   const [now, setNow] = useState(Date.now);
   const [refreshed, setRefreshed] = useState(Date.now);
@@ -39,6 +43,16 @@ export default function App() {
   function toggleProvider(id: ProviderId) {
     setSettings(current => ({ ...current, enabled: current.enabled.includes(id) ? current.enabled.filter(value => value !== id) : [...current.enabled, id] }));
   }
+
+  useEffect(() => {
+    if (!isTauri()) return;
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    void listen<string>('meterluma:navigate', event => {
+      if (pages.some(page => page.id === event.payload)) setPage(event.payload as Page);
+    }).then(stop => { if (disposed) stop(); else unlisten = stop; }).catch(() => {});
+    return () => { disposed = true; unlisten?.(); };
+  }, []);
 
   useEffect(() => {
     const sync = (event: StorageEvent) => { if (event.key === SETTINGS_KEY) setSettings(readSettings()); };
@@ -66,11 +80,6 @@ export default function App() {
     return () => clearInterval(timer);
   }, [settings.demo, settings.refreshMinutes]);
   useEffect(() => { if (!toast) return; const timer = window.setTimeout(() => setToast(''), 4500); return () => clearTimeout(timer); }, [toast]);
-  useEffect(() => {
-    if (!isTauri()) return;
-    void invoke('set_tray_summary', { summary: settings.demo ? `Demo preview · ${providers.length} providers · ${money(spend)} sample spend today` : `${providers.length} live providers${nextReset ? ` · ${nextReset.provider} resets in ${countdown(nextReset.resetAt, now)}` : ''}` }).catch(() => setToast('The tray summary could not be updated.'));
-  }, [settings.demo, providers.length, spend, nextReset?.resetAt, nextReset?.provider, now]);
-
   return <div className="app-shell">
     <aside className="sidebar">
       <a className="brand" href="#" onClick={event => { event.preventDefault(); setPage('dashboard'); }} aria-label="MeterLuma overview"><Mark/><span>Meter<span className="brand-luma">Luma</span></span></a>
