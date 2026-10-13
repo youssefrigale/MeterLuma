@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { invoke, isTauri } from '@tauri-apps/api/core';
-import { Icon } from './icons';
+import { Icon, Mark } from './icons';
 import { readSettings, sampleProviders, countdown, dailySpend, money, SETTINGS_KEY } from './model';
 import { useLiveProviders } from './useLiveProviders';
 
 type Range = 'Today' | 'Yesterday' | '30 Days';
-const colors = { claude: '#e67456', codex: '#0a9f83', cursor: '#6861ac' };
+const colors = { claude: '#e9b56d', codex: '#87cbb3', cursor: '#aaa2e8' };
 
 export default function QuickView() {
   const [settings, setSettings] = useState(readSettings);
@@ -69,7 +69,8 @@ export default function QuickView() {
   let offset = 0;
   return <main className="quick-view" aria-label="MeterLuma usage panel">
     <div className="quick-scroll" tabIndex={0} aria-label="Costs and provider allowances">
-      <header className="quick-header"><h1>Cost</h1><button className="quick-info-button" aria-label="About cost data" aria-expanded={info} onClick={() => setInfo(value => !value)}><Icon name="info" size={14}/></button><span className="quick-mode">{settings.demo ? 'Demo' : 'Live'}</span></header>
+      <header className="quick-header"><div className="quick-brand"><Mark size={30}/><div><h1>Meter<span>Luma</span></h1><p>Your AI, at a glance.</p></div></div><button className="quick-refresh" aria-label="Refresh usage" disabled={live.loading} onClick={refresh}><Icon name="refresh" size={15}/></button></header>
+      <div className="quick-section-label"><h2>Cost</h2><button className="quick-info-button" aria-label="About cost data" aria-expanded={info} onClick={() => setInfo(value => !value)}><Icon name="info" size={13}/></button><span className="quick-mode">{settings.demo ? 'Demo' : 'Live'}</span></div>
       {info && <p className="quick-info">{settings.demo ? 'This preview uses simulated USD costs and allowances. These are not your bills.' : 'Live connections currently report allowances only. Costs and spending history are not available yet.'}</p>}
       <section className="quick-cost" aria-label="Provider costs">
         <div className="quick-tabs" aria-label="Cost date range">{(['Today', 'Yesterday', '30 Days'] as const).map(value => <button key={value} aria-pressed={range === value} className={range === value ? 'selected' : ''} onClick={() => setRange(value)}>{value}</button>)}</div>
@@ -77,23 +78,24 @@ export default function QuickView() {
           <svg viewBox="0 0 120 120" aria-hidden="true"><circle className="quick-donut-track" cx="60" cy="60" r="48"/>{costs.map(provider => {
             const fraction = total ? provider.cost / total * 100 : 0;
             const start = offset; offset += fraction;
-            return <circle key={provider.id} cx="60" cy="60" r="48" pathLength="100" fill="none" stroke={colors[provider.id]} strokeWidth="22" strokeDasharray={`${Math.max(0, fraction - 1.1)} ${100 - Math.max(0, fraction - 1.1)}`} strokeDashoffset={-start} transform="rotate(-90 60 60)"/>;
+            return <circle key={provider.id} cx="60" cy="60" r="48" pathLength="100" fill="none" stroke={colors[provider.id]} strokeWidth="12" strokeDasharray={`${Math.max(0, fraction - 1.7)} ${100 - Math.max(0, fraction - 1.7)}`} strokeDashoffset={-start} transform="rotate(-90 60 60)"/>;
           })}</svg><div><strong>{money(total)}</strong><span>USD · sample</span></div>
         </div><ul className="quick-cost-legend">{costs.map(provider => <li key={provider.id}><i style={{ background: colors[provider.id] }}/><span>{provider.name}</span><strong>{money(provider.cost)}</strong></li>)}</ul></div> : <div className="quick-cost-empty"><Icon name="info" size={19}/><p><span>{settings.demo ? 'Enable a provider to preview costs.' : 'Cost data unavailable'}</span><small>{settings.demo ? 'Choose providers in Options.' : 'Live plan limits appear below.'}</small></p></div>}
       </section>
+      <div className="quick-limits-label"><h2>Allowances</h2><span>{providers.length} providers</span></div>
       <div className="quick-providers">{providers.map(provider => <article className="quick-provider" key={provider.id} style={{ '--provider-color': colors[provider.id] } as CSSProperties}>
         <div className="quick-provider-heading"><span className="quick-provider-logo" aria-hidden="true">{provider.initials}</span><h2>{provider.name}</h2><span>{provider.plan}</span></div>
         <div className="quick-metrics">{provider.metrics.map(metric => {
           const remaining = Math.max(0, 100 - Math.min(100, metric.usedPercent));
           const reset = countdown(metric.resetAt, now);
-          return <div className="quick-metric" key={metric.label}><h3>{metric.label}</h3><div className="quick-meter" role="progressbar" aria-label={`${provider.name} ${metric.label} remaining`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={remaining}><span style={{ width: `${remaining}%` }}/></div><div className="quick-metric-caption"><span>{remaining.toLocaleString(undefined, { maximumFractionDigits: 1 })}% left</span><span>{metric.resetAt === null || reset === 'Reset due' ? reset : `Resets in ${reset}`}</span></div></div>;
+          return <div className="quick-metric" key={metric.label}><div className="quick-metric-title"><h3>{metric.label}</h3><span><strong>{remaining.toLocaleString(undefined, { maximumFractionDigits: 1 })}%</strong> left</span></div><div className="quick-meter" role="progressbar" aria-label={`${provider.name} ${metric.label} remaining`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={remaining}><span style={{ width: `${remaining}%` }}/></div><div className="quick-metric-caption"><Icon name="clock" size={11}/><span>{metric.resetAt === null || reset === 'Reset due' ? reset : `Resets in ${reset}`}</span></div></div>;
         })}</div>
       </article>)}</div>
       {!settings.demo && live.results.filter(result => result.loading || result.error).map(result => <p className="quick-info" role="status" key={result.id}>{result.loading ? `Fetching ${result.id}…` : result.error}</p>)}
       {!providers.length && !live.loading && <div className="quick-empty"><p>Keep your allowances in view.</p><button onClick={() => void openDashboard('connections')}>Choose providers <Icon name="arrow" size={14}/></button></div>}
       {error && <p role="status" className="quick-info">{error}</p>}
     </div>
-    <footer className="quick-footer"><div><span>MeterLuma 0.1.0</span><small>{settings.demo ? 'Sample data only' : live.updatedAt ? `Fetched ${new Date(live.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Live plan limits'} · Next update in {nextRefresh}m</small></div><button className="quick-options-button" ref={optionsButton} aria-haspopup="menu" aria-expanded={options} aria-controls="quick-options" onClick={() => setOptions(value => !value)}>Options <Icon name="chevron" size={13}/></button></footer>
+    <footer className="quick-footer"><div><span className="quick-status"><i/>{settings.demo ? 'Sample data only' : live.updatedAt ? `Fetched ${new Date(live.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Live plan limits'}</span><small>v0.1.0 · Next update in {nextRefresh}m</small></div><button className="quick-options-button" ref={optionsButton} aria-haspopup="menu" aria-expanded={options} aria-controls="quick-options" onClick={() => setOptions(value => !value)}>Options <Icon name="chevron" size={13}/></button></footer>
     {options && <div id="quick-options" className="quick-options" role="menu" aria-label="Options" ref={optionsMenu} onKeyDown={event => {
       if (event.key === 'Escape') { event.preventDefault(); setOptions(false); optionsButton.current?.focus(); }
       if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {

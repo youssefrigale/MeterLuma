@@ -58,9 +58,13 @@ jobs:
           rustup update stable
           rustup default stable
           rustup target add ${{ matrix.targets == 'aarch64-apple-darwin,x86_64-apple-darwin' && 'aarch64-apple-darwin x86_64-apple-darwin' || matrix.targets }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+          shared-key: meter-luma-${{ matrix.platform }}-${{ matrix.targets }}
       - run: npm ci
-      - name: Check provider mapping and credential boundaries
-        run: cargo test --manifest-path src-tauri/Cargo.toml --lib
+      - name: Check providers and taskbar placement
+        run: cargo test --release --manifest-path src-tauri/Cargo.toml --lib
       - name: Build unsigned internal prototype
         run: npm run desktop:build -- ${{ matrix.args }}
       - uses: actions/upload-artifact@v7

@@ -8,7 +8,7 @@ test('tray panel exposes costs, remaining limits, a fixed Options footer and das
   await expect(page.getByRole('progressbar', { name: 'Claude Session remaining' })).toHaveAttribute('aria-valuenow', '62');
   await expect(page.getByText(/Sample data only/)).toBeVisible();
   await expect(page.getByRole('img', { name: 'Today simulated costs: $8.42' })).toBeVisible();
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   expect(await page.locator('.quick-footer').evaluate(element => element.getBoundingClientRect().bottom <= window.innerHeight)).toBe(true);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.locator('.quick-scroll').evaluate(element => element.scrollTop = element.scrollHeight);

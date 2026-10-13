@@ -1,5 +1,7 @@
 mod providers;
 mod quick;
+#[cfg(any(target_os = "windows", test))]
+mod placement;
 
 use tauri::{
     menu::{Menu, MenuItem},

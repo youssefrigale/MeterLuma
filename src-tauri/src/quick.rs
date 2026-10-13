@@ -13,6 +13,10 @@ pub fn create(app: &tauri::App) -> tauri::Result<()> {
 pub fn toggle(app: &tauri::AppHandle, point: Option<(f64, f64)>) {
     let Some(window) = app.get_webview_window("quick") else { return; };
     if window.is_visible().unwrap_or(false) { let _ = window.hide(); return; }
+    #[cfg(target_os = "windows")]
+    if position_windows(&window, point) {
+        let _ = window.show(); let _ = window.set_focus(); return;
+    }
     if let Some((x, y)) = point {
         if let Ok(monitors) = window.available_monitors() {
             if let Some(monitor) = monitors.iter().find(|monitor| {
@@ -34,6 +38,23 @@ pub fn toggle(app: &tauri::AppHandle, point: Option<(f64, f64)>) {
     } else { let _ = window.center(); }
     let _ = window.show();
     let _ = window.set_focus();
+}
+
+#[cfg(target_os = "windows")]
+fn position_windows(window: &tauri::WebviewWindow, point: Option<(f64, f64)>) -> bool {
+    let Some(area) = super::placement::desktop_area(point) else { return false; };
+    let scale = window.available_monitors().ok().and_then(|monitors| monitors.into_iter().find(|monitor| {
+        monitor.position().x == area.screen.left && monitor.position().y == area.screen.top
+    }).map(|monitor| monitor.scale_factor())).unwrap_or_else(|| window.scale_factor().unwrap_or(1.0));
+    let width = (360.0 * scale).round() as i32;
+    let height = (660.0 * scale).round() as i32;
+    let width = width.min(area.work.right - area.work.left).max(1);
+    let height = height.min(area.work.bottom - area.work.top).max(1);
+    let (left, top) = super::placement::dock(area, width, height, point);
+    // Move to the target display first, then apply its physical size and final snapped position.
+    if window.set_position(PhysicalPosition::new(left, top)).is_err() { return false; }
+    if window.set_size(Size::Physical(tauri::PhysicalSize::new(width as u32, height as u32))).is_err() { return false; }
+    window.set_position(PhysicalPosition::new(left, top)).is_ok()
 }
 
 #[tauri::command]
