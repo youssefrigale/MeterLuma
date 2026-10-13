@@ -1,0 +1,173 @@
+{
+  "runtimeCommit": "78236fdf5eaa140942a46d5acd083276bf40972e",
+  "passed": true,
+  "testedAt": "2026-10-13T23:31:17.462Z",
+  "checks": [
+    "hidden startup",
+    "live default and migrated preferences",
+    "real Codex quota response",
+    "recorded Codex and Claude histories",
+    "day and model token totals agree",
+    "displayed quota matches provider response",
+    "displayed model names match local records",
+    "device scope disclosed",
+    "missing spending is not fabricated",
+    "failed quotas do not become zero values",
+    "no sample charts in live mode",
+    "zero taskbar gap on all tested pages"
+  ],
+  "measurements": [
+    {
+      "page": "Overview",
+      "panel": {
+        "Left": 2191,
+        "Top": 370,
+        "Right": 2567,
+        "Bottom": 1039
+      },
+      "client": {
+        "Left": 0,
+        "Top": 0,
+        "Right": 360,
+        "Bottom": 660
+      },
+      "clientOrigin": {
+        "X": 2199,
+        "Y": 371
+      },
+      "visibleFrame": {
+        "Left": 2198,
+        "Top": 370,
+        "Right": 2560,
+        "Bottom": 1032
+      },
+      "work": {
+        "Left": 0,
+        "Top": 0,
+        "Right": 2560,
+        "Bottom": 1032
+      },
+      "screen": {
+        "Left": 0,
+        "Top": 0,
+        "Right": 2560,
+        "Bottom": 1080
+      },
+      "bottomGapPixels": 0
+    },
+    {
+      "page": "Codex",
+      "panel": {
+        "Left": 2191,
+        "Top": 410,
+        "Right": 2567,
+        "Bottom": 1039
+      },
+      "client": {
+        "Left": 0,
+        "Top": 0,
+        "Right": 360,
+        "Bottom": 620
+      },
+      "clientOrigin": {
+        "X": 2199,
+        "Y": 411
+      },
+      "visibleFrame": {
+        "Left": 2198,
+        "Top": 410,
+        "Right": 2560,
+        "Bottom": 1032
+      },
+      "work": {
+        "Left": 0,
+        "Top": 0,
+        "Right": 2560,
+        "Bottom": 1032
+      },
+      "screen": {
+        "Left": 0,
+        "Top": 0,
+        "Right": 2560,
+        "Bottom": 1080
+      },
+      "bottomGapPixels": 0
+    },
+    {
+      "page": "Claude",
+      "panel": {
+        "Left": 2191,
+        "Top": 410,
+        "Right": 2567,
+        "Bottom": 1039
+      },
+      "client": {
+        "Left": 0,
+        "Top": 0,
+        "Right": 360,
+        "Bottom": 620
+      },
+      "clientOrigin": {
+        "X": 2199,
+        "Y": 411
+      },
+      "visibleFrame": {
+        "Left": 2198,
+        "Top": 410,
+        "Right": 2560,
+        "Bottom": 1032
+      },
+      "work": {
+        "Left": 0,
+        "Top": 0,
+        "Right": 2560,
+        "Bottom": 1032
+      },
+      "screen": {
+        "Left": 0,
+        "Top": 0,
+        "Right": 2560,
+        "Bottom": 1080
+      },
+      "bottomGapPixels": 0
+    },
+    {
+      "page": "Costs",
+      "panel": {
+        "Left": 2191,
+        "Top": 610,
+        "Right": 2567,
+        "Bottom": 1039
+      },
+      "client": {
+        "Left": 0,
+        "Top": 0,
+        "Right": 360,
+        "Bottom": 420
+      },
+      "clientOrigin": {
+        "X": 2199,
+        "Y": 611
+      },
+      "visibleFrame": {
+        "Left": 2198,
+        "Top": 610,
+        "Right": 2560,
+        "Bottom": 1032
+      },
+      "work": {
+        "Left": 0,
+        "Top": 0,
+        "Right": 2560,
+        "Bottom": 1032
+      },
+      "screen": {
+        "Left": 0,
+        "Top": 0,
+        "Right": 2560,
+        "Bottom": 1080
+      },
+      "bottomGapPixels": 0
+    }
+  ]
+}
