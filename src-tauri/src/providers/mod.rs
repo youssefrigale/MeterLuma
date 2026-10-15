@@ -11,7 +11,8 @@ use std::{collections::HashMap, path::{Path, PathBuf}, sync::Arc, time::{Duratio
 pub const CLAUDE_UNAVAILABLE: &str = "Claude live quotas are not available in MeterLuma. Recorded Claude Code history is read from local logs.";
 const USER_AGENT: &str = concat!("MeterLuma/", env!("CARGO_PKG_VERSION"));
 const CURSOR_USAGE: &str = "https://api2.cursor.sh/aiserver.v1.DashboardService/GetCurrentPeriodUsage";
-const CODEX_FRESH: Duration = Duration::from_secs(60);
+// Both always-alive windows poll at least every 5 minutes; a just-under-5-minute window keeps them on one CLI run.
+const CODEX_FRESH: Duration = Duration::from_secs(290);
 // Equals Tauri's app_cache_dir, which the uninstaller's delete-app-data option removes.
 const CACHE_FOLDER: &str = "app.meterluma.desktop";
 // On Windows the legacy folder is also the per-user install directory: remove only these two files.

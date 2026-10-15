@@ -54,7 +54,9 @@ export function useLiveProviders(settings: Settings) {
     });
     return () => { active = false; };
   }, [settings.demo, sources, request, settings.historyDays, permitted]);
-  const retryDeadline = Math.min(...results.flatMap(result => typeof result.quotaFailure?.retryAt === 'number' ? [result.quotaFailure.retryAt] : []));
+  // Only settled rows with a deadline still ahead schedule an early retry; a carried-over, elapsed deadline would refire every second.
+  const now = Date.now();
+  const retryDeadline = Math.min(...results.flatMap(result => !result.loading && typeof result.quotaFailure?.retryAt === 'number' && result.quotaFailure.retryAt > now ? [result.quotaFailure.retryAt] : []));
   useEffect(() => {
     if (settings.demo || !isTauri() || !permitted || sources === '[]') { setNextRefreshAt(null); return; }
     const interval = Math.max(5, settings.refreshMinutes) * 60_000;

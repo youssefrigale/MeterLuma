@@ -532,4 +532,13 @@ mod tests {
         let parsed = extract(ProviderId::Claude, Cursor::new(claude_line("msg_future", &future, 1, "x").into_bytes()));
         assert!(parsed.partial && !parsed.cacheable && parsed.records.is_empty());
     }
+
+    #[test]
+    #[ignore = "Reads this device's real logs; opt in with METERLUMA_REAL_HISTORY=claude or codex. Prints aggregate totals only."]
+    fn real_history_totals() {
+        let id = match std::env::var("METERLUMA_REAL_HISTORY").as_deref() { Ok("claude") => ProviderId::Claude, Ok("codex") => ProviderId::Codex, _ => panic!("Set METERLUMA_REAL_HISTORY to claude or codex.") };
+        let history = scan(id, Some(crate::profiles::root(id, None).unwrap()), 30, &SyncMutex::new(FileCache::default()));
+        let total: u64 = history.days.iter().map(|day| day.tokens.total_tokens).sum();
+        println!("REAL_HISTORY {{\"available\":{},\"partial\":{},\"records\":{},\"totalTokens\":{},\"coverageStart\":{:?},\"recordedDays\":{}}}", history.available, history.partial, history.record_count, total, history.coverage_start, history.days.iter().filter(|day| day.tokens.total_tokens > 0).count());
+    }
 }

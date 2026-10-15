@@ -6,7 +6,7 @@ import { UsageHistory } from './UsageHistory';
 import { retryCountdown } from './providerState';
 import { CLAUDE_LOCAL, formatTime, neutralColors, resetText, short, visibleMetrics } from './format';
 import { dayValue } from './coverage';
-import { UnofficialNote } from './ProviderNotes';
+import { UnofficialBadge, UnofficialNote } from './ProviderNotes';
 import { CURSOR_HISTORY_NOTE } from './exportUsage';
 
 const websites = {
@@ -44,7 +44,7 @@ export function QuickProvider({ provider, settings, now, detailed = false, conne
     catch { setLinkError('The provider page could not be opened.'); }
   }
   return <article className={`quick-provider ${detailed ? 'quick-detail' : ''}`}>
-    {!detailed && <div className="quick-provider-heading"><h2>{provider.name}</h2><span>{provider.accountLabel ? `${provider.accountLabel} · ` : ''}{provider.plan}</span></div>}
+    {!detailed && <div className="quick-provider-heading"><h2>{provider.name}</h2><span>{provider.accountLabel ? `${provider.accountLabel} · ` : ''}{provider.plan}{provider.id === 'cursor' && <> <UnofficialBadge/></>}</span></div>}
     {detailed && <div className="quick-provider-links"><button onClick={() => void openWebsite('status')}>Status <Icon name="external" size={12}/></button><button onClick={() => void openWebsite('usage')}>Usage dashboard <Icon name="external" size={12}/></button></div>}
     {detailed && provider.id === 'cursor' && <UnofficialNote className="quick-info"/>}
     {provider.historyOnly && <p className="quick-info quick-local-note">{detailed ? CLAUDE_LOCAL : localSummary(provider)}</p>}

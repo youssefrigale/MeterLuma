@@ -305,12 +305,27 @@ test('Cursor is labeled unofficial on its connection option, details and tray pa
   await expect(details).toContainText('not endorsed by Cursor');
   await page.keyboard.press('Escape');
   await page.goto('/?view=quick');
+  await expect(page.locator('.quick-provider').filter({ hasText: 'Cursor' }).getByText('Unofficial', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Cursor details' }).click();
   await expect(page.locator('.quick-detail .unofficial-note')).toContainText('Unofficial');
   await expect(page.locator('.quick-detail')).toContainText('Cursor token history is not recorded locally.');
   await expect(page.locator('.quick-statistics')).toHaveCount(0);
   await axe(page);
   expect((await nativeCalls(page)).filter(call => call.command === 'read_usage_history')).toEqual([]);
+});
+
+test('an elapsed rate-limit deadline triggers one retry instead of a refresh every second', async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-10-15T10:00:00Z') });
+  await nativeBridge(page, { settings: { legalVersion: LEGAL, demo: false, liveProviders: ['cursor'], enabled: ['cursor'] }, quotas: { cursor: { error: { code: 'rate_limited', message: 'The provider is limiting requests.' }, retryIn: 60_000, snapshot: { plan: 'Pro', ageMs: 120_000, metrics: [{ label: 'Monthly', usedPercent: 40, resetIn: 86_400_000 }] } } } });
+  await page.goto('/');
+  await expect(page.getByRole('article').filter({ hasText: 'Cursor' })).toContainText('Cached quotas');
+  const settled = await countCalls(page, 'refresh_provider');
+  // The retry stays pending, as a slow provider would; its row must not keep the elapsed deadline alive.
+  await holdNative(page);
+  await page.clock.fastForward('01:02');
+  await expect.poll(() => countCalls(page, 'refresh_provider')).toBe(settled + 1);
+  await page.clock.runFor('00:10');
+  expect(await countCalls(page, 'refresh_provider')).toBe(settled + 1);
 });
 
 test('Cursor-only users get an explanation instead of an empty history and a dead CSV button', async ({ page }) => {

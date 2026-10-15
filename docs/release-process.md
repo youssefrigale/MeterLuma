@@ -54,12 +54,12 @@ users without an updater cannot be migrated later.
 2. Store the private key file and its password in your password manager, and keep one offline backup.
 3. Add the secrets:
    ```sh
-   gh secret set TAURI_SIGNING_PRIVATE_KEY < ~/.tauri/meterluma-updater.key
-   gh secret set TAURI_SIGNING_PRIVATE_KEY_PASSWORD        # paste the password at the prompt
-   gh secret set METERLUMA_UPDATER_PUBKEY < ~/.tauri/meterluma-updater.key.pub
-   gh secret set METERLUMA_UPDATER_ENDPOINT --body "https://downloads.example.com/meterluma/latest.json"
+   gh secret set --repo youssefrigale/MeterLuma TAURI_SIGNING_PRIVATE_KEY < ~/.tauri/meterluma-updater.key
+   gh secret set --repo youssefrigale/MeterLuma TAURI_SIGNING_PRIVATE_KEY_PASSWORD        # paste the password at the prompt
+   gh secret set --repo youssefrigale/MeterLuma METERLUMA_UPDATER_PUBKEY < ~/.tauri/meterluma-updater.key.pub
+   gh secret set --repo youssefrigale/MeterLuma METERLUMA_UPDATER_ENDPOINT --body "https://downloads.example.com/meterluma/latest.json"
    ```
-   In PowerShell, pipe the file instead: `Get-Content -Raw $HOME\.tauri\meterluma-updater.key | gh secret set TAURI_SIGNING_PRIVATE_KEY`.
+   In PowerShell, pipe the file instead: `Get-Content -Raw $HOME\.tauri\meterluma-updater.key | gh secret set --repo youssefrigale/MeterLuma TAURI_SIGNING_PRIVATE_KEY`.
 4. Set the repository **variable** `METERLUMA_DOWNLOAD_BASE_URL` to the https folder that will hold the
    installers, for example `https://downloads.example.com/meterluma/{version}`. `{version}` is replaced
    by the release version. Without this variable the workflow still signs the updater artifacts but
@@ -90,18 +90,18 @@ To rotate the key:
    `security find-identity -v -p codesigning` shows, for example, `Developer ID Application: Youssef Rigale (ABCDE12345)`.
 4. Add the signing secrets:
    ```sh
-   base64 -i DeveloperID.p12 | tr -d '\n' | gh secret set APPLE_CERTIFICATE
-   gh secret set APPLE_CERTIFICATE_PASSWORD          # the .p12 export password
-   gh secret set APPLE_SIGNING_IDENTITY --body "Developer ID Application: Youssef Rigale (ABCDE12345)"
+   base64 -i DeveloperID.p12 | tr -d '\n' | gh secret set --repo youssefrigale/MeterLuma APPLE_CERTIFICATE
+   gh secret set --repo youssefrigale/MeterLuma APPLE_CERTIFICATE_PASSWORD          # the .p12 export password
+   gh secret set --repo youssefrigale/MeterLuma APPLE_SIGNING_IDENTITY --body "Developer ID Application: Youssef Rigale (ABCDE12345)"
    ```
 5. Choose **one** notarization method:
    - **App Store Connect API key (preferred).** App Store Connect → Users and Access → Integrations →
      App Store Connect API → Team Keys → generate a key with **Developer** access. Download
      `AuthKey_<KEYID>.p8`; Apple lets you download it only once. Then:
      ```sh
-     gh secret set APPLE_API_KEY --body "<Key ID>"
-     gh secret set APPLE_API_ISSUER --body "<Issuer ID>"
-     gh secret set APPLE_API_PRIVATE_KEY < AuthKey_<KEYID>.p8
+     gh secret set --repo youssefrigale/MeterLuma APPLE_API_KEY --body "<Key ID>"
+     gh secret set --repo youssefrigale/MeterLuma APPLE_API_ISSUER --body "<Issuer ID>"
+     gh secret set --repo youssefrigale/MeterLuma APPLE_API_PRIVATE_KEY < AuthKey_<KEYID>.p8
      ```
    - **Apple ID.** Create an app-specific password at account.apple.com, then set `APPLE_ID`
      (the account email), `APPLE_PASSWORD` (the app-specific password) and `APPLE_TEAM_ID`.
@@ -140,8 +140,8 @@ downloads whichever option you choose. Configure **one** of these:
   the overlay.
 - **A certificate whose key you can export as a PFX** (OV):
   ```powershell
-  [Convert]::ToBase64String([IO.File]::ReadAllBytes("$PWD\MeterLuma.pfx")) | gh secret set WINDOWS_CERTIFICATE
-  gh secret set WINDOWS_CERTIFICATE_PASSWORD
+  [Convert]::ToBase64String([IO.File]::ReadAllBytes("$PWD\MeterLuma.pfx")) | gh secret set --repo youssefrigale/MeterLuma WINDOWS_CERTIFICATE
+  gh secret set --repo youssefrigale/MeterLuma WINDOWS_CERTIFICATE_PASSWORD
   ```
   The workflow imports it into the runner's user store and passes its thumbprint, `sha256` and an RFC 3161
   timestamp server through the overlay. The default server is `http://timestamp.digicert.com`; set the

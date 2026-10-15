@@ -139,7 +139,7 @@ fn position_windows(window: &tauri::WebviewWindow, point: Option<(f64, f64)>, lo
     if window.set_position(tauri::PhysicalPosition::new(left, top)).is_err() { return false; }
     if window.show().is_err() { return false; }
     let Ok(handle) = window.hwnd() else { return false; };
-    super::placement::fit_window(handle.0 as *mut std::ffi::c_void, area, width, height, point)
+    super::placement::fit_window(handle.0, area, width, height, point)
 }
 
 #[tauri::command]

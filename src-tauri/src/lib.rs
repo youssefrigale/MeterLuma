@@ -99,6 +99,8 @@ mod updates {
     fn check(app: &tauri::AppHandle, asked: bool) -> bool {
         if BUSY.swap(true, Ordering::SeqCst) { return false; }
         let result = tauri::async_runtime::block_on(async { app.updater()?.check().await });
+        // A failed check is retried at the next 15-minute poll instead of waiting a day.
+        let checked = result.is_ok();
         let asked = asked || ASKED.load(Ordering::SeqCst);
         match result {
             Ok(Some(update)) => {
@@ -119,7 +121,7 @@ mod updates {
         }
         ASKED.store(false, Ordering::SeqCst);
         BUSY.store(false, Ordering::SeqCst);
-        true
+        checked
     }
 
     fn tell(app: &tauri::AppHandle, kind: MessageDialogKind, title: &str, message: String) {

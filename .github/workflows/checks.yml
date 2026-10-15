@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      desktop:
+        description: Also build and test the Windows and macOS apps (uses the most Actions minutes)
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -62,6 +67,9 @@ jobs:
 
   desktop:
     name: Desktop (${{ matrix.platform }})
+    # Windows minutes count double and macOS minutes ten times against the private-repo allowance,
+    # so native builds run only when started by hand (Actions → Check and build MeterLuma → Run workflow).
+    if: github.event_name == 'workflow_dispatch' && inputs.desktop
     strategy:
       fail-fast: false
       matrix:
@@ -101,8 +109,8 @@ jobs:
         run: |
           if [ "$(uname -m)" = arm64 ] && ! arch -x86_64 /usr/bin/true 2>/dev/null; then sudo softwareupdate --install-rosetta --agree-to-license; fi
           cargo test --release --manifest-path src-tauri/Cargo.toml --lib --target x86_64-apple-darwin --locked
-      - name: Updater feature compiles
-        run: cargo check --manifest-path src-tauri/Cargo.toml --features updater --locked
+      - name: Updater feature builds and passes its tests
+        run: cargo test --release --manifest-path src-tauri/Cargo.toml --lib --features updater --locked
       - name: Build unsigned CI bundle (not for distribution)
         shell: bash
         run: npx tauri build ${{ matrix.args }} -- --locked
