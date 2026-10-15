@@ -14,6 +14,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  metadata:
+    name: Release metadata
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Versions agree across package.json, Cargo.toml and tauri.conf.json
+        run: node .github/scripts/release-meta.mjs versions
+      - name: Third-party notices cover every locked package
+        run: node .github/scripts/release-meta.mjs notices
+
   interface:
     name: Interface checks
     runs-on: ubuntu-latest
@@ -24,14 +37,29 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run build
-      - run: npx playwright install --with-deps chromium
-      - run: npm test
+      - name: Type-check and build the release frontend
+        run: npm run build
+      - name: Install Chromium and WebKit
+        id: browsers
+        run: npx playwright install --with-deps chromium webkit
+      - name: Chromium tests (dev server, demo available)
+        if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        run: npm test -- --output=test-results/chromium
+      - name: Release-build tests (vite preview of dist, no demo)
+        if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        run: npm run test:release -- --output=test-results/release
+      - name: WebKit tests (the engine behind macOS WKWebView)
+        if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        run: npm run test:webkit -- --output=test-results/webkit
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: browser-test-report
-          path: playwright-report/
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+
   desktop:
     name: Desktop (${{ matrix.platform }})
     strategy:
@@ -44,7 +72,7 @@ jobs:
             args: --bundles nsis
           - platform: macos
             runner: macos-latest
-            targets: aarch64-apple-darwin,x86_64-apple-darwin
+            targets: aarch64-apple-darwin x86_64-apple-darwin
             args: --target universal-apple-darwin --bundles dmg
     runs-on: ${{ matrix.runner }}
     steps:
@@ -57,24 +85,34 @@ jobs:
         run: |
           rustup update stable
           rustup default stable
-          rustup target add ${{ matrix.targets == 'aarch64-apple-darwin,x86_64-apple-darwin' && 'aarch64-apple-darwin x86_64-apple-darwin' || matrix.targets }}
+          rustup target add ${{ matrix.targets }}
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
-          shared-key: meter-luma-${{ matrix.platform }}-${{ matrix.targets }}
+          shared-key: meter-luma-${{ matrix.platform }}
       - run: npm ci
       - name: Prepare frontend assets for release-profile tests
         run: npm run build
-      - name: Check providers and taskbar placement
-        run: cargo test --release --manifest-path src-tauri/Cargo.toml --lib
-      - name: Build unsigned internal prototype
-        run: npm run desktop:build -- ${{ matrix.args }}
+      - name: Native tests (host)
+        run: cargo test --release --manifest-path src-tauri/Cargo.toml --lib --locked
+      - name: Native tests (Intel slice under Rosetta)
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          if [ "$(uname -m)" = arm64 ] && ! arch -x86_64 /usr/bin/true 2>/dev/null; then sudo softwareupdate --install-rosetta --agree-to-license; fi
+          cargo test --release --manifest-path src-tauri/Cargo.toml --lib --target x86_64-apple-darwin --locked
+      - name: Updater feature compiles
+        run: cargo check --manifest-path src-tauri/Cargo.toml --features updater --locked
+      - name: Build unsigned CI bundle (not for distribution)
+        shell: bash
+        run: npx tauri build ${{ matrix.args }} -- --locked
       - uses: actions/upload-artifact@v7
         with:
-          name: MeterLuma-${{ matrix.platform }}-unsigned-prototype
+          name: MeterLuma-${{ matrix.platform }}-ci-unsigned
           path: |
             src-tauri/target/**/bundle/nsis/*.exe
             src-tauri/target/**/bundle/dmg/*.dmg
             src-tauri/target/release/meterluma.exe
             src-tauri/Cargo.lock
           if-no-files-found: error
+          retention-days: 14
