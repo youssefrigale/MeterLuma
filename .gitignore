@@ -2,12 +2,50 @@ node_modules/
 dist/
 src-tauri/target/
 src-tauri/gen/schemas/
+
+# Playwright outputs
 playwright-report/
+blob-report/
 test-results/
+playwright/.cache/
+
+# Local toolchain, private logs and local-only artifacts
 .tools/
 artifacts/releases/
 artifacts/local/
+*.log
+
+# Environment files
 .env
 .env.*
 !.env.example
-*.log
+*.env
+
+# Signing keys, certificates and provisioning material never belong in the repository
+.tauri/
+*.key
+*.key.pub
+*.p8
+*.p12
+*.pfx
+*.pem
+*.cer
+*.crt
+*.csr
+*.der
+*.keychain
+*.keychain-db
+*.mobileprovision
+*.provisionprofile
+*.jks
+*.keystore
+*.snk
+
+# Local Claude Code state
+.claude/worktrees/
+.claude/settings.local.json
+
+# OS clutter
+.DS_Store
+Thumbs.db
+desktop.ini

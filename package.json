@@ -12,7 +12,9 @@
     "desktop:build": "tauri build",
     "test": "playwright test",
     "test:webkit": "playwright test --config playwright.webkit.config.ts",
-    "test:ui": "playwright test --ui"
+    "test:release": "playwright test --config playwright.release.config.ts",
+    "test:ui": "playwright test --ui",
+    "release:verify": "node .github/scripts/release-meta.mjs verify"
   },
   "dependencies": {
     "@remixicon/react": "4.9.0",
