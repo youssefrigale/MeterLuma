@@ -12,23 +12,24 @@ const RECORD_LIMIT: usize = 100_000;
 
 #[derive(Clone, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Tokens { input_tokens: u64, cached_input_tokens: u64, cache_write_tokens: u64, output_tokens: u64, total_tokens: u64 }
+pub struct Tokens { input_tokens: u64, cached_input_tokens: u64, cache_write_tokens: u64, #[serde(skip)] cache_write_1h_tokens: u64, output_tokens: u64, total_tokens: u64 }
 impl Tokens {
     fn parse(value: &Value, claude: bool) -> Option<Self> {
         let input = value["input_tokens"].as_u64()?;
         let output = value["output_tokens"].as_u64()?;
         let cached = value[if claude { "cache_read_input_tokens" } else { "cached_input_tokens" }].as_u64().unwrap_or(0);
         let write = value["cache_creation_input_tokens"].as_u64().unwrap_or(0);
+        let hour_write = value.pointer("/cache_creation/ephemeral_1h_input_tokens").and_then(Value::as_u64).unwrap_or(0);
         let input = if claude { input.checked_add(cached)?.checked_add(write)? } else { input };
-        if cached > input { return None; }
+        if cached.checked_add(write)? > input || hour_write > write { return None; }
         let total = input.checked_add(output)?;
         if total > 9_007_199_254_740_991 { return None; }
-        Some(Self { input_tokens: input, output_tokens: output, cached_input_tokens: cached, cache_write_tokens: write, total_tokens: total })
+        Some(Self { input_tokens: input, output_tokens: output, cached_input_tokens: cached, cache_write_tokens: write, cache_write_1h_tokens: hour_write, total_tokens: total })
     }
     fn delta(&self, previous: &Self) -> Self {
         // Reasoning tokens are already part of output; cached inputs are already part of input.
         if self.total_tokens < previous.total_tokens { return self.clone(); }
-        Self { input_tokens: self.input_tokens.saturating_sub(previous.input_tokens), cached_input_tokens: self.cached_input_tokens.saturating_sub(previous.cached_input_tokens), cache_write_tokens: self.cache_write_tokens.saturating_sub(previous.cache_write_tokens), output_tokens: self.output_tokens.saturating_sub(previous.output_tokens), total_tokens: self.total_tokens.saturating_sub(previous.total_tokens) }
+        Self { input_tokens: self.input_tokens.saturating_sub(previous.input_tokens), cached_input_tokens: self.cached_input_tokens.saturating_sub(previous.cached_input_tokens), cache_write_tokens: self.cache_write_tokens.saturating_sub(previous.cache_write_tokens), cache_write_1h_tokens: self.cache_write_1h_tokens.saturating_sub(previous.cache_write_1h_tokens), output_tokens: self.output_tokens.saturating_sub(previous.output_tokens), total_tokens: self.total_tokens.saturating_sub(previous.total_tokens) }
     }
     fn add(&mut self, other: &Self) {
         self.input_tokens += other.input_tokens; self.cached_input_tokens += other.cached_input_tokens;
@@ -38,16 +39,16 @@ impl Tokens {
 
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Day { date: String, #[serde(flatten)] tokens: Tokens }
+pub struct Day { date: String, #[serde(flatten)] tokens: Tokens, estimated_cost_usd: Option<f64> }
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Model { name: String, total_tokens: u64 }
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct History { available: bool, partial: bool, record_count: usize, scanned_at: i64, today: String, days: Vec<Day>, models: Vec<Model> }
+pub struct History { period_days: u32, available: bool, partial: bool, record_count: usize, scanned_at: i64, today: String, days: Vec<Day>, models: Vec<Model> }
 
 struct Scanner {
-    days: BTreeMap<String, Tokens>, models: BTreeMap<String, u64>, seen_codex: HashSet<String>,
+    days: BTreeMap<String, Tokens>, costs: BTreeMap<String, Option<f64>>, models: BTreeMap<String, u64>, seen_codex: HashSet<String>,
     claude: HashMap<String, (String, String, Tokens)>, records: usize, partial: bool,
 }
 
@@ -61,9 +62,12 @@ fn relevant(id: ProviderId, bytes: &[u8]) -> bool {
     }
 }
 impl Scanner {
-    fn new(today: chrono::NaiveDate) -> Self {
-        let days = (0..30).filter_map(|offset| today.checked_sub_days(Days::new(offset))).map(|date| (date.to_string(), Tokens::default())).collect();
-        Self { days, models: BTreeMap::new(), seen_codex: HashSet::new(), claude: HashMap::new(), records: 0, partial: false }
+    #[cfg(test)]
+    fn new(today: chrono::NaiveDate) -> Self { Self::with_days(today, 30) }
+    fn with_days(today: chrono::NaiveDate, period_days: u32) -> Self {
+        let days: BTreeMap<String, Tokens> = (0..u64::from(period_days)).filter_map(|offset| today.checked_sub_days(Days::new(offset))).map(|date| (date.to_string(), Tokens::default())).collect();
+        let costs = days.keys().map(|date| (date.clone(), Some(0.0))).collect();
+        Self { days, costs, models: BTreeMap::new(), seen_codex: HashSet::new(), claude: HashMap::new(), records: 0, partial: false }
     }
     fn add(&mut self, date: &str, model: &str, tokens: &Tokens) {
         if tokens.total_tokens == 0 || !self.days.contains_key(date) { return; }
@@ -71,6 +75,9 @@ impl Scanner {
         let model_total = self.models.get(model).copied().unwrap_or(0).checked_add(tokens.total_tokens);
         if !day_total.is_some_and(|total| total <= 9_007_199_254_740_991) || !model_total.is_some_and(|total| total <= 9_007_199_254_740_991) { self.partial = true; return; }
         self.days.get_mut(date).unwrap().add(tokens);
+        let value = crate::pricing::claude_value(model, tokens.input_tokens, tokens.output_tokens, tokens.cached_input_tokens, tokens.cache_write_tokens, tokens.cache_write_1h_tokens);
+        let cost = self.costs.get_mut(date).unwrap();
+        *cost = cost.and_then(|prior| value.map(|value| prior + value));
         *self.models.entry(model.to_string()).or_default() += tokens.total_tokens;
         self.records += 1;
     }
@@ -109,36 +116,37 @@ impl Scanner {
         for (_, (date, model, tokens)) in std::mem::take(&mut self.claude) { self.add(&date, &model, &tokens); }
         let mut models: Vec<Model> = self.models.into_iter().map(|(name, total_tokens)| Model { name, total_tokens }).collect();
         models.sort_by(|a, b| b.total_tokens.cmp(&a.total_tokens));
-        History { available, partial: self.partial, record_count: self.records, scanned_at: Utc::now().timestamp_millis(), today, days: self.days.into_iter().map(|(date, tokens)| Day { date, tokens }).collect(), models }
+        History { period_days: self.days.len() as u32, available, partial: self.partial, record_count: self.records, scanned_at: Utc::now().timestamp_millis(), today, days: self.days.into_iter().map(|(date, tokens)| { let estimated_cost_usd = self.costs.remove(&date).flatten(); Day { date, tokens, estimated_cost_usd } }).collect(), models }
     }
 }
 
-fn collect(root: &Path, files: &mut Vec<(std::time::SystemTime, PathBuf)>, directories: &mut usize, partial: &mut bool) {
+fn collect(root: &Path, files: &mut Vec<(std::time::SystemTime, PathBuf)>, directories: &mut usize, partial: &mut bool, period_days: u32) {
     if *directories >= 5000 || files.len() >= FILE_LIMIT { *partial = true; return; }
     *directories += 1;
     let Ok(entries) = fs::read_dir(root) else { *partial = true; return; };
-    let cutoff = std::time::SystemTime::now().checked_sub(Duration::from_secs(31 * 86400)).unwrap_or(std::time::SystemTime::UNIX_EPOCH);
-    for entry in entries.flatten() {
+    let cutoff = std::time::SystemTime::now().checked_sub(Duration::from_secs(u64::from(period_days + 1) * 86400)).unwrap_or(std::time::SystemTime::UNIX_EPOCH);
+    for entry in entries {
+        let Ok(entry) = entry else { *partial = true; continue; };
         let Ok(kind) = entry.file_type() else { *partial = true; continue; };
         if kind.is_symlink() { continue; }
-        if kind.is_dir() { collect(&entry.path(), files, directories, partial); }
+        if kind.is_dir() { collect(&entry.path(), files, directories, partial, period_days); }
         else if kind.is_file() && entry.path().extension().is_some_and(|extension| extension == "jsonl") {
             if files.len() >= FILE_LIMIT { *partial = true; break; }
-            if let Ok(modified) = entry.metadata().and_then(|metadata| metadata.modified()) { if modified >= cutoff { files.push((modified, entry.path())); } }
+            match entry.metadata().and_then(|metadata| metadata.modified()) { Ok(modified) if modified >= cutoff => files.push((modified, entry.path())), Err(_) => *partial = true, _ => {} }
         }
     }
 }
 
-fn scan(id: ProviderId) -> Result<History, String> {
-    let home = dirs::home_dir().ok_or("Your home directory could not be found.")?;
-    let roots = match id {
-        ProviderId::Claude => vec![std::env::var_os("CLAUDE_CONFIG_DIR").map(PathBuf::from).unwrap_or(home.join(".claude")).join("projects")],
-        ProviderId::Codex => { let root = std::env::var_os("CODEX_HOME").map(PathBuf::from).unwrap_or(home.join(".codex")); vec![root.join("sessions"), root.join("archived_sessions")] },
-        ProviderId::Cursor => vec![],
+fn scan(id: ProviderId, directory: Option<String>, period_days: u32) -> Result<History, String> {
+    let root = if matches!(id, ProviderId::Cursor) { None } else { Some(crate::profiles::root(id, directory.as_deref())?) };
+    let roots = match root {
+        Some(root) if matches!(id, ProviderId::Claude) => vec![root.join("projects")],
+        Some(root) => vec![root.join("sessions"), root.join("archived_sessions")],
+        None => vec![],
     };
-    let today = Local::now().date_naive(); let mut scanner = Scanner::new(today);
+    let today = Local::now().date_naive(); let mut scanner = Scanner::with_days(today, period_days);
     let mut files = Vec::new(); let mut directories = 0; let mut available = false;
-    for root in roots { if root.is_dir() { available = true; collect(&root, &mut files, &mut directories, &mut scanner.partial); } }
+    for root in roots { if root.is_dir() { available = true; collect(&root, &mut files, &mut directories, &mut scanner.partial, period_days); } }
     files.sort_by(|a, b| b.0.cmp(&a.0));
     let mut remaining = BYTE_LIMIT;
     for (_, path) in files {
@@ -167,23 +175,53 @@ fn scan(id: ProviderId) -> Result<History, String> {
     Ok(scanner.finish(available, today.to_string()))
 }
 
-pub struct HistoryService { caches: [Mutex<Option<(Instant, History)>>; 3] }
-impl Default for HistoryService { fn default() -> Self { Self { caches: std::array::from_fn(|_| Mutex::new(None)) } } }
+pub struct HistoryService { caches: Mutex<HashMap<String, (Instant, History)>> }
+impl Default for HistoryService { fn default() -> Self { Self { caches: Mutex::new(HashMap::new()) } } }
 #[tauri::command]
-pub async fn read_usage_history(service: tauri::State<'_, HistoryService>, provider_id: ProviderId) -> Result<History, String> {
-    let index = match provider_id { ProviderId::Claude => 0, ProviderId::Codex => 1, ProviderId::Cursor => 2 };
-    let mut cache = service.caches[index].lock().await;
-    if let Some((until, history)) = cache.as_ref() { if *until > Instant::now() { return Ok(history.clone()); } }
-    let history = tauri::async_runtime::spawn_blocking(move || scan(provider_id)).await.map_err(|_| "Usage history could not be read.")??;
-    *cache = Some((Instant::now() + Duration::from_secs(60), history.clone()));
+pub async fn read_usage_history(service: tauri::State<'_, HistoryService>, provider_id: ProviderId, config_directory: Option<String>, days: Option<u32>) -> Result<History, String> {
+    let days = checked_days(days)?;
+    let root = if matches!(provider_id, ProviderId::Cursor) { None } else { Some(crate::profiles::root(provider_id, config_directory.as_deref())?) };
+    let key = format!("{}:{}:{}", match provider_id { ProviderId::Claude => "claude", ProviderId::Codex => "codex", ProviderId::Cursor => "cursor" }, root.as_ref().map(|path| path.to_string_lossy().into_owned()).unwrap_or_default(), days);
+    let mut cache = service.caches.lock().await;
+    cache.retain(|_, (until, _)| *until > Instant::now());
+    if let Some((_, history)) = cache.get(&key) { return Ok(history.clone()); }
+    let history = tauri::async_runtime::spawn_blocking(move || scan(provider_id, config_directory, days)).await.map_err(|_| "Usage history could not be read.")??;
+    if cache.len() >= 16 { cache.clear(); }
+    cache.insert(key, (Instant::now() + Duration::from_secs(60), history.clone()));
     Ok(history)
+}
+
+fn checked_days(days: Option<u32>) -> Result<u32, String> {
+    match days.unwrap_or(30) { days @ (30 | 90 | 365) => Ok(days), _ => Err("Choose a 30, 90, or 365 day history window.".into()) }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use serde_json::json;
+    #[test]
+    fn history_periods_are_bounded_and_include_older_activity() {
+        assert!(checked_days(Some(366)).is_err());
+        assert_eq!(checked_days(None).unwrap(), 30);
+        let today = Local::now().date_naive();
+        let mut scan = Scanner::with_days(today, 365);
+        let date = today.checked_sub_days(Days::new(180)).unwrap().to_string();
+        scan.add(&date, "older-model", &Tokens { input_tokens: 10, output_tokens: 5, total_tokens: 15, ..Tokens::default() });
+        let history = scan.finish(true, today.to_string());
+        assert_eq!(history.days.len(), 365);
+        assert_eq!(history.models[0].total_tokens, 15);
+    }
     fn timestamp() -> String { Utc::now().to_rfc3339() }
+    #[test]
+    fn unknown_model_activity_does_not_turn_into_zero_or_incomplete_dollar_totals() {
+        let today = Local::now().date_naive(); let date = today.to_string(); let mut scanner = Scanner::new(today);
+        scanner.add(&date, "claude-opus-5-5", &Tokens { input_tokens: 1_000_000, total_tokens: 1_000_000, ..Tokens::default() });
+        assert_eq!(scanner.costs[&date], Some(4.0));
+        scanner.add(&date, "unknown-model", &Tokens { input_tokens: 1, total_tokens: 1, ..Tokens::default() });
+        let history = scanner.finish(true, date);
+        assert_eq!(history.days.last().unwrap().estimated_cost_usd, None);
+        assert_eq!(history.days.last().unwrap().tokens.total_tokens, 1_000_001);
+    }
     #[test]
     fn codex_counts_deltas_and_deduplicates_copied_events_without_double_counting_reasoning() {
         let today = Local::now().date_naive(); let mut scan = Scanner::new(today); let mut model = "model-a".to_string(); let mut prior = Tokens::default();

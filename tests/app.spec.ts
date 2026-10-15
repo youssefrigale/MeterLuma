@@ -59,13 +59,18 @@ test('activity range reflects the selected time window', async ({ page }) => {
   await page.getByRole('switch', { name: 'Demo preview' }).click();
 });
 
-test('Pro clearly describes a planned one-time purchase', async ({ page }) => {
+test('personal-use license is readable and replaces the Pro offer', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  await page.locator('.about-panel').getByRole('button', { name: 'Discover Pro', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'A clearer picture with Pro.' });
-  await expect(dialog).toContainText('one-time purchase');
-  await expect(dialog).toContainText('not available in this prototype');
+  await expect(page.getByRole('button', { name: 'Discover Pro', exact: true })).toHaveCount(0);
+  await page.locator('.about-panel').getByRole('button', { name: 'View license', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Free for personal use.' });
+  await expect(dialog).toContainText('Personal, noncommercial use only.');
+  await expect(dialog).toContainText('Selling and redistribution are prohibited.');
+  await dialog.getByText('Read the full license', { exact: true }).click();
+  await expect(dialog.locator('.license-details').first().locator('pre')).toBeVisible();
+  await expect(dialog.locator('.license-details').first().locator('pre')).toContainText('MeterLuma Personal Use License 1.1');
+  expect(await dialog.locator('.license-details').first().locator('pre').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
   await dialog.getByRole('button', { name: 'Back to my workspace' }).click();
   await expect(dialog).not.toBeVisible();
 });

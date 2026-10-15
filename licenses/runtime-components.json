@@ -1,0 +1,16 @@
+[
+  {
+    "name": "Microsoft.Web.WebView2 SDK",
+    "version": "1.0.3800.47",
+    "license": "BSD-3-Clause",
+    "source": "https://api.nuget.org/v3-flatcontainer/microsoft.web.webview2/1.0.3800.47/microsoft.web.webview2.1.0.3800.47.nupkg",
+    "directory": "webview2-sdk"
+  },
+  {
+    "name": "LLVM runtime (local GNU Windows beta only)",
+    "version": "llvm-mingw-20261006",
+    "license": "Apache-2.0 WITH LLVM-exception; legacy LLVM notices retained",
+    "source": "https://github.com/mstorsjo/llvm-mingw/releases/tag/20261006",
+    "directory": "llvm-runtime"
+  }
+]

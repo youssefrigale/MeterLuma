@@ -7,6 +7,7 @@ use std::{fs, io::Read, path::PathBuf};
 pub struct Credential {
     pub token: String,
     pub account_id: Option<String>,
+    pub file: Option<PathBuf>,
 }
 
 impl Credential {
@@ -19,11 +20,7 @@ impl Credential {
     }
 }
 
-fn home() -> Result<PathBuf, String> {
-    dirs::home_dir().ok_or_else(|| "Your home directory could not be found.".into())
-}
-
-fn read_json(path: &PathBuf) -> Result<Value, String> {
+pub(super) fn read_json(path: &PathBuf) -> Result<Value, String> {
     let metadata = fs::metadata(path).map_err(|_| "No readable local sign-in was found. Sign in to the provider app first.".to_string())?;
     if metadata.len() > 1_048_576 { return Err("The local sign-in file is unexpectedly large.".into()); }
     let file = fs::File::open(path).map_err(|_| "Your local sign-in could not be read.".to_string())?;
@@ -40,10 +37,10 @@ fn token(value: Option<&Value>) -> Option<String> {
 pub fn from_auth_json(id: ProviderId, value: &Value) -> Result<Credential, String> {
     let (access, account_id) = match id {
         ProviderId::Claude => (token(value.pointer("/claudeAiOauth/accessToken")), None),
-        ProviderId::Codex => (token(value.pointer("/tokens/access_token")), token(value.pointer("/tokens/account_id"))),
+        ProviderId::Codex => return Err("Codex authentication is managed by the official CLI.".into()),
         ProviderId::Cursor => return Err("Cursor uses its desktop sign-in database.".into()),
     };
-    access.map(|token| Credential { token, account_id }).ok_or_else(|| "A subscription sign-in is required. API keys cannot read these plan limits.".into())
+    access.map(|token| Credential { token, account_id, file: None }).ok_or_else(|| "A subscription sign-in is required. API keys cannot read these plan limits.".into())
 }
 
 #[cfg(target_os = "macos")]
@@ -54,6 +51,11 @@ fn keychain(service: &str) -> Result<String, String> {
         .args(["find-generic-password", "-s", service, "-w"])
         .stdout(Stdio::piped()).stderr(Stdio::null()).spawn()
         .map_err(|_| "macOS Keychain could not be accessed.".to_string())?;
+    let stdout = child.stdout.take().ok_or("Keychain returned no result.")?;
+    let reader = std::thread::spawn(move || {
+        let mut output = String::new();
+        stdout.take(65_537).read_to_string(&mut output).map(|_| output)
+    });
     let status = child.wait_timeout(Duration::from_secs(15))
         .map_err(|_| "macOS Keychain lookup failed.".to_string())?;
     let Some(status) = status else {
@@ -61,43 +63,37 @@ fn keychain(service: &str) -> Result<String, String> {
         return Err("Keychain access timed out. Allow access when macOS asks, then try again.".into());
     };
     if !status.success() { return Err("No accessible Keychain sign-in was found. Sign in to the provider app first.".into()); }
-    let mut output = String::new();
-    child.stdout.take().ok_or("Keychain returned no result.")?
-        .take(65_537).read_to_string(&mut output)
+    let output = reader.join().map_err(|_| "Keychain sign-in could not be read.".to_string())?
         .map_err(|_| "Keychain sign-in could not be read.".to_string())?;
     if output.len() > 65_536 { return Err("Keychain returned an unsupported sign-in.".into()); }
     Ok(output.trim().to_string())
 }
 
-pub fn load(id: ProviderId) -> Result<Credential, String> {
+pub fn load(id: ProviderId, directory: Option<&str>) -> Result<Credential, String> {
     match id {
         ProviderId::Claude => {
-            let custom_root = std::env::var_os("CLAUDE_CONFIG_DIR");
-            let root = custom_root.clone().map(PathBuf::from).unwrap_or(home()?.join(".claude"));
-            let path = root.join(".credentials.json");
-            if path.exists() { return from_auth_json(id, &read_json(&path)?); }
-            if custom_root.is_some() { return Err("No readable Claude sign-in was found in your configured directory.".into()); }
+            let custom_root = directory.is_some() || std::env::var_os("CLAUDE_CONFIG_DIR").is_some();
+            let root = crate::profiles::root(id, directory)?;
             #[cfg(target_os = "macos")]
-            {
-                let secret = keychain("Claude Code-credentials")?;
-                let value: Value = serde_json::from_str(&secret).map_err(|_| "Claude's Keychain sign-in is not supported.".to_string())?;
-                return from_auth_json(id, &value);
+            if !custom_root {
+                if let Ok(secret) = keychain("Claude Code-credentials") {
+                    if let Ok(value) = serde_json::from_str::<Value>(&secret) {
+                        if let Ok(credential) = from_auth_json(id, &value) { return Ok(credential); }
+                    }
+                }
             }
+            let path = root.join(".credentials.json");
+            if path.exists() { let mut credential = from_auth_json(id, &read_json(&path)?)?; credential.file = Some(path); return Ok(credential); }
+            if custom_root { return Err("No readable Claude sign-in was found in the selected profile directory.".into()); }
+            #[cfg(target_os = "macos")]
+            return Err("Sign in to Claude Code on this device, then try again.".into());
             #[cfg(not(target_os = "macos"))]
             Err("Sign in to Claude Code on this device, then try again.".into())
         }
-        ProviderId::Codex => {
-            let root = std::env::var_os("CODEX_HOME").map(PathBuf::from).unwrap_or(home()?.join(".codex"));
-            from_auth_json(id, &read_json(&root.join("auth.json"))?)
-        }
+        ProviderId::Codex => Err("Codex authentication is managed by the official CLI.".into()),
         ProviderId::Cursor => {
-            #[cfg(target_os = "macos")]
-            let root = home()?.join("Library/Application Support");
-            #[cfg(target_os = "windows")]
-            let root = std::env::var_os("APPDATA").map(PathBuf::from).ok_or("Windows app data could not be found.")?;
-            #[cfg(not(any(target_os = "windows", target_os = "macos")))]
-            let root = dirs::config_dir().ok_or("App data could not be found.")?;
-            let path = root.join("Cursor/User/globalStorage/state.vscdb");
+            let root = crate::profiles::root(id, directory)?;
+            let path = root.join("User/globalStorage/state.vscdb");
             if path.exists() {
                 let db = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)
                     .map_err(|_| "Cursor's local sign-in could not be opened. Close and reopen Cursor, then try again.".to_string())?;
@@ -106,14 +102,14 @@ pub fn load(id: ProviderId) -> Result<Credential, String> {
                 if let Ok(raw) = raw {
                     let parsed = serde_json::from_str::<String>(&raw).unwrap_or(raw);
                     if !parsed.trim().is_empty() && parsed.len() < 65_536 {
-                        return Ok(Credential { token: parsed.trim().to_string(), account_id: None });
+                        return Ok(Credential { token: parsed.trim().to_string(), account_id: None, file: None });
                     }
                 }
             }
             #[cfg(target_os = "macos")]
             {
-                let access = keychain("cursor-access-token")?;
-                if !access.is_empty() { return Ok(Credential { token: access, account_id: None }); }
+                let access = if directory.is_none() { keychain("cursor-access-token")? } else { String::new() };
+                if !access.is_empty() { return Ok(Credential { token: access, account_id: None, file: None }); }
             }
             Err("Sign in to Cursor on this device, then try again.".into())
         }
@@ -130,7 +126,7 @@ mod tests {
         assert!(from_auth_json(ProviderId::Codex, &json!({"OPENAI_API_KEY": "sample"})).is_err());
     }
     #[test]
-    fn reads_claude_and_codex_without_leaking_tokens_in_errors() {
+    fn reads_claude_without_leaking_tokens_and_delegates_codex_authentication() {
         let auth = from_auth_json(ProviderId::Claude, &json!({"claudeAiOauth": {"accessToken": "test-only-token"}})).unwrap();
         assert_eq!(auth.token, "test-only-token");
         let error = from_auth_json(ProviderId::Codex, &json!({"secret": "test-only-token"})).err().unwrap();
@@ -138,8 +134,8 @@ mod tests {
     }
     #[test]
     fn fingerprint_changes_when_the_account_changes() {
-        let first = Credential { token: "test-token".into(), account_id: Some("first".into()) };
-        let second = Credential { token: "test-token".into(), account_id: Some("second".into()) };
+        let first = Credential { token: "test-token".into(), account_id: Some("first".into()), file: None };
+        let second = Credential { token: "test-token".into(), account_id: Some("second".into()), file: None };
         assert_ne!(first.fingerprint(), second.fingerprint());
     }
 }

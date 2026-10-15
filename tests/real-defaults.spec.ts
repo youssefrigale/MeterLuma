@@ -20,7 +20,7 @@ test('fresh startup and saved prototype preferences use real-data mode without i
 
 test('real device tokens and model shares remain available when quota credentials expire', async ({ page }) => {
   await page.addInitScript(() => {
-    localStorage.setItem('meterluma.settings.v2', JSON.stringify({ demo: false, liveProviders: ['claude'], enabled: ['claude'] }));
+    localStorage.setItem('meterluma.settings.v2', JSON.stringify({ legalVersion: '1.1-providers-3', demo: false, liveProviders: ['claude'], enabled: ['claude'] }));
     Object.assign(window, { isTauri: true, __TAURI_INTERNALS__: { invoke: async (command: string) => {
       if (command === 'refresh_provider') throw 'Renew the provider sign-in to fetch allowances.';
       if (command === 'read_usage_history') return {
@@ -36,10 +36,12 @@ test('real device tokens and model shares remain available when quota credential
   await expect(page.locator('.usage-history')).toContainText('2K tokens');
   await expect(page.locator('.usage-history')).toContainText('recorded-model-a');
   await expect(page.locator('.usage-history')).toContainText('66.7%');
-  await expect(page.locator('.usage-history')).toContainText('This device');
-  await expect(page.locator('.quick-statistics')).toContainText('Unavailable');
-  await expect(page.locator('.quick-models, .quick-sparkbars')).toHaveCount(0);
-  await expect(page.getByRole('status')).toContainText('Renew the provider sign-in');
+  await expect(page.locator('.usage-history')).toContainText('Recorded on this device');
+  await expect(page.locator('.quick-statistics')).toHaveCount(0);
+  await expect(page.locator('.quick-models dl > div')).toHaveCount(2);
+  await expect(page.locator('.quick-sparkbars')).toHaveCount(1);
+  await expect(page.locator('.quick-usage-totals')).not.toContainText('$');
+  await expect(page.locator('.quick-reconnect')).toContainText('Renew your Claude sign-in');
   const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
   expect(results.violations).toEqual([]);
   await page.goto('/?page=dashboard');

@@ -28,6 +28,8 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "licenseFile": "../LICENSE",
+    "resources": { "../LICENSE": "LICENSE", "../PRIVACY.md": "PRIVACY.md", "../THIRD_PARTY_NOTICES.txt": "THIRD_PARTY_NOTICES.txt" },
     "shortDescription": "All your AI usage, one glance.",
     "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"]
   }

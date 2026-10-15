@@ -111,7 +111,7 @@ pub fn resize_quick(window: tauri::WebviewWindow, app: tauri::AppHandle, height:
 #[tauri::command]
 pub fn show_dashboard(app: tauri::AppHandle, page: Option<String>) -> Result<(), String> {
     let page = page.as_deref().unwrap_or("dashboard");
-    if !matches!(page, "dashboard" | "settings" | "connections") { return Err("Unknown page".into()); }
+    if !matches!(page, "dashboard" | "settings" | "connections" | "activity") { return Err("Unknown page".into()); }
     app.emit_to("main", "meterluma:navigate", page).map_err(|_| "The requested page could not be opened")?;
     super::show_main(&app);
     if let Some(quick) = app.get_webview_window("quick") { let _ = quick.hide(); }
