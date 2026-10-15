@@ -1,9 +1,12 @@
 """Generate notices from installed frontend dependencies and cargo metadata.
 
 Run cargo metadata --manifest-path src-tauri/Cargo.toml --format-version 1
-and save its JSON as .tools/dependency-metadata.json before running this script.
+--locked --all-features and save its JSON as .tools/dependency-metadata.json
+before running this script (--all-features covers the optional updater crates).
 The inventory includes transitive/build/platform dependencies; an exact binary
 may include only a subset. No third-party license is replaced by LICENSE.
+The provider glyphs in src/assets/providers are original MeterLuma artwork
+covered by LICENSE, so they need no third-party notice.
 """
 import json
 import sys
@@ -103,12 +106,6 @@ for package in sorted(metadata['packages'], key=lambda row: (row['name'], row['v
 
 for component in json.loads((ROOT / 'licenses/runtime-components.json').read_text(encoding='utf-8')):
     add(component['name'], component['version'], component['license'], component['source'], ROOT / 'licenses' / component['directory'])
-
-for file in sorted((ROOT / 'src/assets/providers').glob('*.svg')):
-    text = file.read_text(encoding='utf-8')
-    start, end = text.find('<!--'), text.find('-->')
-    if start >= 0 and end > start:
-        sections.append(f'\nProvider asset {file.name}\nUpstream: https://github.com/robinebers/openusage\n{text[start + 4:end].strip()}\nProvider marks remain with their owners. A copyright license is not a trademark endorsement.\n')
 
 (ROOT / 'THIRD_PARTY_NOTICES.txt').write_text('\n\n'.join(sections), encoding='utf-8', newline='\n')
 (ROOT / '.tools/license-inventory.json').write_text(json.dumps(inventory, indent=2), encoding='utf-8')

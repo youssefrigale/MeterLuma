@@ -15,8 +15,8 @@ fn metric(label: &str, used: Option<f64>, reset_at: Option<i64>) -> Option<Metri
 pub fn map(id: ProviderId, value: &Value) -> Result<Snapshot, String> {
     let (name, color, initials, metrics) = match id {
         ProviderId::Claude => return Err(super::CLAUDE_UNAVAILABLE.into()),
-        ProviderId::Codex => ("Codex", "#9dcbb8", "⌘", codex(value)),
-        ProviderId::Cursor => ("Cursor", "#b8b7df", "↗", cursor(value)?),
+        ProviderId::Codex => ("Codex", "#85858c", "⌘", codex(value)),
+        ProviderId::Cursor => ("Cursor", "#b8b8bf", "↗", cursor(value)?),
     };
     if metrics.is_empty() { return Err("The provider returned no supported usage limits. No values have been invented.".into()); }
     Ok(Snapshot {
