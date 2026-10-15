@@ -9,6 +9,10 @@ edition = "2021"
 name = "meterluma_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+[features]
+# The release workflow enables this, with a --config overlay for plugins.updater, only when updater keys exist.
+updater = ["dep:tauri-plugin-updater"]
+
 [profile.release]
 codegen-units = 1
 lto = true
@@ -21,6 +25,7 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-single-instance = "2"
 tauri-plugin-dialog = "2"
+tauri-plugin-updater = { version = "2", optional = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "rustls-tls-native-roots", "system-proxy"] }
