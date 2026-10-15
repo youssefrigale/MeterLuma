@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import type { ProviderId, Settings } from './model';
+import { providerNames } from './format';
 
 export function AccountProfiles({ settings, update }: { settings: Settings; update: (value: Partial<Settings>) => void }) {
   const [providerId, setProviderId] = useState<ProviderId>('codex');
@@ -9,7 +10,7 @@ export function AccountProfiles({ settings, update }: { settings: Settings; upda
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   return <section className="panel feature-panel"><h2>Multiple local accounts</h2><p>Connect separate, existing local profiles for your own accounts. Each profile needs its own directory under your home folder. No tokens are copied. Labels do not prove which account created a log; history includes all sign-ins recorded in that directory.</p>
-    <p>Codex: the CODEX_HOME folder containing auth.json or sessions. Claude: the CLAUDE_CONFIG_DIR folder containing projects or .credentials.json. Cursor: the app-data folder containing User/globalStorage/state.vscdb.</p>
+    <p>Codex: the CODEX_HOME folder containing auth.json or sessions. Claude: the CLAUDE_CONFIG_DIR folder containing projects; MeterLuma reads only the recorded token counts there, never the Claude sign-in. Cursor: the app-data folder containing User/globalStorage/state.vscdb.</p>
     <form className="feature-form" onSubmit={async event => {
       event.preventDefault(); setError('');
       if (!isTauri()) { setError('Add local accounts in the desktop app. Browser preview cannot read local profiles.'); return; }
@@ -29,6 +30,6 @@ export function AccountProfiles({ settings, update }: { settings: Settings; upda
       <button className="button" disabled={saving || settings.profiles.length >= 12 || !label.trim()}>{saving ? 'Checking profile…' : 'Add local account'}</button>
     </form>
     {error && <p role="status">{error}</p>}
-    <ul className="feature-rows">{settings.profiles.map(profile => <li key={profile.key}><span>{profile.label} · {profile.providerId}</span><button className="text-button" aria-label={`Remove ${profile.label}`} onClick={() => update({ profiles: settings.profiles.filter(row => row.key !== profile.key) })}>Remove</button></li>)}</ul>
+    <ul className="feature-rows">{settings.profiles.map(profile => <li key={profile.key}><span>{profile.label} · {providerNames[profile.providerId]}</span><button className="text-button" aria-label={`Remove ${profile.label}`} onClick={() => update({ profiles: settings.profiles.filter(row => row.key !== profile.key) })}>Remove</button></li>)}</ul>
   </section>;
 }

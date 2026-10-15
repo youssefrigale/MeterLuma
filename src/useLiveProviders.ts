@@ -3,8 +3,15 @@ import { invoke, isTauri } from '@tauri-apps/api/core';
 import type { Provider, ProviderId, Settings, UsageHistory } from './model';
 import { LEGAL_VERSION } from './legal';
 import { quotaFailure, type QuotaFailure } from './providerState';
+import { neutralColors, providerNames } from './format';
 
 export interface LiveResult { id: ProviderId; key: string; label?: string; provider?: Provider; error?: string; quotaFailure?: QuotaFailure; loading?: boolean }
+type Account = { id: ProviderId; key: string; directory: string | null; label?: string };
+
+// Claude is history-only: MeterLuma never asks the native side for Claude quotas.
+export const hasQuotas = (id: ProviderId) => id !== 'claude';
+// Cursor token history is not recorded locally, so it is never requested.
+export const hasHistory = (id: ProviderId) => id !== 'cursor';
 
 export function useLiveProviders(settings: Settings) {
   const [results, setResults] = useState<LiveResult[]>([]);
@@ -18,30 +25,32 @@ export function useLiveProviders(settings: Settings) {
   const permitted = settings.legalVersion === LEGAL_VERSION;
   useEffect(() => {
     if (settings.demo || !isTauri() || !permitted || sources === '[]') { setResults([]); setUpdatedAt(null); return; }
+    // Only the latest run may write results, so an older response never overwrites a newer one.
     let active = true;
-    const accounts = JSON.parse(sources) as { id: ProviderId; key: string; directory: string | null; label?: string }[];
-    setUpdatedAt(null);
-    setResults(accounts.map(row => ({ id: row.id, key: row.key, label: row.label, loading: true })));
+    const accounts = JSON.parse(sources) as Account[];
+    // Stale-while-revalidate: keep each key's last provider and history visible while it refreshes; drop removed keys.
+    setResults(current => accounts.map(row => ({ ...current.find(result => result.key === row.key && result.id === row.id), id: row.id, key: row.key, label: row.label, loading: true })));
     void Promise.all(accounts.map(async ({ id, key, directory, label }) => {
       const base = { id, key, label };
-      const quotaRequest = invoke<Provider>('refresh_provider', { providerId: id, configDirectory: directory });
-      void quotaRequest.then(provider => { if (active) setResults(current => current.map(row => row.key === key ? { ...base, provider: { ...provider, connectionKey: key, accountLabel: label, historyLoading: true }, loading: true } : row)); }).catch(() => {});
-      const [quota, activity] = await Promise.allSettled([
-        quotaRequest,
-        invoke<UsageHistory>('read_usage_history', { providerId: id, configDirectory: directory, days: settings.historyDays }),
-      ]);
+      const name = providerNames[id];
+      const quotaRequest = hasQuotas(id) ? invoke<Provider>('refresh_provider', { providerId: id, configDirectory: directory }) : undefined;
+      const historyRequest = hasHistory(id) ? invoke<UsageHistory>('read_usage_history', { providerId: id, configDirectory: directory, days: settings.historyDays }) : undefined;
+      void quotaRequest?.then(provider => { if (active) setResults(current => current.map(row => row.key === key ? { ...row, provider: { ...provider, name, color: neutralColors[id], history: row.provider?.history, historyLoading: !!historyRequest, quotaState: 'live', connectionKey: key, accountLabel: label } } : row)); }).catch(() => {});
+      const [quota, activity] = await Promise.allSettled([quotaRequest ?? Promise.resolve(undefined), historyRequest ?? Promise.resolve(undefined)]);
       const history = activity.status === 'fulfilled' ? activity.value : undefined;
       const failure = quota.status === 'rejected' ? quotaFailure(quota.reason) : undefined;
-      const data: Provider | undefined = quota.status === 'fulfilled' ? { ...quota.value, history } : failure?.lastSnapshot ? { ...failure.lastSnapshot, history, cached: true } : history?.available ? {
-        id, name: { claude: 'Claude', codex: 'Codex', cursor: 'Cursor' }[id], plan: 'Local history', color: '#515157', initials: '', spendToday: null, metrics: [], history,
+      const live = quota.status === 'fulfilled' ? quota.value : undefined;
+      const data: Provider | undefined = live ? { ...live, history } : failure?.lastSnapshot ? { ...failure.lastSnapshot, history, cached: true } : (!hasQuotas(id) && history) || history?.available ? {
+        id, name, plan: 'Local history', color: neutralColors[id], initials: '', spendToday: null, metrics: [], history, historyOnly: !hasQuotas(id),
       } : undefined;
       const errors = [failure?.message, activity.status === 'rejected' ? 'Recorded local history could not be read.' : undefined].filter((value): value is string => typeof value === 'string');
-      const result: LiveResult = { ...base, quotaFailure: failure, provider: data ? { ...data, quotaState: failure?.code ?? 'live', retryAt: failure?.retryAt, connectionKey: key, accountLabel: label } : undefined, ...(errors.length ? { error: errors.join(' ') } : {}) };
+      const result: LiveResult = { ...base, quotaFailure: failure, provider: data ? { ...data, name, color: neutralColors[id], quotaState: hasQuotas(id) ? failure?.code ?? 'live' : undefined, retryAt: failure?.retryAt, connectionKey: key, accountLabel: label } : undefined, ...(errors.length ? { error: errors.join(' ') } : {}) };
       if (active) setResults(current => current.map(row => row.key === key ? result : row));
       return result;
     })).then(results => {
       const fetched = results.flatMap(result => !result.provider?.cached && typeof result.provider?.fetchedAt === 'number' ? [result.provider.fetchedAt] : []);
-      if (active) setUpdatedAt(fetched.length ? Math.min(...fetched) : null);
+      const scanned = results.flatMap(result => typeof result.provider?.history?.scannedAt === 'number' ? [result.provider.history.scannedAt] : []);
+      if (active) setUpdatedAt(fetched.length ? Math.min(...fetched) : scanned.length ? Math.max(...scanned) : null);
     });
     return () => { active = false; };
   }, [settings.demo, sources, request, settings.historyDays, permitted]);

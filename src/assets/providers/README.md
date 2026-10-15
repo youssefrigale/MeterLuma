@@ -1,11 +1,11 @@
-# Provider icons
+# Provider glyphs
 
-These SVG assets identify the supported services; they are not MeterLuma branding.
+`claude.svg`, `codex.svg` and `cursor.svg` are original MeterLuma artwork: simple abstract geometric symbols drawn for this app. They are deliberately not the providers' logos and are not derived from them.
 
-- Claude: the Claude starburst, displayed in its terracotta brand color.
-- Codex: the OpenAI Blossom, displayed in black or white.
-- Cursor: the Cursor cube, displayed in black or white.
+- Claude: a rounded square with three log lines, because MeterLuma shows Claude only as recorded local history.
+- Codex: a diamond with a centre dot.
+- Cursor: a circle, half filled.
 
-Source: [`robinebers/openusage`, `Sources/OpenUsage/Resources/ProviderIcons`](https://github.com/robinebers/openusage/tree/main/Sources/OpenUsage/Resources/ProviderIcons). The upstream MIT license and copyright notice are embedded in each SVG and retained in the bundled asset. Logo shapes are unchanged. Each provider retains ownership of its marks.
+The glyphs are monochrome and draw with `currentColor`, so they follow the light and dark themes. They are covered by MeterLuma's own license. No third-party artwork or third-party license applies to them.
 
-Brand references: [OpenAI](https://openai.com/brand/), [Cursor](https://cursor.com/brand).
+Providers are named in plain text. MeterLuma is not affiliated with or endorsed by Anthropic, OpenAI or Anysphere (Cursor). Claude, Codex and Cursor are trademarks of their respective owners.

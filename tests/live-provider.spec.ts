@@ -1,8 +1,8 @@
 import { test, expect, type Page } from '@playwright/test';
 
-async function nativeBridge(page: Page, shouldFail = false, quick = false, providerId: 'claude' | 'cursor' | 'codex' = 'codex') {
+async function nativeBridge(page: Page, shouldFail = false, quick = false, providerId: 'cursor' | 'codex' = 'codex') {
   await page.addInitScript(({ shouldFail, quick, providerId }) => {
-    localStorage.setItem('meterluma.settings.v2', JSON.stringify(quick ? { legalVersion: '1.1-providers-3', demo: false, remaining: true, enabled: [providerId], liveProviders: [providerId] } : { legalVersion: '1.1-providers-3', remaining: false, demo: true }));
+    localStorage.setItem('meterluma.settings.v2', JSON.stringify(quick ? { legalVersion: '1.1-providers-4', demo: false, remaining: true, enabled: [providerId], liveProviders: [providerId] } : { legalVersion: '1.1-providers-4', remaining: false, demo: true }));
     const calls: string[] = [];
     Object.assign(window, {
       isTauri: true,
@@ -14,7 +14,7 @@ async function nativeBridge(page: Page, shouldFail = false, quick = false, provi
           if (command !== 'refresh_provider' || args?.providerId !== providerId) throw new Error('Unexpected native request');
           if (shouldFail) throw 'Your sign-in has expired. Sign in again using the provider app.';
           return {
-            id: providerId, name: { claude: 'Claude', cursor: 'Cursor', codex: 'Codex' }[providerId], plan: 'Subscription', color: '#dca18b', initials: '✳', spendToday: null,
+            id: providerId, name: { cursor: 'Cursor', codex: 'Codex' }[providerId], plan: 'Subscription', color: '#dca18b', initials: '', spendToday: null,
             metrics: [{ label: 'Session', usedPercent: 81.4, resetAt: null }],
           };
         },
@@ -71,19 +71,20 @@ test('live provider details keep unavailable history separate and route website 
   expect(await page.evaluate(() => (window as unknown as { meterlumaTestCalls: string[] }).meterlumaTestCalls)).toContain('open_provider_page');
 });
 
-for (const [id, name] of [['claude', 'Claude'], ['cursor', 'Cursor']] as const) {
-  test(`${name} local sign-in quota connection is available again`, async ({ page }) => {
-    await nativeBridge(page, false, false, id);
-    await page.goto('/?page=connections');
-    await page.getByRole('button', { name: `Connect ${name}`, exact: true }).click();
-    const dialog = page.getByRole('dialog', { name: `Connect ${name}`, exact: true });
-    await expect(dialog).toContainText('native process');
-    await dialog.getByRole('button', { name: 'Use local profile' }).click();
-    await expect(page.getByRole('progressbar', { name: `${name} Session used` })).toHaveAttribute('aria-valuenow', '81.4');
-    await expect(page.getByText(/paused pending|disabled pending/)).toHaveCount(0);
-    await page.getByRole('button', { name: 'Connections', exact: true }).click();
-    await page.getByRole('button', { name: `Disconnect ${name}`, exact: true }).click();
-    await page.getByRole('button', { name: 'Overview', exact: true }).click();
-    await expect(page.getByRole('article')).toHaveCount(0);
-  });
-}
+test('Cursor local sign-in quota connection is available and labeled unofficial', async ({ page }) => {
+  await nativeBridge(page, false, false, 'cursor');
+  await page.goto('/?page=connections');
+  await page.getByRole('button', { name: 'Connect Cursor', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Connect Cursor', exact: true });
+  await expect(dialog).toContainText('native process');
+  await expect(dialog).toContainText('Unofficial');
+  await dialog.getByRole('button', { name: 'Use local profile' }).click();
+  await expect(page.getByRole('progressbar', { name: 'Cursor Session used' })).toHaveAttribute('aria-valuenow', '81.4');
+  await expect(page.getByText(/paused pending|disabled pending/)).toHaveCount(0);
+  // Cursor token history is not recorded locally, so it is never requested.
+  expect(await page.evaluate(() => (window as unknown as { meterlumaTestCalls: string[] }).meterlumaTestCalls)).not.toContain('read_usage_history');
+  await page.getByRole('button', { name: 'Connections', exact: true }).click();
+  await page.getByRole('button', { name: 'Disconnect Cursor', exact: true }).click();
+  await page.getByRole('button', { name: 'Overview', exact: true }).click();
+  await expect(page.getByRole('article')).toHaveCount(0);
+});
