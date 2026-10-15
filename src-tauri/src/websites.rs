@@ -1,13 +1,24 @@
 fn website(provider_id: &str, page: &str) -> Option<&'static str> {
-    match (provider_id, page) {
-        ("claude", "status") => Some("https://status.claude.com/"),
-        ("claude", "usage") => Some("https://claude.ai/settings/usage"),
-        ("codex", "status") => Some("https://status.openai.com/"),
-        ("codex", "usage") => Some("https://chatgpt.com/codex/settings/usage"),
-        ("cursor", "status") => Some("https://status.cursor.com/"),
-        ("cursor", "usage") => Some("https://cursor.com/dashboard"),
-        _ => None,
-    }
+    let url = match (provider_id, page) {
+        ("claude", "status") => "https://status.claude.com/",
+        ("claude", "usage") => "https://claude.ai/settings/usage",
+        ("codex", "status") => "https://status.openai.com/",
+        ("codex", "usage") => "https://chatgpt.com/codex/settings/usage",
+        ("cursor", "status") => "https://status.cursor.com/",
+        ("cursor", "usage") => "https://cursor.com/dashboard",
+        _ => return None,
+    };
+    Some(url).filter(|url| plain_https(url))
+}
+
+/// An absolute HTTPS URL made only of characters that no shell, `open` or ShellExecute can read as anything else.
+fn plain_https(url: &str) -> bool {
+    url.strip_prefix("https://").is_some_and(|rest| {
+        let host = rest.split('/').next().unwrap_or_default();
+        host.contains('.') && !host.starts_with(['.', '-']) && !host.ends_with(['.', '-'])
+            && host.bytes().all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || matches!(byte, b'.' | b'-'))
+            && rest.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'-' | b'_' | b'/'))
+    })
 }
 
 #[tauri::command]
@@ -39,15 +50,28 @@ pub fn open_provider_page(provider_id: String, page: String) -> Result<(), Strin
 
 #[cfg(test)]
 mod tests {
-    use super::website;
+    use super::{plain_https, website};
     #[test]
     fn provider_pages_reject_arbitrary_urls_and_commands() {
         assert_eq!(website("codex", "usage"), Some("https://chatgpt.com/codex/settings/usage"));
         for provider in ["claude", "codex", "cursor"] {
-            for page in ["status", "usage"] { assert!(website(provider, page).unwrap().starts_with("https://")); }
+            for page in ["status", "usage"] { assert!(website(provider, page).is_some_and(plain_https)); }
             assert!(website(provider, "file:///private").is_none());
+            assert!(website(provider, "https://example.com").is_none());
         }
         assert!(website("https://example.com", "status").is_none());
         assert!(website("claude; command", "status").is_none());
+        assert!(website("CLAUDE", "status").is_none());
+        assert!(website("", "").is_none());
+    }
+    #[test]
+    fn only_plain_https_urls_pass() {
+        for url in ["https://status.claude.com/", "https://cursor.com/dashboard", "https://chatgpt.com/codex/settings/usage"] { assert!(plain_https(url), "{url}"); }
+        for url in [
+            "http://cursor.com/dashboard", "file:///C:/Windows/System32/calc.exe", "javascript:alert(1)", "https://", "https:///etc/passwd",
+            "https://localhost/", "https://cursor.com/a b", "https://cursor.com/\"&calc", "https://cursor.com/%2e%2e", "https://cursor.com/?q=1",
+            "https://user@cursor.com/", "https://cursor.com:8443/", "https://.cursor.com/", "https://Cursor.com/", "-https://cursor.com/",
+            " https://cursor.com/", "https://cursor.com/\n", "ms-settings:privacy", "\\\\server\\share",
+        ] { assert!(!plain_https(url), "{url:?}"); }
     }
 }
