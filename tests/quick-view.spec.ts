@@ -11,7 +11,8 @@ test('tray panel exposes costs, remaining limits, a fixed Options footer and das
   await page.setViewportSize({ width: 360, height: 660 });
   await expect(page.getByRole('heading', { name: 'Overview', exact: true })).toBeVisible();
   await expect(page.getByRole('article')).toHaveCount(3);
-  await expect(page.getByRole('progressbar', { name: 'Claude Session remaining' })).toHaveAttribute('aria-valuenow', '62');
+  await expect(page.getByRole('progressbar', { name: 'Codex Session remaining' })).toHaveAttribute('aria-valuenow', '78');
+  await expect(page.locator('.quick-provider').filter({ hasText: 'Claude' })).toContainText('Local history only');
   await expect(page.getByText(/Sample data only/)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Sample spend today $8.42' })).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
@@ -51,7 +52,7 @@ test('live tray panel shows unavailable costs without a simulated donut', async 
   await page.addInitScript(() => localStorage.setItem('meterluma.settings.v2', JSON.stringify({ demo: false })));
   await page.goto('/?view=quick');
   await page.getByRole('button', { name: 'Costs', exact: true }).click();
-  await expect(page.getByText('Cost data unavailable', { exact: true })).toBeVisible();
+  await expect(page.getByText('No estimated API value yet', { exact: true })).toBeVisible();
   await expect(page.getByRole('img')).toHaveCount(0);
   await expect(page.getByRole('article')).toHaveCount(0);
   await page.getByRole('button', { name: 'Overview', exact: true }).click();
@@ -92,7 +93,7 @@ test('provider sidebar isolates details and settings change bars, timers, order 
   await page.getByRole('button', { name: 'Overview', exact: true }).click();
   await expect(page.getByRole('article')).toHaveCount(2);
   await expect(page.getByRole('article').first()).toContainText('Codex');
-  await expect(page.getByRole('progressbar', { name: 'Claude Session used' })).toHaveAttribute('aria-valuenow', '38');
+  await expect(page.getByRole('progressbar', { name: 'Codex Session used' })).toHaveAttribute('aria-valuenow', '22');
   await expect(page.locator('.quick-metric-caption').first()).not.toContainText('Resets in');
   await expect(page.getByRole('button', { name: 'Cursor details' })).toHaveCount(0);
   await page.reload();

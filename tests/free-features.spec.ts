@@ -6,17 +6,19 @@ import type { Provider } from '../src/model';
 
 async function bridge(page: Page, accepted = true) {
   await page.addInitScript(({ accepted }) => {
-    if (!localStorage.getItem('meterluma.settings.v2')) localStorage.setItem('meterluma.settings.v2', JSON.stringify({ legalVersion: accepted ? '1.1-providers-3' : '', demo: false, liveProviders: ['codex'], enabled: ['codex'] }));
+    if (!localStorage.getItem('meterluma.settings.v2')) localStorage.setItem('meterluma.settings.v2', JSON.stringify({ legalVersion: accepted ? '1.1-providers-4' : '', demo: false, liveProviders: ['codex'], enabled: ['codex'] }));
     const calls: { command: string; args: Record<string, unknown> }[] = [];
     Object.assign(window, { isTauri: true, featureCalls: calls, __TAURI_INTERNALS__: { invoke: async (command: string, args: Record<string, unknown> = {}) => {
       calls.push({ command, args });
       if (command === 'validate_profile') return args.directory;
       if (command === 'save_usage_export') return true;
+      if (command === 'refresh_provider' && args.providerId === 'claude') throw new Error('Claude quotas must never be requested');
       if (command === 'refresh_provider') return { id: 'codex', name: 'Codex', plan: 'Subscription', color: '#515157', initials: '', spendToday: null, fetchedAt: Date.now(), metrics: [{ label: 'Session', usedPercent: args.configDirectory ? 95 : 25, resetAt: Date.now() + 3600000 }] };
       if (command === 'read_usage_history') {
         const period = Number(args.days ?? 30);
-        return { available: true, partial: false, recordCount: period, scannedAt: Date.now(), today: '2026-10-15', periodDays: period,
-          days: Array.from({ length: period }, (_, index) => ({ date: new Date(Date.UTC(2026, 9, 15 - period + 1 + index)).toISOString().slice(0, 10), inputTokens: 80, cachedInputTokens: 20, cacheWriteTokens: 0, outputTokens: 20, totalTokens: 100 })),
+        const days = Array.from({ length: period }, (_, index) => ({ date: new Date(Date.UTC(2026, 9, 15 - period + 1 + index)).toISOString().slice(0, 10), inputTokens: 80, cachedInputTokens: 20, cacheWriteTokens: 0, outputTokens: 20, totalTokens: 100, estimatedCostUsd: null, unpricedTokens: 0 }));
+        return { available: true, partial: false, recordCount: period, scannedAt: Date.now(), today: '2026-10-15', periodDays: period, coverageStart: days[0].date,
+          days,
           models: [{ name: args.configDirectory ? 'second-profile-model' : 'default-profile-model', totalTokens: period * 100 }],
         };
       }
@@ -88,7 +90,7 @@ test('custom alert settings persist and warn on fresh quotas', async ({ page }) 
   await page.getByLabel('Alert at % used').fill('20');
   await page.getByRole('button', { name: 'Add alert', exact: true }).click();
   await page.reload();
-  await expect(page.getByRole('checkbox', { name: 'codex · 20% used' })).toBeChecked();
+  await expect(page.getByRole('checkbox', { name: 'Codex · 20% used' })).toBeChecked();
   await page.getByRole('button', { name: 'Overview', exact: true }).click();
   const alerts = page.getByRole('region', { name: 'Usage alerts' });
   await expect(alerts).toContainText('Session is 25% used (alert at 20%).');
@@ -98,7 +100,7 @@ test('custom alert settings persist and warn on fresh quotas', async ({ page }) 
 
 test('alerts exclude demo, stale or expired quotas and CSV neutralizes formula labels', () => {
   const now = Date.now();
-  const provider: Provider = { id: 'codex', name: 'Codex', plan: 'Subscription', initials: '', color: '#000', spendToday: null, fetchedAt: now, accountLabel: '=HYPERLINK("https://example.test")', metrics: [{ label: 'Session', usedPercent: 95, resetAt: now + 60000 }], history: { available: true, partial: true, recordCount: 1, scannedAt: now, today: '2026-10-15', days: [{ date: '2026-10-15', inputTokens: 80, cachedInputTokens: 20, cacheWriteTokens: 0, outputTokens: 20, totalTokens: 100 }], models: [] } };
+  const provider: Provider = { id: 'codex', name: 'Codex', plan: 'Subscription', initials: '', color: '#000', spendToday: null, fetchedAt: now, accountLabel: '=HYPERLINK("https://example.test")', metrics: [{ label: 'Session', usedPercent: 95, resetAt: now + 60000 }], history: { available: true, partial: true, recordCount: 1, scannedAt: now, today: '2026-10-15', coverageStart: '2026-10-15', days: [{ date: '2026-10-14', inputTokens: 0, cachedInputTokens: 0, cacheWriteTokens: 0, outputTokens: 0, totalTokens: 0, estimatedCostUsd: null, unpricedTokens: 0 }, { date: '2026-10-15', inputTokens: 80, cachedInputTokens: 20, cacheWriteTokens: 0, outputTokens: 20, totalTokens: 100, estimatedCostUsd: null, unpricedTokens: 0 }], models: [] } };
   const rules = [{ key: 'rule', providerId: 'codex' as const, enabled: true, threshold: 80 }];
   expect(activeAlerts(rules, [provider], now, false)).toHaveLength(1);
   expect(activeAlerts(rules, [provider], now, true)).toHaveLength(0);
@@ -108,4 +110,7 @@ test('alerts exclude demo, stale or expired quotas and CSV neutralizes formula l
   expect(csv).toContain('"\'=HYPERLINK');
   expect(csv).toContain('"true"');
   expect(csv).not.toContain('configDirectory');
+  // The unrecorded day keeps formula protection and has empty values rather than zeros.
+  expect(csv).toContain('"\'=HYPERLINK(""https://example.test"")","2026-10-14","false","","","","","","","",');
+  expect(csv).toContain('"2026-10-15","true","80","20","0","20","100","0","",');
 });

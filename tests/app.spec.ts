@@ -33,7 +33,9 @@ test('provider visibility and preferences persist after reload', async ({ page }
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   await expect(page.getByRole('article')).toHaveCount(2);
-  await expect(page.getByRole('progressbar', { name: 'Claude Session remaining' })).toHaveAttribute('aria-valuenow', '62');
+  await expect(page.getByRole('progressbar', { name: 'Codex Session remaining' })).toHaveAttribute('aria-valuenow', '78');
+  // Claude is a local-history provider, even in the sample preview.
+  await expect(page.getByRole('article').filter({ hasText: 'Claude' }).getByRole('progressbar')).toHaveCount(0);
 });
 
 test('live mode never presents sample data as connected accounts', async ({ page }) => {

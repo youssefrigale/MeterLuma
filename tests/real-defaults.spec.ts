@@ -18,14 +18,16 @@ test('fresh startup and saved prototype preferences use real-data mode without i
   await expect(page.getByRole('progressbar')).toHaveCount(0);
 });
 
-test('real device tokens and model shares remain available when quota credentials expire', async ({ page }) => {
+test('Claude device tokens and model shares come from local history without any quota request', async ({ page }) => {
   await page.addInitScript(() => {
-    localStorage.setItem('meterluma.settings.v2', JSON.stringify({ legalVersion: '1.1-providers-3', demo: false, liveProviders: ['claude'], enabled: ['claude'] }));
-    Object.assign(window, { isTauri: true, __TAURI_INTERNALS__: { invoke: async (command: string) => {
-      if (command === 'refresh_provider') throw 'Renew the provider sign-in to fetch allowances.';
+    localStorage.setItem('meterluma.settings.v2', JSON.stringify({ legalVersion: '1.1-providers-4', demo: false, liveProviders: ['claude'], enabled: ['claude'] }));
+    const calls: string[] = [];
+    Object.assign(window, { isTauri: true, nativeCommands: calls, __TAURI_INTERNALS__: { invoke: async (command: string) => {
+      calls.push(command);
+      if (command === 'refresh_provider') throw new Error('Claude quotas must never be requested');
       if (command === 'read_usage_history') return {
-        available: true, partial: false, recordCount: 2, scannedAt: Date.now(), today: '2026-10-13',
-        days: [{ date: '2026-10-12', inputTokens: 800, cachedInputTokens: 600, cacheWriteTokens: 0, outputTokens: 200, totalTokens: 1000 }, { date: '2026-10-13', inputTokens: 1800, cachedInputTokens: 1400, cacheWriteTokens: 0, outputTokens: 200, totalTokens: 2000 }],
+        available: true, partial: false, recordCount: 2, scannedAt: Date.now(), today: '2026-10-13', coverageStart: '2026-10-12',
+        days: [{ date: '2026-10-12', inputTokens: 800, cachedInputTokens: 600, cacheWriteTokens: 0, outputTokens: 200, totalTokens: 1000, estimatedCostUsd: null, unpricedTokens: 1000 }, { date: '2026-10-13', inputTokens: 1800, cachedInputTokens: 1400, cacheWriteTokens: 0, outputTokens: 200, totalTokens: 2000, estimatedCostUsd: null, unpricedTokens: 2000 }],
         models: [{ name: 'recorded-model-a', totalTokens: 2000 }, { name: 'recorded-model-b', totalTokens: 1000 }],
       };
     } } });
@@ -41,11 +43,13 @@ test('real device tokens and model shares remain available when quota credential
   await expect(page.locator('.quick-models dl > div')).toHaveCount(2);
   await expect(page.locator('.quick-sparkbars')).toHaveCount(1);
   await expect(page.locator('.quick-usage-totals')).not.toContainText('$');
-  await expect(page.locator('.quick-reconnect')).toContainText('Renew your Claude sign-in');
+  await expect(page.locator('.quick-reconnect')).toHaveCount(0);
+  await expect(page.locator('.quick-detail')).toContainText("MeterLuma reads token counts from Claude Code's local logs. It does not read the Claude sign-in or contact Anthropic.");
   const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
   expect(results.violations).toEqual([]);
   await page.goto('/?page=dashboard');
   await expect(page.getByRole('article')).toHaveCount(1);
   await page.getByRole('button', { name: 'Activity', exact: true }).click();
   await expect(page.locator('.usage-history')).toContainText('recorded-model-a');
+  expect(await page.evaluate(() => (window as unknown as { nativeCommands: string[] }).nativeCommands)).not.toContain('refresh_provider');
 });
