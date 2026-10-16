@@ -1,7 +1,9 @@
-import { DEMO_AVAILABLE, type HistoryDays, type Provider, type Settings } from './model';
+import { DEMO_AVAILABLE, type Provider, type Settings } from './model';
 import { Icon } from './icons';
+import { ActivityTools } from './ActivityTools';
+import { AlertSettings } from './Alerts';
 
-export function QuickSettings({ settings, update, catalog, connect, activity, alerts }: { settings: Settings; update: (value: Partial<Settings>) => void; catalog: Provider[]; connect: () => void; activity: () => void; alerts: () => void }) {
+export function QuickSettings({ settings, update, catalog, providers, connect }: { settings: Settings; update: (value: Partial<Settings>) => void; catalog: Provider[]; providers: Provider[]; connect: () => void }) {
   function reorder(index: number, direction: number) {
     const order = [...settings.providerOrder];
     [order[index], order[index + direction]] = [order[index + direction], order[index]];
@@ -17,7 +19,8 @@ export function QuickSettings({ settings, update, catalog, connect, activity, al
       const provider = catalog.find(provider => provider.id === id)!;
       return <div key={id}><label><input type="checkbox" checked={settings.enabled.includes(id)} onChange={() => update({ enabled: settings.enabled.includes(id) ? settings.enabled.filter(value => value !== id) : [...settings.enabled, id] })}/><span>{provider.name}</span></label><button aria-label={`Move ${provider.name} up`} disabled={index === 0} onClick={() => reorder(index, -1)}><Icon name="up" size={19}/></button><button aria-label={`Move ${provider.name} down`} disabled={index === settings.providerOrder.length - 1} onClick={() => reorder(index, 1)}><Icon name="down" size={19}/></button></div>;
     })}</div><button className="quick-text-button" onClick={connect}>Manage connections <Icon name="arrow" size={14}/></button><p className="quick-info">Antigravity and additional providers are not supported yet.</p></section>
-    <section><h2>Free features</h2><p>Longer history, multiple local accounts, custom alerts, and exports are included for personal use.</p><label className="quick-history-select">Recorded history window<select value={settings.historyDays} onChange={event => update({ historyDays: Number(event.target.value) as HistoryDays })}>{[30, 90, 365].map(days => <option key={days} value={days}>{days} days</option>)}</select></label><button className="quick-text-button" onClick={activity}>History and exports</button><button className="quick-text-button" onClick={alerts}>Manage usage alerts</button></section>
+    <ActivityTools settings={settings} providers={providers} update={update}/>
+    <AlertSettings settings={settings} update={update}/>
     {DEMO_AVAILABLE && <section><h2>Demo preview</h2><label className="quick-check"><input type="checkbox" checked={settings.demo} onChange={() => update({ demo: !settings.demo })}/>Use sample data</label><p>Turn off to use your connected accounts.</p></section>}
   </div>;
 }

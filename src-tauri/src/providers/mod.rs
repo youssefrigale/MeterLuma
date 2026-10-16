@@ -94,7 +94,7 @@ impl ProviderService {
         self.cursor(root, directory.is_none()).await
     }
 
-    // One CLI process per profile at a time: concurrent requests from both windows share the in-flight lookup, and a success stays fresh briefly.
+    // One CLI process per profile at a time: concurrent requests share the in-flight lookup, and a success stays fresh briefly.
     async fn codex(&self, root: PathBuf) -> Result<Snapshot, String> {
         let asked = Instant::now();
         let key = cooldowns::key(ProviderId::Codex, &root);

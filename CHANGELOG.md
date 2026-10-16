@@ -6,14 +6,15 @@ The app still reports version 0.1.0; the next release gets a new version number.
 
 ### Removed
 
+- **Dashboard window.** MeterLuma is now tray-only. Connections, local accounts, usage alerts, the history window, exports, the license and **Reset preferences** moved into the tray panel (Connections, Settings and Help), and the panel stays open while the export save dialog is showing. The dashboard's sample spending charts and week-over-week comparison are gone.
 - **Claude live quotas.** MeterLuma no longer reads the Claude Code sign-in (`.credentials.json`, the macOS Keychain or Claude Desktop), never renews or writes Claude tokens, and makes no requests to Anthropic. Claude has no quota bars or alerts, saved Claude alert rules and quota snapshots are dropped, and the Claude CLI User-Agent and OAuth client ID are gone.
-- **Provider logos.** They are replaced by original neutral glyphs, and the incorrect OpenUsage license attribution for them is removed from the third-party notices.
 
 ### Changed
 
 - **Claude** is recorded token history from Claude Code's local logs only. A Claude profile folder needs only `projects/`.
 - **Cursor** quotas are labeled **Unofficial**, with a note that the endpoint is undocumented, not endorsed by Cursor and may stop working. Requests send an honest `MeterLuma/<version>` User-Agent.
-- A "not affiliated with or endorsed by Anthropic, OpenAI or Anysphere (Cursor)" note appears in Connections, Settings → About and the tray's Help page.
+- **Provider logos** are now the owners' official files, unmodified: Anthropic's Claude Spark, OpenAI's Blossom and Cursor's cube, from their press kit and brand pages. Codex and Cursor switch to their official light or dark file with the theme. The earlier third-party logo files and their attribution are gone, and the third-party notices name each logo's owner.
+- A "not affiliated with or endorsed by Anthropic, OpenAI or Anysphere (Cursor)" note appears in Connections and the tray's Help page.
 - Privacy notice revision 4. Existing users are asked to accept it again.
 - Cache files moved to the app's own cache folder (`app.meterluma.desktop`), which the Windows uninstaller's "Delete the application data" option removes. The old cache files are deleted on startup.
 - Rate-limit cooldowns are capped at 6 hours and apply only to the signed-in account. Saved quota snapshots drop expired windows and anything older than 24 hours.

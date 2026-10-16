@@ -12,41 +12,41 @@ const cursorQuota: QuotaMock = { plan: 'Pro', metrics: [{ label: 'Monthly', used
 const saved = (page: Page) => page.evaluate(key => JSON.parse(localStorage.getItem(key)!), SETTINGS_KEY);
 const axe = async (page: Page) => expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
 
-test('auto-refresh keeps cards, details and recorded history visible while data reloads', async ({ page }) => {
+test('auto-refresh keeps quotas, details and recorded history visible while data reloads', async ({ page }) => {
   await page.clock.install({ time: new Date('2026-10-15T10:00:00Z') });
   await nativeBridge(page, { settings: { legalVersion: LEGAL, demo: false, liveProviders: ['codex'], enabled: ['codex'] }, quotas: { codex: codexQuota }, histories: { codex: history() } });
   await page.goto('/');
-  const card = page.getByRole('article').filter({ hasText: 'Codex' });
-  await expect(card.getByRole('progressbar', { name: 'Codex Session remaining' })).toHaveAttribute('aria-valuenow', '75');
-  await expect(page.getByRole('button', { name: 'Refresh', exact: true })).toBeEnabled();
-  await card.getByRole('button', { name: 'View Codex details' }).click();
-  const details = page.getByRole('dialog', { name: 'Codex at a glance' });
-  await expect(details).toContainText('Live plan limits');
+  const meter = page.getByRole('progressbar', { name: 'Codex Session remaining' });
+  await expect(meter).toHaveAttribute('aria-valuenow', '75');
+  await expect(page.getByRole('button', { name: 'Refresh usage' })).toBeEnabled();
+  await page.getByRole('button', { name: 'Codex details' }).click();
+  await expect(page.locator('.quick-plan')).toHaveText('Plus');
+  await expect(page.locator('.usage-history')).toContainText('recorded-model');
   const before = await countCalls(page, 'refresh_provider');
   await holdNative(page);
   await page.clock.fastForward('05:01');
   await expect.poll(() => countCalls(page, 'refresh_provider')).toBe(before + 1);
-  await expect(details).toBeVisible();
-  await expect(details).toContainText('75% remaining');
-  await page.keyboard.press('Escape');
-  await expect(page.getByRole('button', { name: 'Refreshing' })).toBeDisabled();
-  await expect(card.getByRole('progressbar', { name: 'Codex Session remaining' })).toHaveAttribute('aria-valuenow', '75');
-  await expect(page.locator('.live-status-list')).toHaveCount(0);
-  await expect(page.locator('.main-footer')).toContainText('Updated');
-  await page.getByRole('button', { name: 'Activity', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Refresh usage' })).toBeDisabled();
+  await expect(meter).toHaveAttribute('aria-valuenow', '75');
   await expect(page.locator('.usage-history')).toContainText('recorded-model');
-  await expect(page.getByText('No recorded activity yet.')).toHaveCount(0);
+  await expect(page.getByText(/Reading Codex/)).toHaveCount(0);
+  await expect(page.locator('.quick-footer')).toContainText('Fetched');
+  await page.getByRole('button', { name: 'Overview', exact: true }).click();
+  await expect(meter).toHaveAttribute('aria-valuenow', '75');
+  await expect(page.locator('.quick-footer')).toContainText('Updated');
   await releaseNative(page);
-  await expect(page.getByRole('button', { name: 'Refresh', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Refresh usage' })).toBeEnabled();
+  await page.getByRole('button', { name: 'Codex details' }).click();
   await expect(page.locator('.usage-history')).toContainText('recorded-model');
 });
 
 test('an older refresh response never overwrites a newer one', async ({ page }) => {
   await page.clock.install({ time: new Date('2026-10-15T10:00:00Z') });
   await nativeBridge(page, { settings: { legalVersion: LEGAL, demo: false, liveProviders: ['codex'], enabled: ['codex'] }, quotas: { codex: codexQuota }, histories: { codex: history() }, rising: true });
-  await page.goto('/?page=activity');
-  await expect(page.locator('.usage-history')).toContainText('recorded-model');
-  await expect(page.getByRole('button', { name: 'Refresh', exact: true })).toBeEnabled();
+  await page.goto('/');
+  await expect(page.getByRole('progressbar', { name: 'Codex Session remaining' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Refresh usage' })).toBeEnabled();
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
   const before = await countCalls(page, 'refresh_provider');
   await holdNative(page);
   await page.clock.fastForward('05:01');
@@ -59,23 +59,19 @@ test('an older refresh response never overwrites a newer one', async ({ page }) 
   await page.getByRole('button', { name: 'Overview', exact: true }).click();
   const meter = page.getByRole('progressbar', { name: 'Codex Session remaining' });
   await expect(meter).toHaveAttribute('aria-valuenow', String(newest));
-  await expect(page.getByRole('button', { name: 'Refresh', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Refresh usage' })).toBeEnabled();
   await page.waitForTimeout(300);
   await expect(meter).toHaveAttribute('aria-valuenow', String(newest));
 });
 
-test('settings that cannot be stored show a message and both windows keep working', async ({ page }) => {
+test('settings that cannot be stored show a message and the panel keeps working', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('meterluma.settings.v2', JSON.stringify({ demo: true }));
     Storage.prototype.setItem = () => { throw new DOMException('Storage is full', 'QuotaExceededError'); };
   });
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
-  await page.goto('/?page=settings');
-  await page.getByRole('button', { name: 'dark theme', exact: true }).click();
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-  await expect(page.getByRole('status').filter({ hasText: 'Your settings could not be saved on this device.' })).toBeVisible();
-  await page.goto('/?view=quick');
+  await page.goto('/');
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await page.getByRole('button', { name: 'dark theme', exact: true }).click();
   await expect(page.getByText('Your settings could not be saved on this device.')).toBeVisible();
@@ -88,10 +84,11 @@ test.describe('outside the en-US locale and UTC', () => {
   test.use({ locale: 'de-DE', timezoneId: 'Asia/Tokyo' });
   test('history dates and coverage render from local calendar days', async ({ page }) => {
     await nativeBridge(page, { settings: { legalVersion: LEGAL, demo: false, liveProviders: ['claude'], enabled: ['claude'] }, histories: { claude: history({ recordedDays: 10, tokens: 1500, cost: 0.25 }) } });
-    await page.goto('/?page=activity');
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Claude details' }).click();
     const panel = page.locator('.usage-history');
-    await expect(panel).toContainText(/Since 6\. Okt/);
-    await expect(panel.locator('.usage-history-chart i.unrecorded')).toHaveCount(20);
+    await expect(panel.locator('.quick-usage-totals')).toContainText(/Since 6\. Okt/);
+    await expect(panel.locator('.quick-sparkbars i.unrecorded')).toHaveCount(20);
     await expect(panel).toContainText('~$2.50');
     await axe(page);
   });
@@ -99,21 +96,23 @@ test.describe('outside the en-US locale and UTC', () => {
 
 test('Claude connects as recorded local history and never requests Claude quotas', async ({ page }) => {
   await nativeBridge(page, { settings: { legalVersion: LEGAL, demo: false }, histories: { claude: history({ tokens: 2000, cost: 0.5 }) } });
-  await page.goto('/?page=connections');
-  await expect(page.locator('.connection-row').filter({ hasText: 'Claude' })).toContainText('Recorded token history from local Claude Code logs');
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Connections', exact: true }).click();
+  await expect(page.locator('.quick-connection').filter({ hasText: 'Claude' })).toContainText('Recorded token history from local Claude Code logs');
   await page.getByRole('button', { name: 'Connect Claude', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Connect Claude', exact: true });
   await expect(dialog).toContainText("MeterLuma reads token counts from Claude Code's local logs. It does not read the Claude sign-in or contact Anthropic.");
   await expect(dialog).not.toContainText(/credential|renew|write-back/i);
   await dialog.getByRole('button', { name: 'Use local profile' }).click();
+  await expect(page.locator('.quick-connection').filter({ hasText: 'Claude' })).toContainText('Connected · local history');
+  await page.getByRole('button', { name: 'Overview', exact: true }).click();
   const card = page.getByRole('article').filter({ hasText: 'Claude' });
   await expect(card).toContainText('Local history only');
   await expect(card).toContainText('2K');
   await expect(card.getByRole('progressbar')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Refresh', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Refresh', exact: true })).toBeEnabled();
+  await page.getByRole('button', { name: 'Refresh usage' }).click();
+  await expect(page.getByRole('button', { name: 'Refresh usage' })).toBeEnabled();
   await expect(page.getByText(/Renew your Claude sign-in|Claude sign-in to see limits/)).toHaveCount(0);
-  await page.goto('/?view=quick');
   await page.getByRole('button', { name: 'Claude details' }).click();
   await expect(page.locator('.quick-plan')).toHaveText('Local history');
   await expect(page.locator('.quick-detail')).toContainText("reads token counts from Claude Code's local logs");
@@ -126,38 +125,39 @@ test('Claude connects as recorded local history and never requests Claude quotas
 
 test('saved Claude alert rules from earlier versions are dropped safely', async ({ page }) => {
   await nativeBridge(page, { settings: { legalVersion: '1.1-providers-3', demo: false, liveProviders: ['claude', 'codex'], enabled: ['claude', 'codex'], alerts: [{ key: 'old-claude', providerId: 'claude', threshold: 80, enabled: true }, { key: 'codex-rule', providerId: 'codex', threshold: 90, enabled: true }] }, quotas: { codex: codexQuota }, histories: { claude: history(), codex: history() } });
-  await page.goto('/?page=settings');
+  await page.goto('/');
   // The privacy revision changed, so consent is asked for again before any data is read.
   await expect(page.getByRole('dialog', { name: 'Before you connect' })).toBeVisible();
   expect((await nativeCalls(page)).filter(call => ['refresh_provider', 'read_usage_history'].includes(call.command))).toEqual([]);
   await page.getByRole('dialog').getByRole('checkbox').check();
   await page.getByRole('button', { name: 'Agree and continue' }).click();
-  await expect(page.getByRole('checkbox', { name: 'Codex · 90% used' })).toBeChecked();
-  await expect(page.getByRole('checkbox', { name: /Claude/ })).toHaveCount(0);
-  await expect(page.locator('.feature-panel').filter({ hasText: 'Custom usage alerts' }).locator('select option')).toHaveText(['Codex', 'Cursor']);
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  const alerts = page.locator('.feature-panel').filter({ hasText: 'Custom usage alerts' });
+  await expect(alerts.getByRole('checkbox', { name: 'Codex · 90% used' })).toBeChecked();
+  await expect(alerts.getByRole('checkbox', { name: /Claude/ })).toHaveCount(0);
+  await expect(alerts.locator('select option')).toHaveText(['Codex', 'Cursor']);
   expect((await saved(page)).alerts.map((rule: { key: string }) => rule.key)).toEqual(['codex-rule']);
 });
 
 test('repeated Escape and a forced native close keep the first-run license gate open', async ({ page }) => {
   await nativeBridge(page, { settings: { legalVersion: '', demo: false, liveProviders: ['codex'], enabled: ['codex'] }, quotas: { codex: codexQuota } });
-  for (const url of ['/', '/?view=quick']) {
-    await page.goto(url);
-    const gate = page.getByRole('dialog', { name: 'Before you connect' });
-    await expect(gate).toBeVisible();
-    for (let press = 0; press < 3; press++) await page.keyboard.press('Escape');
-    await expect(gate).toBeVisible();
-    expect(await gate.evaluate(dialog => dialog.matches(':modal'))).toBe(true);
-    await gate.evaluate(dialog => (dialog as HTMLDialogElement).close());
-    await expect(gate).toBeVisible();
-    expect(await gate.evaluate(dialog => dialog.matches(':modal'))).toBe(true);
-    expect((await nativeCalls(page)).filter(call => ['refresh_provider', 'read_usage_history'].includes(call.command))).toEqual([]);
-  }
+  await page.goto('/');
+  const gate = page.getByRole('dialog', { name: 'Before you connect' });
+  await expect(gate).toBeVisible();
+  for (let press = 0; press < 3; press++) await page.keyboard.press('Escape');
+  await expect(gate).toBeVisible();
+  expect(await gate.evaluate(dialog => dialog.matches(':modal'))).toBe(true);
+  await gate.evaluate(dialog => (dialog as HTMLDialogElement).close());
+  await expect(gate).toBeVisible();
+  expect(await gate.evaluate(dialog => dialog.matches(':modal'))).toBe(true);
+  expect((await nativeCalls(page)).filter(call => ['refresh_provider', 'read_usage_history'].includes(call.command))).toEqual([]);
 });
 
 test('dismissable dialogs ignore clicks inside their padding and close from the backdrop', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('meterluma.settings.v2', JSON.stringify({ demo: true })));
-  await page.goto('/?page=settings');
-  await page.locator('.about-panel').getByRole('button', { name: 'View license' }).click();
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Help', exact: true }).click();
+  await page.getByRole('button', { name: 'View license' }).click();
   const dialog = page.getByRole('dialog', { name: 'Free for personal use.' });
   const box = (await dialog.boundingBox())!;
   await page.mouse.click(box.x + 6, box.y + box.height / 2);
@@ -171,8 +171,9 @@ test('reset preferences asks first in the app and keeps consent, connections and
   await nativeBridge(page, { settings: { legalVersion: LEGAL, demo: false, theme: 'dark', timeFormat: '24', resetStyle: 'absolute', historyDays: 90, liveProviders: ['codex'], enabled: ['codex'], alerts: [{ key: 'keep', providerId: 'codex', threshold: 90, enabled: true }] }, quotas: { codex: codexQuota }, histories: { codex: history({ days: 90 }) } });
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
-  await page.goto('/?page=settings');
-  const open = page.locator('.about-panel').getByRole('button', { name: 'Reset preferences' });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Help', exact: true }).click();
+  const open = page.getByRole('button', { name: 'Reset preferences' });
   await open.click();
   const confirm = page.getByRole('dialog', { name: 'Reset preferences?' });
   await expect(confirm).toContainText('Your connections, local accounts, usage alerts and license acceptance are kept.');
@@ -188,7 +189,6 @@ test('reset preferences asks first in the app and keeps consent, connections and
   expect(settings.alerts).toHaveLength(1);
   await page.reload();
   await expect(page.getByRole('dialog', { name: 'Before you connect' })).toHaveCount(0);
-  await page.getByRole('button', { name: 'Overview', exact: true }).click();
   await expect(page.getByRole('article').filter({ hasText: 'Codex' })).toBeVisible();
   expect(errors).toEqual([]);
 });
@@ -214,47 +214,40 @@ test('alerts stay visible through a 30-minute refresh interval', async ({ page }
   await expect(alerts).toContainText('Session is 25% used (alert at 20%).');
   const before = await countCalls(page, 'refresh_provider');
   await page.clock.fastForward('25:00');
-  await expect(page.locator('.summary-number').nth(1)).toContainText('35m');
+  await expect(page.locator('.quick-metric-caption').first()).toContainText('Resets in 35m');
   await expect(alerts).toContainText('Session is 25% used (alert at 20%).');
   expect(await countCalls(page, 'refresh_provider')).toBe(before);
 });
 
-test('alert dismissals are shared between the dashboard and tray and survive reloads', async ({ page, context }) => {
-  const options = { settings: { legalVersion: LEGAL, demo: false, liveProviders: ['codex'], enabled: ['codex'], alerts: [{ key: 'rule', providerId: 'codex', threshold: 35, enabled: true }] }, quotas: { codex: codexQuota }, histories: { codex: history() } };
-  await nativeBridge(page, options);
+test('alert dismissals survive reloads', async ({ page }) => {
+  await nativeBridge(page, { settings: { legalVersion: LEGAL, demo: false, liveProviders: ['codex'], enabled: ['codex'], alerts: [{ key: 'rule', providerId: 'codex', threshold: 35, enabled: true }] }, quotas: { codex: codexQuota }, histories: { codex: history() } });
   await page.goto('/');
-  const quick = await context.newPage();
-  await nativeBridge(quick, options);
-  await quick.goto('/?view=quick');
-  await expect(page.getByRole('region', { name: 'Usage alerts' })).toBeVisible();
-  const trayAlerts = quick.getByRole('region', { name: 'Usage alerts' });
-  await expect(trayAlerts).toContainText('Weekly is 40% used (alert at 35%).');
-  await trayAlerts.getByRole('button', { name: /Dismiss Codex: Weekly/ }).click();
-  await expect(trayAlerts).toHaveCount(0);
-  await expect(page.getByRole('region', { name: 'Usage alerts' })).toHaveCount(0);
+  const alerts = page.getByRole('region', { name: 'Usage alerts' });
+  await expect(alerts).toContainText('Weekly is 40% used (alert at 35%).');
+  await alerts.getByRole('button', { name: /Dismiss Codex: Weekly/ }).click();
+  await expect(alerts).toHaveCount(0);
   await page.reload();
   await expect(page.getByRole('article').filter({ hasText: 'Codex' })).toBeVisible();
-  await expect(page.getByRole('region', { name: 'Usage alerts' })).toHaveCount(0);
-  await quick.close();
+  await expect(alerts).toHaveCount(0);
 });
 
 test('days before coverage render as not recorded and export as recorded=false', async ({ page }) => {
   await nativeBridge(page, { settings: { legalVersion: LEGAL, demo: false, liveProviders: ['claude'], enabled: ['claude'] }, histories: { claude: history({ recordedDays: 10, tokens: 1000, cost: 0.25 }) } });
-  await page.goto('/?page=activity');
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Claude details' }).click();
   const panel = page.locator('.usage-history');
-  await expect(panel).toContainText('Since Oct 6');
-  await expect(panel).toContainText('~$2.50 · 10K tokens');
-  await expect(panel.locator('.usage-history-chart i.unrecorded')).toHaveCount(20);
-  await expect(panel.locator('.usage-history-chart i:not(.unrecorded)')).toHaveCount(10);
+  await expect(panel.locator('.quick-usage-totals')).toContainText('Since Oct 6');
+  await expect(panel.locator('.quick-usage-totals')).toContainText('~$2.50 · 10K tokens');
+  await expect(panel.locator('.quick-sparkbars i.unrecorded')).toHaveCount(20);
+  await expect(panel.locator('.quick-sparkbars i:not(.unrecorded)')).toHaveCount(10);
   await expect(page.getByRole('img', { name: 'Recorded token usage since Oct 6: 10,000 tokens; 20 earlier days not recorded' })).toBeVisible();
-  await expect(panel).toContainText('Not recorded: 20 days before Oct 6 have no local logs. They are not zero-usage days.');
-  await expect(panel).toContainText('Claude Code keeps local transcripts for 30 days by default (cleanupPeriodDays)');
-  await expect(panel).toContainText('Daily average: 1K tokens over 10 recorded days.');
-  await expect(panel).toContainText('A week-over-week comparison needs 14 recorded days.');
-  const unrecorded = await panel.locator('.usage-history-chart i.unrecorded').first().evaluate(element => ({ height: element.getBoundingClientRect().height, background: getComputedStyle(element).backgroundImage }));
+  await expect(panel.locator('.quick-data-note')).toContainText('20 days in this window have no local logs and are shown as not recorded, not as zero.');
+  await expect(panel.locator('.quick-data-note')).toContainText('Claude Code keeps local transcripts for 30 days by default (cleanupPeriodDays)');
+  const unrecorded = await panel.locator('.quick-sparkbars i.unrecorded').first().evaluate(element => ({ height: element.getBoundingClientRect().height, background: getComputedStyle(element).backgroundImage }));
   expect(unrecorded.height).toBeGreaterThan(0);
   expect(unrecorded.background).toContain('repeating-linear-gradient');
   await axe(page);
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await page.getByRole('button', { name: 'Export CSV' }).click();
   const csv = (await lastExport(page, 'csv')).replace(/^﻿/, '').trim().split('\r\n');
   expect(csv[0]).toBe('"mode","provider","account","date","recorded","input_tokens","cached_input_tokens","cache_write_tokens","output_tokens","total_tokens","unpriced_tokens","estimated_api_value_usd","partial","scope"');
@@ -265,20 +258,14 @@ test('days before coverage render as not recorded and export as recorded=false',
   expect(exported.coverageStart).toBe('2026-10-06');
   expect(exported.days[0]).toEqual({ date: '2026-09-16', recorded: false, inputTokens: null, cachedInputTokens: null, cacheWriteTokens: null, outputTokens: null, totalTokens: null, estimatedCostUsd: null, unpricedTokens: null });
   expect(exported.days.at(-1)).toMatchObject({ date: '2026-10-15', recorded: true, totalTokens: 1000, unpricedTokens: 0, estimatedCostUsd: 0.25 });
-  await page.goto('/?view=quick');
-  await page.getByRole('button', { name: 'Claude details' }).click();
-  await expect(page.locator('.quick-usage-totals')).toContainText('Since Oct 6');
-  await expect(page.locator('.quick-sparkbars i.unrecorded')).toHaveCount(20);
 });
 
 test('dollar estimates say how many tokens they exclude for unknown model prices', async ({ page }) => {
   await nativeBridge(page, { settings: { legalVersion: LEGAL, demo: false, liveProviders: ['claude'], enabled: ['claude'] }, histories: { claude: history({ tokens: 1000, cost: 0.2, unpriced: 150 }) } });
-  await page.goto('/?page=activity');
-  await expect(page.locator('.usage-history')).toContainText('Excludes 4,500 tokens from models without a known price.');
-  await expect(page.locator('.usage-history')).toContainText('~$6.00 · 30K tokens');
-  await page.goto('/?view=quick');
+  await page.goto('/');
   await page.getByRole('button', { name: 'Claude details' }).click();
   await expect(page.locator('.quick-unpriced')).toHaveText('Excludes 4,500 tokens from models without a known price.');
+  await expect(page.locator('.quick-usage-totals')).toContainText('~$6.00 · 30K tokens');
   await page.getByRole('button', { name: 'Costs', exact: true }).click();
   await expect(page.getByRole('img', { name: 'Today estimated API value: $0.20' })).toBeVisible();
   await expect(page.locator('.quick-cost-notes')).toContainText('Excludes 150 tokens from models without a known price.');
@@ -287,27 +274,22 @@ test('dollar estimates say how many tokens they exclude for unknown model prices
   await expect(page.getByRole('img', { name: '30 Days estimated API value: $6.00' })).toBeVisible();
 });
 
-test('Cursor is labeled unofficial on its connection option, details and tray page', async ({ page }) => {
+test('Cursor is labeled unofficial on its connection option, overview and details', async ({ page }) => {
   await nativeBridge(page, { settings: { legalVersion: LEGAL, demo: false }, quotas: { cursor: cursorQuota } });
-  await page.goto('/?page=connections');
-  const row = page.locator('.connection-row').filter({ hasText: 'Cursor' });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Connections', exact: true }).click();
+  const row = page.locator('.quick-connection').filter({ hasText: 'Cursor' });
   await expect(row.getByText('Unofficial', { exact: true })).toBeVisible();
   await expect(row).toContainText('Uses an undocumented Cursor endpoint');
-  await expect(page.locator('.connection-row').filter({ hasText: 'Codex' }).getByText('Unofficial', { exact: true })).toHaveCount(0);
+  await expect(page.locator('.quick-connection').filter({ hasText: 'Codex' }).getByText('Unofficial', { exact: true })).toHaveCount(0);
   await row.getByRole('button', { name: 'Connect Cursor' }).click();
   await expect(page.getByRole('dialog', { name: 'Connect Cursor' })).toContainText('Unofficial');
   await page.getByRole('dialog').getByRole('button', { name: 'Use local profile' }).click();
-  const card = page.getByRole('article').filter({ hasText: 'Cursor' });
-  await expect(card.getByText('Unofficial', { exact: true })).toBeVisible();
-  await card.getByRole('button', { name: 'View Cursor details' }).click();
-  const details = page.getByRole('dialog', { name: 'Cursor at a glance' });
-  await expect(details).toContainText('Unofficial');
-  await expect(details).toContainText('not endorsed by Cursor');
-  await page.keyboard.press('Escape');
-  await page.goto('/?view=quick');
+  await page.getByRole('button', { name: 'Overview', exact: true }).click();
   await expect(page.locator('.quick-provider').filter({ hasText: 'Cursor' }).getByText('Unofficial', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Cursor details' }).click();
   await expect(page.locator('.quick-detail .unofficial-note')).toContainText('Unofficial');
+  await expect(page.locator('.quick-detail .unofficial-note')).toContainText('not endorsed by Cursor');
   await expect(page.locator('.quick-detail')).toContainText('Cursor token history is not recorded locally.');
   await expect(page.locator('.quick-statistics')).toHaveCount(0);
   await axe(page);
@@ -330,54 +312,68 @@ test('an elapsed rate-limit deadline triggers one retry instead of a refresh eve
 
 test('Cursor-only users get an explanation instead of an empty history and a dead CSV button', async ({ page }) => {
   await nativeBridge(page, { settings: { legalVersion: LEGAL, demo: false, liveProviders: ['cursor'], enabled: ['cursor'] }, quotas: { cursor: cursorQuota } });
-  await page.goto('/?page=activity');
+  await page.goto('/');
+  await expect(page.getByRole('article').filter({ hasText: 'Cursor' })).toBeVisible();
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Export CSV' })).toBeDisabled();
-  await expect(page.getByText('CSV export needs recorded token history from Claude Code or Codex.')).toBeVisible();
-  await expect(page.locator('.empty-state')).toContainText('Cursor token history is not recorded locally.');
+  await expect(page.getByText('CSV export needs recorded token history from Claude Code or Codex.')).toContainText('Cursor token history is not recorded locally');
   await page.getByRole('button', { name: 'Export JSON' }).click();
   const exported = JSON.parse(await lastExport(page, 'json')).providers[0];
   expect(exported).toMatchObject({ provider: 'cursor', quotas: 'unofficial', history: null, historyNote: 'Cursor token history is not recorded locally. Only the monthly allowance is available.' });
 });
 
-test('the not-affiliated note appears in Connections, About and tray Help', async ({ page }) => {
+test('the not-affiliated note and version appear in Connections and Help', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('meterluma.settings.v2', JSON.stringify({ demo: true })));
-  await page.goto('/?page=connections');
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Connections', exact: true }).click();
   await expect(page.getByText(NOT_AFFILIATED)).toBeVisible();
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  await expect(page.locator('.about-panel')).toContainText(NOT_AFFILIATED);
-  await expect(page.locator('.about-panel .version')).toHaveText(/^v\d+\.\d+\.\d+/);
-  await page.goto('/?view=quick');
   await page.getByRole('button', { name: 'Help', exact: true }).click();
   await expect(page.getByText(NOT_AFFILIATED)).toBeVisible();
+  await expect(page.locator('.quick-help')).toContainText(/MeterLuma v\d+\.\d+\.\d+/);
   await expect(page.locator('.quick-help')).not.toContainText(/Internal beta|prototype/i);
 });
 
-test('provider glyphs are original neutral symbols and live data does not reintroduce brand colors', async ({ page }) => {
-  await nativeBridge(page, { settings: { legalVersion: LEGAL, demo: false, liveProviders: ['codex', 'cursor'], enabled: ['codex', 'cursor'] }, quotas: { codex: codexQuota, cursor: cursorQuota }, histories: { codex: history() } });
+test('official provider logos load, switch to their dark-background files in the dark theme, and live data does not tint the interface', async ({ page }) => {
+  await nativeBridge(page, { settings: { legalVersion: LEGAL, demo: false, liveProviders: ['claude', 'codex', 'cursor'], enabled: ['claude', 'codex', 'cursor'], theme: 'light' }, quotas: { codex: codexQuota, cursor: cursorQuota }, histories: { claude: history(), codex: history() } });
   await page.goto('/');
-  await expect(page.getByRole('article')).toHaveCount(2);
-  await page.getByRole('button', { name: 'View Codex details' }).click();
-  // The mock returns the old terracotta brand color (#d97757); nothing may be painted with it.
+  await expect(page.getByRole('article')).toHaveCount(3);
+  await page.getByRole('button', { name: 'Codex details' }).click();
+  await expect(page.getByRole('progressbar', { name: 'Codex Session remaining' })).toBeVisible();
+  // The mock returns the old terracotta brand color (#d97757); no interface element may be painted with it.
   const tinted = await page.evaluate(() => [...document.querySelectorAll('*')].filter(element => { const style = getComputedStyle(element); return [style.color, style.backgroundColor, style.fill, style.stroke].includes('rgb(217, 119, 87)'); }).length);
   expect(tinted).toBe(0);
-  expect(await page.locator('.provider-brand img').count()).toBe(0);
-  const glyph = await page.locator('.provider-card .provider-brand svg').first().evaluate(svg => ({ markup: svg.outerHTML }));
-  expect(glyph.markup).toContain('currentColor');
-  expect(glyph.markup).not.toMatch(/#[0-9a-f]{3,6}/i);
+  // Only the logo for the current theme is displayed. Each must load, stay decorative and be the official file for that background,
+  // identified by its ink: Claude's terracotta, OpenAI's black or white Blossom, and Cursor's two cube colors.
+  const shown = () => page.locator('.quick-rail img.provider-brand').evaluateAll(images => Promise.all(images.filter(image => getComputedStyle(image).display !== 'none').map(async element => {
+    const image = element as HTMLImageElement;
+    const src = image.currentSrc || image.src;
+    const markup = src.startsWith('data:') ? decodeURIComponent(src.slice(src.indexOf(',') + 1)) : await (await fetch(src)).text();
+    // Vite inlines small SVGs with single-quoted attributes.
+    const ink = markup.match(/fill(?:=["']|:\s*)(#[0-9a-f]{3,8}|black|white)/i)?.[1].toLowerCase();
+    return { id: image.dataset.provider, ink, loaded: image.complete && image.naturalWidth > 0, decorative: image.alt === '' && image.getAttribute('aria-hidden') === 'true' };
+  })));
+  const expected = (variant: 'light' | 'dark') => [
+    { id: 'claude', ink: '#d97757', loaded: true, decorative: true },
+    { id: 'codex', ink: variant === 'light' ? 'black' : 'white', loaded: true, decorative: true },
+    { id: 'cursor', ink: variant === 'light' ? '#26251e' : '#edecec', loaded: true, decorative: true },
+  ];
+  await expect.poll(shown).toEqual(expected('light'));
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.getByRole('button', { name: 'dark theme', exact: true }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect.poll(shown).toEqual(expected('dark'));
 });
 
-test('a render error shows a recoverable error screen instead of a blank window', async ({ page }) => {
+test('a render error shows a recoverable error screen instead of a blank panel', async ({ page }) => {
   await nativeBridge(page, { settings: { legalVersion: LEGAL, demo: false, liveProviders: ['codex'], enabled: ['codex'] }, quotas: { codex: codexQuota }, malformedQuota: true });
-  for (const url of ['/', '/?view=quick']) {
-    await page.goto(url);
-    const alert = page.getByRole('alert');
-    await expect(alert).toContainText('Something went wrong.');
-    await expect(alert).toContainText('Your settings and connections are unchanged.');
-    const reload = page.waitForEvent('framenavigated');
-    await alert.getByRole('button', { name: 'Reload' }).click();
-    await reload;
-    await expect(page.getByRole('alert')).toContainText('Something went wrong.');
-  }
+  await page.goto('/');
+  const alert = page.getByRole('alert');
+  await expect(alert).toContainText('Something went wrong.');
+  await expect(alert).toContainText('Your settings and connections are unchanged.');
+  const reload = page.waitForEvent('framenavigated');
+  await alert.getByRole('button', { name: 'Reload' }).click();
+  await reload;
+  await expect(page.getByRole('alert')).toContainText('Something went wrong.');
 });
 
 test('third-party notices load on demand and render in pages', async ({ page }) => {
@@ -385,8 +381,9 @@ test('third-party notices load on demand and render in pages', async ({ page }) 
   const requested: string[] = [];
   // The dev server also serves a tiny `?import&url` module that only holds the file's URL; count real file fetches.
   page.on('request', request => { if (request.url().includes('THIRD_PARTY_NOTICES') && !request.url().includes('import')) requested.push(request.url()); });
-  await page.goto('/?page=settings');
-  await page.locator('.about-panel').getByRole('button', { name: 'View license' }).click();
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Help', exact: true }).click();
+  await page.getByRole('button', { name: 'View license' }).click();
   const dialog = page.getByRole('dialog', { name: 'Free for personal use.' });
   expect(requested).toEqual([]);
   await dialog.getByText('Third-party licenses and source links').click();
@@ -402,7 +399,7 @@ test('third-party notices load on demand and render in pages', async ({ page }) 
 
 test('tray panel errors clear when the user moves on', async ({ page }) => {
   await nativeBridge(page, { settings: { legalVersion: LEGAL, demo: false }, failResizeOnce: true });
-  await page.goto('/?view=quick');
+  await page.goto('/');
   await expect(page.getByText('The panel could not be resized.')).toBeVisible();
   await page.getByRole('button', { name: 'Help', exact: true }).click();
   await expect(page.getByText('The panel could not be resized.')).toHaveCount(0);
@@ -411,18 +408,14 @@ test('tray panel errors clear when the user moves on', async ({ page }) => {
 test('cached quotas are never labeled live in details, the tray tooltip or Connections', async ({ page }) => {
   await nativeBridge(page, { settings: { legalVersion: LEGAL, demo: false, liveProviders: ['cursor'], enabled: ['cursor'] }, quotas: { cursor: { error: { code: 'rate_limited', message: 'The provider is limiting requests.' }, retryIn: 3_600_000, snapshot: { plan: 'Pro', ageMs: 120_000, metrics: [{ label: 'Monthly', usedPercent: 40, resetIn: 86_400_000 }, { label: 'Expired window', usedPercent: 99, resetIn: -60_000 }] } } } });
   await page.goto('/');
-  const card = page.getByRole('article').filter({ hasText: 'Cursor' });
-  await expect(card).toContainText('Cached quotas');
-  await card.getByRole('button', { name: 'View Cursor details' }).click();
-  const details = page.getByRole('dialog', { name: 'Cursor at a glance' });
-  await expect(details).toContainText('Cached quotas · fetched');
-  await expect(details).not.toContainText('Live plan limits');
-  await expect(details).not.toContainText('Expired window');
-  await expect(details).not.toContainText('Resets in Reset due');
-  await page.keyboard.press('Escape');
+  await expect(page.getByRole('article').filter({ hasText: 'Cursor' })).toContainText('Cached quotas');
+  await page.getByRole('button', { name: 'Cursor details' }).click();
+  await expect(page.locator('.quick-plan')).toHaveText('Cached quotas');
+  await expect(page.locator('.quick-footer')).toContainText('Cached from');
+  await expect(page.locator('.quick-detail')).not.toContainText('Expired window');
+  await expect(page.locator('.quick-detail')).not.toContainText('Resets in Reset due');
   await page.getByRole('button', { name: 'Connections', exact: true }).click();
-  await expect(page.locator('.connection-row').filter({ hasText: 'Cursor' })).toContainText('Rate limited (cached)');
-  await page.goto('/?view=quick');
+  await expect(page.locator('.quick-connection').filter({ hasText: 'Cursor' })).toContainText('Rate limited (cached)');
   await expect.poll(async () => (await nativeCalls(page)).filter(call => call.command === 'set_tray_summary').at(-1)?.args.summary).toBe('Cursor 60% left (cached)');
 });
 
@@ -430,16 +423,15 @@ test('the time format setting applies to every displayed time', async ({ page })
   await page.clock.install({ time: new Date('2026-10-15T21:42:00Z') });
   await nativeBridge(page, { settings: { legalVersion: LEGAL, demo: false, timeFormat: '24', liveProviders: ['codex'], enabled: ['codex'] }, quotas: { codex: codexQuota }, histories: { codex: history() } });
   await page.goto('/');
-  await expect(page.locator('.main-footer')).toContainText('Updated 21:42');
+  await expect(page.locator('.quick-footer')).toContainText('Updated 21:42');
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  await page.getByRole('group', { name: 'Time format' }).getByRole('button', { name: '12-hour' }).click();
-  await page.getByRole('group', { name: 'Reset timers' }).getByRole('button', { name: 'Date and time' }).click();
-  await expect(page.locator('.main-footer')).toContainText('Updated 9:42 PM');
+  await page.getByRole('button', { name: '12-hour', exact: true }).click();
+  await page.getByRole('button', { name: 'Absolute', exact: true }).click();
+  await expect(page.locator('.quick-footer')).toContainText('Updated 9:42 PM');
   await page.getByRole('button', { name: 'Overview', exact: true }).click();
-  await expect(page.locator('.provider-card .reset').first()).toContainText('Resets Oct 15, 10:42 PM');
-  await page.getByRole('button', { name: 'Activity', exact: true }).click();
-  await expect(page.locator('.usage-history small')).toHaveText('Scanned 9:42 PM');
-  await page.goto('/?view=quick');
+  await expect(page.locator('.quick-metric-caption').first()).toContainText('Resets Oct 15, 10:42 PM');
   await page.getByRole('button', { name: 'Codex details' }).click();
+  await expect(page.locator('.quick-data-note')).toContainText('Scanned 9:42 PM.');
   await expect(page.locator('.quick-footer')).toContainText('Fetched 9:42 PM');
 });
+

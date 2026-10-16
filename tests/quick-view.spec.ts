@@ -6,8 +6,8 @@ test.beforeEach(async ({ page }) => {
     if (!localStorage.getItem('meterluma.settings.v2')) localStorage.setItem('meterluma.settings.v2', JSON.stringify({ demo: true }));
   });
 });
-test('tray panel exposes costs, remaining limits, a fixed Options footer and dashboard access', async ({ page }) => {
-  await page.goto('/?view=quick');
+test('tray panel exposes costs, remaining limits, a fixed Options footer and Connections', async ({ page }) => {
+  await page.goto('/');
   await page.setViewportSize({ width: 360, height: 660 });
   await expect(page.getByRole('heading', { name: 'Overview', exact: true })).toBeVisible();
   await expect(page.getByRole('article')).toHaveCount(3);
@@ -22,12 +22,14 @@ test('tray panel exposes costs, remaining limits, a fixed Options footer and das
   await expect(page.getByRole('heading', { name: 'Cursor', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Options', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Options', exact: true }).click();
-  await page.getByRole('menuitem', { name: 'Open dashboard' }).click();
-  await expect(page.getByRole('heading', { name: 'Your AI, in view.' })).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: 'Open dashboard' })).toHaveCount(0);
+  await page.getByRole('menuitem', { name: 'Connections' }).click();
+  await expect(page.getByRole('heading', { name: 'Connections', exact: true })).toBeVisible();
+  await expect(page.locator('.quick-connection')).toHaveCount(3);
 });
 
 test('cost tabs recalculate samples and Options supports keyboard navigation to Settings', async ({ page }) => {
-  await page.goto('/?view=quick');
+  await page.goto('/');
   await page.getByRole('button', { name: 'Costs', exact: true }).click();
   await page.getByRole('button', { name: 'Yesterday', exact: true }).click();
   await expect(page.getByRole('img', { name: 'Yesterday simulated costs: $5.90' })).toBeVisible();
@@ -50,33 +52,19 @@ test('cost tabs recalculate samples and Options supports keyboard navigation to 
 
 test('live tray panel shows unavailable costs without a simulated donut', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('meterluma.settings.v2', JSON.stringify({ demo: false })));
-  await page.goto('/?view=quick');
+  await page.goto('/');
   await page.getByRole('button', { name: 'Costs', exact: true }).click();
   await expect(page.getByText('No estimated API value yet', { exact: true })).toBeVisible();
   await expect(page.getByRole('img')).toHaveCount(0);
   await expect(page.getByRole('article')).toHaveCount(0);
   await page.getByRole('button', { name: 'Overview', exact: true }).click();
   await page.getByRole('button', { name: 'Choose providers' }).click();
-  await expect(page.getByRole('heading', { name: 'Everything, together.' })).toBeVisible();
-});
-
-test('quick view follows dashboard provider and theme changes', async ({ page, context }) => {
-  await page.goto('/');
-  const quick = await context.newPage();
-  await quick.goto('/?view=quick');
-  await expect(quick.getByRole('article')).toHaveCount(3);
-  await page.getByRole('button', { name: 'Connections', exact: true }).click();
-  await page.getByRole('switch', { name: 'Show Cursor' }).click();
-  await expect(quick.getByRole('article')).toHaveCount(2);
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  await page.getByRole('button', { name: 'light theme', exact: true }).click();
-  await expect(quick.locator('html')).toHaveAttribute('data-theme', 'light');
-  await quick.close();
+  await expect(page.getByRole('heading', { name: 'Connections', exact: true })).toBeVisible();
 });
 
 test('provider sidebar isolates details and settings change bars, timers, order and visibility persistently', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 660 });
-  await page.goto('/?view=quick');
+  await page.goto('/');
   await page.getByRole('button', { name: 'Claude details' }).click();
   await expect(page.getByRole('article')).toHaveCount(1);
   await expect(page.getByRole('heading', { name: 'Claude', exact: true })).toBeVisible();
@@ -104,11 +92,13 @@ test('provider sidebar isolates details and settings change bars, timers, order 
 });
 
 test('disabled selected provider returns to overview and live details never include sample spending or models', async ({ page, context }) => {
-  await page.goto('/?view=quick');
+  await page.goto('/');
   await page.getByRole('button', { name: 'Cursor details' }).click();
-  const dashboard = await context.newPage();
-  await dashboard.goto('/?page=connections');
-  await dashboard.getByRole('switch', { name: 'Show Cursor' }).click();
+  // Settings saved elsewhere (another copy of the panel here) reach the open panel.
+  const other = await context.newPage();
+  await other.goto('/');
+  await other.getByRole('button', { name: 'Settings', exact: true }).click();
+  await other.getByRole('checkbox', { name: 'Cursor', exact: true }).uncheck();
   await expect(page.getByRole('heading', { name: 'Overview', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await page.getByRole('checkbox', { name: 'Use sample data' }).uncheck();

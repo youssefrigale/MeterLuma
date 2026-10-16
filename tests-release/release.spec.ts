@@ -24,7 +24,7 @@ const calls = (page: Page) => page.evaluate(() => (window as unknown as { native
 
 test('cached quotas stay visible during throttling and are labeled without triggering alerts', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 660 });
-  await page.goto('/?view=quick');
+  await page.goto('/');
   await page.getByRole('button', { name: 'Cursor details' }).click();
   await expect(page.getByRole('progressbar', { name: 'Cached Cursor Monthly remaining' })).toHaveAttribute('aria-valuenow', '10');
   await expect(page.locator('.quick-plan')).toHaveText('Cached quotas');
@@ -38,24 +38,25 @@ test('cached quotas stay visible during throttling and are labeled without trigg
 
 test('release removes demo controls and distinguishes local history from live quotas', async ({ page }) => {
   await page.goto('/');
-  await expect(page.locator('.summary-number').first()).toContainText('02 local profiles');
-  await expect(page.locator('.main-footer')).toContainText(/\b1 live connection(?!s)/);
+  await expect(page.getByRole('article')).toHaveCount(2);
   const claude = page.getByRole('article').filter({ hasText: 'Claude' });
-  await expect(claude.locator('.connection-dot')).toHaveAttribute('data-state', 'history');
   await expect(claude).toContainText('Local history only');
   await expect(claude.getByRole('progressbar')).toHaveCount(0);
-  await expect(page.locator('.live-status-list')).toContainText('Cursor');
-  await expect(page.locator('.live-status-list')).toContainText('rate limited. Retrying in');
-  await expect(page.locator('.live-status-list')).not.toContainText('?');
-  for (const tab of ['Connections', 'Settings']) {
-    await page.getByRole('button', { name: tab, exact: true }).click();
-    await expect(page.getByRole('switch', { name: 'Demo preview' })).toHaveCount(0);
-    await expect(page.getByText('Demo preview', { exact: true })).toHaveCount(0);
-    await expect(page.getByText(NOT_AFFILIATED)).toBeVisible();
-  }
-  await expect(page.locator('.about-panel .version')).toHaveText(/^v\d+\.\d+\.\d+$/);
-  await expect(page.locator('.about-panel')).toContainText('Desktop app');
-  await expect(page.locator('body')).not.toContainText(/prototype|Internal beta|development build|Desktop preview/i);
+  await expect(page.getByRole('progressbar', { name: 'Codex Weekly remaining' })).toHaveAttribute('aria-valuenow', '90');
+  const cursor = page.getByRole('status').filter({ hasText: 'Cursor' });
+  await expect(cursor).toContainText('The provider is limiting requests.');
+  await expect(cursor).not.toContainText('?');
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await expect(page.getByText('Demo preview', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('checkbox', { name: 'Use sample data' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Connections', exact: true }).click();
+  await expect(page.locator('.quick-connection').filter({ hasText: 'Codex' })).toContainText('Connected');
+  await expect(page.getByText(NOT_AFFILIATED)).toBeVisible();
+  await expect(page.locator('body')).not.toContainText(/prototype|Internal beta|development build|Desktop preview|Sample data/i);
+  await expect(page.getByText('Live', { exact: true })).toBeVisible();
+  // The migrated live mode is what the next saved change writes back.
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.getByRole('button', { name: '15 min', exact: true }).click();
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('meterluma.settings.v2')!).demo)).toBe(false);
   const native = await calls(page);
   expect(native.filter(call => call.command === 'refresh_provider' && call.providerId === 'claude')).toEqual([]);
@@ -64,7 +65,7 @@ test('release removes demo controls and distinguishes local history from live qu
 
 test('release tray shows rate limiting and disables retries until the deadline', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 660 });
-  await page.goto('/?view=quick');
+  await page.goto('/');
   await page.getByRole('button', { name: 'Cursor details' }).click();
   await expect(page.locator('.quick-plan')).toHaveText('Rate limited');
   await expect(page.locator('.quick-reconnect')).toContainText('Usage paused. Retrying in');

@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
 test('fresh startup and saved prototype preferences use real-data mode without invented numbers', async ({ page }) => {
-  await page.goto('/?view=quick');
+  await page.goto('/');
   await expect(page.getByText('Live', { exact: true })).toBeVisible();
   await expect(page.getByRole('progressbar')).toHaveCount(0);
   await expect(page.getByText('Sample data only', { exact: true })).toHaveCount(0);
@@ -32,7 +32,7 @@ test('Claude device tokens and model shares come from local history without any 
       };
     } } });
   });
-  await page.goto('/?view=quick');
+  await page.goto('/');
   await page.getByRole('button', { name: 'Claude details' }).click();
   await expect(page.getByRole('progressbar')).toHaveCount(0);
   await expect(page.locator('.usage-history')).toContainText('2K tokens');
@@ -47,9 +47,5 @@ test('Claude device tokens and model shares come from local history without any 
   await expect(page.locator('.quick-detail')).toContainText("MeterLuma reads token counts from Claude Code's local logs. It does not read the Claude sign-in or contact Anthropic.");
   const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
   expect(results.violations).toEqual([]);
-  await page.goto('/?page=dashboard');
-  await expect(page.getByRole('article')).toHaveCount(1);
-  await page.getByRole('button', { name: 'Activity', exact: true }).click();
-  await expect(page.locator('.usage-history')).toContainText('recorded-model-a');
   expect(await page.evaluate(() => (window as unknown as { nativeCommands: string[] }).nativeCommands)).not.toContain('refresh_provider');
 });

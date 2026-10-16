@@ -35,7 +35,7 @@ for (const theme of ['dark', 'light']) {
   test(`${theme} reference layout keeps live quotas, combined totals, trend and five models visible without scrolling`, async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 660 });
     await referenceBridge(page, theme, 'codex');
-    await page.goto('/?view=quick');
+    await page.goto('/');
     await page.getByRole('button', { name: 'Codex details' }).click();
     await expect(page.getByRole('progressbar', { name: 'Codex Session remaining' })).toHaveAttribute('aria-valuenow', '91');
     await expect(page.locator('.quick-plan')).toHaveText('Team');
@@ -53,7 +53,7 @@ for (const theme of ['dark', 'light']) {
   test(`${theme} Claude history layout shows estimated value and five models without quotas or scrolling`, async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 660 });
     await referenceBridge(page, theme, 'claude');
-    await page.goto('/?view=quick');
+    await page.goto('/');
     await page.getByRole('button', { name: 'Claude details' }).click();
     await expect(page.locator('.quick-plan')).toHaveText('Local history');
     await expect(page.getByRole('progressbar')).toHaveCount(0);
@@ -70,7 +70,7 @@ for (const theme of ['dark', 'light']) {
 test('expired sign-in preserves compact real activity and shows unavailable quotas without zero bars', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 660 });
   await referenceBridge(page, 'dark', 'codex', true);
-  await page.goto('/?view=quick');
+  await page.goto('/');
   await page.getByRole('button', { name: 'Codex details' }).click();
   await expect(page.getByRole('progressbar')).toHaveCount(0);
   await expect(page.locator('.quick-metrics-unavailable .quick-meter > span').first()).toBeHidden();

@@ -92635,3 +92635,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS WITH THE
 SOFTWARE.
 
 
+
+
+
+========================================================================
+Provider logos
+The Claude Spark is a trademark of Anthropic, the OpenAI Blossom a trademark of OpenAI, and the Cursor cube a trademark of Anysphere. MeterLuma shows them unmodified, from each owner's official brand resources, only to identify the services it reads usage from. They are not covered by MeterLuma's license or any open-source license, and each owner keeps all rights in its marks. MeterLuma is not affiliated with or endorsed by Anthropic, OpenAI or Anysphere.
+Sources: https://www.anthropic.com/press-kit, https://openai.com/brand/, https://cursor.com/brand

@@ -1,11 +1,21 @@
-// Original neutral MeterLuma glyphs (see assets/providers/README.md). Inlined so they inherit the theme's text color.
-import claude from './assets/providers/claude.svg?raw';
-import codex from './assets/providers/codex.svg?raw';
-import cursor from './assets/providers/cursor.svg?raw';
+// Official provider logos, unmodified from each owner's brand resources (see assets/providers/README.md).
+// Codex and Cursor ship separate files for light and dark backgrounds; styles.css shows the one that matches the theme.
+import claude from './assets/providers/claude.svg';
+import codexOnLight from './assets/providers/codex-on-light.svg';
+import codexOnDark from './assets/providers/codex-on-dark.svg';
+import cursorOnLight from './assets/providers/cursor-on-light.svg';
+import cursorOnDark from './assets/providers/cursor-on-dark.svg';
 import type { ProviderId } from './model';
 
-const glyphs = { claude, codex, cursor };
+const logos: Record<ProviderId, { light: string; dark?: string }> = {
+  claude: { light: claude },
+  codex: { light: codexOnLight, dark: codexOnDark },
+  cursor: { light: cursorOnLight, dark: cursorOnDark },
+};
 
 export function ProviderLogo({ id, size }: { id: ProviderId; size?: number }) {
-  return <span className="provider-brand" data-provider={id} aria-hidden="true" style={size ? { width: size, height: size } : undefined} dangerouslySetInnerHTML={{ __html: glyphs[id] }}/>;
+  const { light, dark } = logos[id];
+  const style = size ? { width: size, height: size } : undefined;
+  const image = (src: string, variant?: 'light' | 'dark') => <img className="provider-brand" data-provider={id} data-variant={variant} src={src} alt="" aria-hidden="true" draggable={false} style={style}/>;
+  return dark ? <>{image(light, 'light')}{image(dark, 'dark')}</> : image(light);
 }

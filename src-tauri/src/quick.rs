@@ -1,5 +1,5 @@
-use tauri::{Emitter, Manager, Size, WebviewUrl, WebviewWindowBuilder};
-use std::{sync::Mutex, time::{Duration, Instant}};
+use tauri::{Manager, Size, WebviewUrl, WebviewWindowBuilder};
+use std::{sync::{atomic::{AtomicBool, Ordering}, Mutex}, time::{Duration, Instant}};
 
 pub struct QuickState(Mutex<PanelState>);
 // The anchor uses the platform's placement unit: physical pixels on Windows, points elsewhere.
@@ -18,8 +18,7 @@ fn ignores_tray_click(blurred: Option<Instant>, now: Instant) -> bool {
 pub fn create(app: &tauri::App) -> tauri::Result<()> {
     #[cfg_attr(not(target_os = "macos"), allow(unused_variables))]
     let window = WebviewWindowBuilder::new(app, "quick", WebviewUrl::App("index.html".into()))
-        .title("MeterLuma quick view")
-        .initialization_script("window.__METERLUMA_QUICK__ = true;")
+        .title("MeterLuma")
         .inner_size(360.0, 660.0)
         .decorations(false).resizable(false).visible(false).focused(false)
         .always_on_top(true).skip_taskbar(true).visible_on_all_workspaces(true).build()?;
@@ -49,9 +48,21 @@ fn float_over_full_screen(window: &tauri::WebviewWindow) {
     }
 }
 
+/// Set while a native dialog opened from the panel is showing. The dialog takes focus, but the panel must stay open behind it.
+static DIALOG: AtomicBool = AtomicBool::new(false);
+
+/// Keep the panel open while `show` runs a native dialog owned by it, then give the panel focus back.
+pub fn with_dialog<T>(window: &tauri::WebviewWindow, show: impl FnOnce() -> T) -> T {
+    DIALOG.store(true, Ordering::SeqCst);
+    let result = show();
+    DIALOG.store(false, Ordering::SeqCst);
+    if window.is_visible().unwrap_or(false) { let _ = window.set_focus(); }
+    result
+}
+
 /// Hide the panel when it loses focus and remember when, so the tray click that caused the blur does not reopen it.
 pub fn blurred(window: &tauri::Window) {
-    if !window.is_visible().unwrap_or(false) { return; }
+    if DIALOG.load(Ordering::SeqCst) || !window.is_visible().unwrap_or(false) { return; }
     let _ = window.hide();
     if let Ok(mut panel) = window.state::<QuickState>().0.lock() { panel.blurred = Some(Instant::now()); }
 }
@@ -153,7 +164,7 @@ pub fn resize_quick(window: tauri::WebviewWindow, app: tauri::AppHandle, height:
         panel.height = height;
         panel.anchor
     };
-    // Do not make the panel visible during startup or while the dashboard is open.
+    // Do not make the panel visible during startup or while it is hidden.
     if !window.is_visible().unwrap_or(false) { return Ok(()); }
     #[cfg(target_os = "windows")]
     {
@@ -166,16 +177,6 @@ pub fn resize_quick(window: tauri::WebviewWindow, app: tauri::AppHandle, height:
         });
         position_points(&window, anchor, current, height).map(|_| ()).ok_or_else(|| "Panel positioning failed".into())
     }
-}
-
-#[tauri::command]
-pub fn show_dashboard(app: tauri::AppHandle, page: Option<String>) -> Result<(), String> {
-    let page = page.as_deref().unwrap_or("dashboard");
-    if !matches!(page, "dashboard" | "settings" | "connections" | "activity") { return Err("Unknown page".into()); }
-    app.emit_to("main", "meterluma:navigate", page).map_err(|_| "The requested page could not be opened")?;
-    super::show_main(&app);
-    if let Some(quick) = app.get_webview_window("quick") { let _ = quick.hide(); }
-    Ok(())
 }
 
 #[cfg(test)]

@@ -5,8 +5,9 @@ Run cargo metadata --manifest-path src-tauri/Cargo.toml --format-version 1
 before running this script (--all-features covers the optional updater crates).
 The inventory includes transitive/build/platform dependencies; an exact binary
 may include only a subset. No third-party license is replaced by LICENSE.
-The provider glyphs in src/assets/providers are original MeterLuma artwork
-covered by LICENSE, so they need no third-party notice.
+The provider logos in src/assets/providers are the providers' own trademarks,
+used unmodified from their official brand resources; a closing section names
+their owners and sources.
 """
 import json
 import sys
@@ -106,6 +107,13 @@ for package in sorted(metadata['packages'], key=lambda row: (row['name'], row['v
 
 for component in json.loads((ROOT / 'licenses/runtime-components.json').read_text(encoding='utf-8')):
     add(component['name'], component['version'], component['license'], component['source'], ROOT / 'licenses' / component['directory'])
+
+sections.append(f'\n{"=" * 72}\nProvider logos\n'
+    'The Claude Spark is a trademark of Anthropic, the OpenAI Blossom a trademark of OpenAI, and the Cursor cube a trademark of Anysphere. '
+    'MeterLuma shows them unmodified, from each owner\'s official brand resources, only to identify the services it reads usage from. '
+    'They are not covered by MeterLuma\'s license or any open-source license, and each owner keeps all rights in its marks. '
+    'MeterLuma is not affiliated with or endorsed by Anthropic, OpenAI or Anysphere.\n'
+    'Sources: https://www.anthropic.com/press-kit, https://openai.com/brand/, https://cursor.com/brand\n')
 
 (ROOT / 'THIRD_PARTY_NOTICES.txt').write_text('\n\n'.join(sections), encoding='utf-8', newline='\n')
 (ROOT / '.tools/license-inventory.json').write_text(json.dumps(inventory, indent=2), encoding='utf-8')

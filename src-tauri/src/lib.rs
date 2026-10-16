@@ -14,14 +14,6 @@ use tauri::{
     Manager,
 };
 
-fn show_main(app: &tauri::AppHandle) {
-    if let Some(window) = app.get_webview_window("main") {
-        let _ = window.unminimize();
-        let _ = window.show();
-        let _ = window.set_focus();
-    }
-}
-
 #[tauri::command]
 fn quit_app(app: tauri::AppHandle) { app.exit(0); }
 
@@ -144,7 +136,7 @@ pub fn run() {
     builder
         .manage(quick::QuickState::default())
         .manage(history::HistoryService::default())
-        .invoke_handler(tauri::generate_handler![set_tray_summary, providers::refresh_provider, history::read_usage_history, profiles::validate_profile, exports::save_usage_export, quick::show_dashboard, quick::resize_quick, websites::open_provider_page, quit_app])
+        .invoke_handler(tauri::generate_handler![set_tray_summary, providers::refresh_provider, history::read_usage_history, profiles::validate_profile, exports::save_usage_export, quick::resize_quick, websites::open_provider_page, quit_app])
         .setup(move |app| {
             // Created here rather than on the builder so a second instance exits before touching the provider caches.
             app.manage(providers::ProviderService::new().map_err(|error| format!("Provider networking could not be initialized: {error}"))?);

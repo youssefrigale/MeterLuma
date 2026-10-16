@@ -44,11 +44,13 @@ test('native data stays unread until the user accepts license and privacy inform
 
 test('longer history changes the native request, recorded totals and exported data', async ({ page }) => {
   await bridge(page);
-  await page.goto('/?page=activity');
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await page.getByLabel('Recorded history window').selectOption('365');
+  await page.getByRole('button', { name: 'Codex details' }).click();
   await expect(page.locator('.usage-history')).toContainText('Last 365 days');
   await expect(page.getByRole('img', { name: 'Recorded token usage over 365 days: 36,500 tokens' })).toBeVisible();
-  await expect(page.locator('.usage-history')).toContainText('Previous 7');
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await page.getByRole('button', { name: 'Export JSON' }).click();
   const json = await page.evaluate(() => {
     const calls = (window as unknown as { featureCalls: { command: string; args: { format?: string; content?: string } }[] }).featureCalls;
@@ -64,21 +66,22 @@ test('longer history changes the native request, recorded totals and exported da
 
 test('separate local accounts remain isolated and can be removed', async ({ page }) => {
   await bridge(page);
-  await page.goto('/?page=connections');
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Connections', exact: true }).click();
   await page.getByLabel('Account label', { exact: true }).fill('Second personal account');
   await page.getByLabel('Local profile directory', { exact: true }).fill('C:/Users/example/.codex-second');
   await page.getByRole('button', { name: 'Add local account' }).click();
   await expect(page.getByRole('button', { name: 'Remove Second personal account' })).toBeVisible();
+  await expect(page.locator('.quick-connection').filter({ hasText: 'Codex' })).toContainText('Connected');
   await page.getByRole('button', { name: 'Overview', exact: true }).click();
   await expect(page.getByRole('article')).toHaveCount(2);
-  await expect(page.getByRole('article').filter({ hasText: 'Second personal account' })).toContainText('5%');
-  await expect(page.getByRole('article').filter({ hasText: 'Default profile' })).toContainText('75%');
-  await page.goto('/?view=quick');
+  await expect(page.getByRole('article').filter({ hasText: 'Second personal account' })).toContainText('5% left');
+  await expect(page.getByRole('article').filter({ hasText: 'Default profile' })).toContainText('75% left');
   await page.getByRole('button', { name: 'Codex details' }).click();
   await page.getByLabel('Local account').selectOption({ label: 'Second personal account' });
   await expect(page.locator('.usage-history')).toContainText('second-profile-model');
   await expect(page.locator('.usage-history')).not.toContainText('default-profile-model');
-  await page.goto('/?page=connections');
+  await page.getByRole('button', { name: 'Connections', exact: true }).click();
   await page.getByRole('button', { name: 'Remove Second personal account' }).click();
   await page.getByRole('button', { name: 'Overview', exact: true }).click();
   await expect(page.getByRole('article')).toHaveCount(1);
@@ -86,10 +89,12 @@ test('separate local accounts remain isolated and can be removed', async ({ page
 
 test('custom alert settings persist and warn on fresh quotas', async ({ page }) => {
   await bridge(page);
-  await page.goto('/?page=settings');
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await page.getByLabel('Alert at % used').fill('20');
   await page.getByRole('button', { name: 'Add alert', exact: true }).click();
   await page.reload();
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await expect(page.getByRole('checkbox', { name: 'Codex · 20% used' })).toBeChecked();
   await page.getByRole('button', { name: 'Overview', exact: true }).click();
   const alerts = page.getByRole('region', { name: 'Usage alerts' });

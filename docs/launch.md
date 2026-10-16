@@ -16,17 +16,18 @@ MeterLuma is an active project. Passing interface and native checks makes it a w
 - Owner decisions of 2026-10-15:
   - Claude live quotas are removed. Claude is recorded history from local Claude Code logs only. MeterLuma does not read, renew or write Claude credentials and never contacts Anthropic.
   - Cursor live quotas stay, labeled **Unofficial**, and are requested with an honest `MeterLuma/<version>` User-Agent.
-  - Provider logos are replaced by original neutral glyphs, with a "not affiliated with or endorsed by Anthropic, OpenAI or Anysphere (Cursor)" note.
+  - Provider logos were replaced by neutral glyphs, with a "not affiliated with or endorsed by Anthropic, OpenAI or Anysphere (Cursor)" note. Reversed on 2026-10-16, below.
   - Codex quotas keep using the installed Codex CLI's app-server.
   - The bundle identifier stays `app.meterluma.desktop`, because it names the app's data and cache folders.
+- Owner decision of 2026-10-16: the provider logos are back, as each owner's official file, unmodified (Anthropic press kit, OpenAI and Cursor brand pages). The owner accepted OpenAI's Marks usage terms to download the Blossom. The not-affiliated note stays.
 
 ## Done in the code
 
 - Claude credential handling, token renewal and every Anthropic request are removed. Saved Claude alert rules and quota snapshots are dropped, and the privacy notice moved to revision 4, so existing users accept it again.
-- The Cursor connection is labeled Unofficial wherever it appears, and the not-affiliated note is shown in Connections, Settings → About and the tray's Help page.
-- Provider logos are replaced by original glyphs, and the incorrect OpenUsage attribution for them is gone from THIRD_PARTY_NOTICES.txt.
+- The Cursor connection is labeled Unofficial wherever it appears, and the not-affiliated note is shown in Connections and the tray's Help page.
+- Provider logos are the owners' official files, unmodified, documented in src/assets/providers/README.md. THIRD_PARTY_NOTICES.txt names each logo's owner and source, and no earlier third-party logo files or attribution remain.
 - THIRD_PARTY_NOTICES.txt covers every locked package (536 components, no unresolved notices). CI fails when a locked package is missing from it.
-- Rate-limit cooldowns are capped at 6 hours and tied to the signed-in account. Codex lookups are shared between the two windows and reused for just under 5 minutes.
+- Rate-limit cooldowns are capped at 6 hours and tied to the signed-in account. Concurrent Codex lookups share one CLI process, and a result is reused for just under 5 minutes.
 - Cache files live in the app's own cache folder, which the Windows uninstaller's "Delete the application data" option removes. Old cache files are deleted on startup.
 - History marks days without logs as "Not recorded" instead of zero, values only priced tokens, and counts every Claude usage line (the old reader missed about 4.5% of tokens).
 - `release.yml` builds the Windows MSVC installer and the universal macOS DMG, and applies signing, notarization and the updater only when their secrets exist. The app has a feature-gated updater that asks before installing. `docs/release-process.md` is the owner's runbook.
@@ -49,13 +50,14 @@ MeterLuma is an active project. Passing interface and native checks makes it a w
 ## Other work before public release
 
 1. Real-account QA on both platforms: Codex and Cursor sign-ins, stale tokens, account changes, rate limiting, unavailable plans and provider schema changes. Missing data must stay missing, never become a fabricated zero. No real Cursor sign-in has been tested yet.
-2. Replace the screenshots in `artifacts/`, which still show the former provider logos and Claude quotas.
-3. Decide whether startup at login, a global shortcut, encrypted settings, safe diagnostics, and an in-app way to clear a rate-limit cooldown are needed for launch. Check sleep/wake, keyboard navigation and screen-reader labels.
-4. Decide Windows on Arm support explicitly.
-5. Ensure amounts, dates, reset windows, time zones, daylight saving transitions and language rendering work worldwide. Plan translated UI after the English copy is stable, with a fallback locale.
-6. Prepare the launch website, owner-hosted downloads with `SHA256SUMS.txt`, installation help, the platform floor, and accurate privacy, support and license information based on the implemented behavior. Clearly state personal use only, no commercial use, no selling and no redistribution. Include the full license with distributions. Share official download links rather than third-party mirrors.
-7. Make the notices generator independent of the gitignored `.tools/` folder, so CI can regenerate the notices itself.
-8. Run final security, signing, update, license-packaging and crash-recovery checks, and review the exact release binaries before publishing downloads. A source publication decision is separate from binary release readiness.
+2. Replace the screenshots in `artifacts/`, which still show the removed Claude quotas and older logo files.
+3. Check OpenAI's and Cursor's brand guidelines again just before launch.
+4. Decide whether startup at login, a global shortcut, encrypted settings, safe diagnostics, and an in-app way to clear a rate-limit cooldown are needed for launch. Check sleep/wake, keyboard navigation and screen-reader labels.
+5. Decide Windows on Arm support explicitly.
+6. Ensure amounts, dates, reset windows, time zones, daylight saving transitions and language rendering work worldwide. Plan translated UI after the English copy is stable, with a fallback locale.
+7. Prepare the launch website, owner-hosted downloads with `SHA256SUMS.txt`, installation help, the platform floor, and accurate privacy, support and license information based on the implemented behavior. Clearly state personal use only, no commercial use, no selling and no redistribution. Include the full license with distributions. Share official download links rather than third-party mirrors.
+8. Make the notices generator independent of the gitignored `.tools/` folder, so CI can regenerate the notices itself.
+9. Run final security, signing, update, license-packaging and crash-recovery checks, and review the exact release binaries before publishing downloads. A source publication decision is separate from binary release readiness.
 
 ## Owner information still needed
 

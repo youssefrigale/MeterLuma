@@ -23,7 +23,7 @@ function readDismissed(): string[] {
 }
 
 export function UsageAlerts({ settings, providers, now }: { settings: Settings; providers: Provider[]; now: number }) {
-  // Shared through localStorage so a dismissal applies to both windows and survives restarts.
+  // Saved in localStorage so a dismissal survives restarts.
   const [dismissed, setDismissed] = useState(readDismissed);
   useEffect(() => {
     const sync = (event: StorageEvent) => { if (event.key === DISMISSALS_KEY || event.key === null) setDismissed(readDismissed()); };
@@ -33,7 +33,7 @@ export function UsageAlerts({ settings, providers, now }: { settings: Settings; 
   function dismiss(key: string) {
     const next = [...dismissed.filter(value => value !== key), key].slice(-100);
     setDismissed(next);
-    try { localStorage.setItem(DISMISSALS_KEY, JSON.stringify(next)); } catch { /* The dismissal still applies to this window. */ }
+    try { localStorage.setItem(DISMISSALS_KEY, JSON.stringify(next)); } catch { /* The dismissal still applies until MeterLuma restarts. */ }
   }
   const alerts = activeAlerts(settings.alerts, providers, now, settings.demo, settings.refreshMinutes).filter(alert => !dismissed.includes(alert.key));
   if (!alerts.length) return null;

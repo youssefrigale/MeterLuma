@@ -2,7 +2,7 @@
 
 All your AI usage, one glance. A tray and menu-bar tracker for macOS and Windows, free for personal, noncommercial use only. Selling and redistribution are prohibited; see [LICENSE](LICENSE).
 
-MeterLuma is not affiliated with or endorsed by Anthropic, OpenAI or Anysphere (Cursor). Claude, Codex and Cursor are trademarks of their respective owners. MeterLuma names them in plain text and uses its own neutral glyphs, not their logos.
+MeterLuma is not affiliated with or endorsed by Anthropic, OpenAI or Anysphere (Cursor). Claude, Codex and Cursor are trademarks of their respective owners. Their official logos appear unmodified, only to identify each service, and their owners keep all rights in them (see [src/assets/providers/README.md](src/assets/providers/README.md)).
 
 ## Current status
 
@@ -17,14 +17,14 @@ Release builds use real data only. Sample data and demo controls exist only in d
 
 ## Features
 
-The main interface is a compact tray popup, 360 logical pixels wide and up to 660 tall, with a vertical icon sidebar: overview, each provider, costs, help and settings. An optional full dashboard shares its preferences. The popup starts hidden in the tray, and clicking outside hides it. On Windows it docks to the taskbar edge you clicked, including auto-hidden taskbars. On macOS it opens below the menu bar of the display you clicked and also over full-screen apps.
+The main interface is a compact tray popup, 360 logical pixels wide and up to 660 tall, with a vertical icon sidebar: overview, each provider, costs, connections, help and settings. It is MeterLuma's only window; there is no separate dashboard. The popup starts hidden in the tray, and clicking outside hides it. On Windows it docks to the taskbar edge you clicked, including auto-hidden taskbars. On macOS it opens below the menu bar of the display you clicked and also over full-screen apps.
 
 - **Provider pages** show allowance bars and reset times (Codex and Cursor), compact usage rows, an inline token trend and the top five recorded models. Extra limits, models and data notes expand on demand. A cached quota is labeled with its original fetch time.
-- **Activity** covers 30, 90 or 365 days with week-over-week comparison and model shares. Days before the first recorded day are shown as hatched **Not recorded** bars, not as zero, and totals read "Since <date>" when the logs are shorter than the window.
+- **History** covers 30, 90 or 365 days, shown on each provider's page as a token trend and model shares. Days before the first recorded day are shown as hatched **Not recorded** bars, not as zero, and totals read "Since <date>" when the logs are shorter than the window.
 - **Estimated API value**: recorded Claude tokens are valued at Anthropic's standard list prices, checked 2026-10-15 against the [pricing page](https://platform.claude.com/docs/en/about-claude/pricing). Fast mode is valued at its published 2x rate on Opus 5.5 ($8/$40 per million input/output tokens), Opus 5 and Opus 4.8 ($10/$50). Tokens from models without a known price are left out and counted ("Excludes N tokens from models without a known price"). These estimates are not bills or subscription charges. Codex usage has no dollar estimate, and actual billed spending is not available.
-- **Settings**: refresh every 5, 15, 30 or 60 minutes; Left or Used bars; relative or absolute reset timers; clock format; theme (follows the system by default, with Light and Dark overrides); provider visibility and order. **Reset preferences** keeps connections, local accounts, alerts and license acceptance.
-- Interface icons use Remix Icon 4.9.0. The MeterLuma monogram and the provider glyphs are original artwork.
-- The tray menu shows the app version, **Open MeterLuma** and **Quit MeterLuma**. Closing the dashboard keeps MeterLuma running in the tray.
+- **Settings**: refresh every 5, 15, 30 or 60 minutes; Left or Used bars; relative or absolute reset timers; clock format; theme (follows the system by default, with Light and Dark overrides); provider visibility and order; the history window, CSV and JSON exports, and usage alerts. **Reset preferences** in Help keeps connections, local accounts, alerts and license acceptance.
+- Interface icons use Remix Icon 4.9.0. The MeterLuma monogram is original artwork. Provider logos are the owners' official files: Anthropic's Claude Spark, OpenAI's Blossom and Cursor's cube.
+- The tray menu shows the app version, **Open MeterLuma** and **Quit MeterLuma**.
 - Provider buttons open fixed official status and usage pages in the default browser.
 
 Not implemented: startup at login, global shortcuts, push notifications, account-wide billing, Cursor token history, and PAC/WPAD proxy scripts. An automatic updater exists as an optional build feature, but no current build has one configured (see [docs/release-process.md](docs/release-process.md)).
@@ -89,7 +89,7 @@ In Windows PowerShell 5.1, `>` writes UTF-16; use `cargo metadata ... | Out-File
 
 ## Structure
 
-- `src/`: React interface (tray popup and dashboard), local preferences, alerts, exports and the development-only sample model.
+- `src/`: React interface (the tray panel), local preferences, alerts, exports and the development-only sample model.
 - `src-tauri/`: Rust desktop shell: tray and panel placement, local history readers and pricing, the Codex app-server client, the Cursor request, profile validation, the export save dialog and the optional updater.
 - `tests/`, `tests-release/`: Chromium/WebKit behavior checks and release-build checks.
 - `scripts/generate-notices.py`, `scripts/license-sources.json`, `licenses/`: third-party notice generation.
@@ -129,6 +129,6 @@ Not verified:
 - No signing, notarization or updater keys. These are owner actions, described in [docs/release-process.md](docs/release-process.md).
 - No real Cursor sign-in exists on this machine, so Cursor quotas were not checked against the live endpoint.
 - Tray clicks, multi-monitor and DPI placement, and auto-hidden taskbars were not exercised by hand; the placement logic is covered by unit tests only.
-- The screenshots in `artifacts/` predate these changes. They show the former provider logos and Claude quotas, so replace them before any public use.
+- The screenshots in `artifacts/` predate these changes. They show the removed Claude quotas and older logo files, so replace them before any public use.
 
 An earlier checkpoint (2026-10-13, Actions run 38484310114, commit `78236fd`) tested a build that still had direct Claude quota requests. It does not describe this build.

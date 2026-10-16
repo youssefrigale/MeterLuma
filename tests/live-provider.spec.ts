@@ -35,14 +35,15 @@ test('live connections require selection and never mix sample spending with real
   const providerCalls = () => page.evaluate(() => (window as unknown as { meterlumaTestCalls: string[] }).meterlumaTestCalls.filter(call => call === 'refresh_provider').length);
   expect(await providerCalls()).toBe(0);
   await connectCodex(page);
-  await expect(page.getByText('Live mode', { exact: true })).toBeVisible();
+  await expect(page.getByText('Live', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Overview', exact: true }).click();
   await expect(page.getByRole('article')).toHaveCount(1);
   await expect(page.getByRole('progressbar', { name: 'Codex Session used' })).toHaveAttribute('aria-valuenow', '81.4');
   await expect(page.getByText('Reset time unavailable', { exact: true })).toBeVisible();
   await expect(page.getByRole('article')).not.toContainText('$4.26');
-  await page.getByRole('button', { name: 'Activity', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'No recorded activity yet.' })).toBeVisible();
-  await expect(page.locator('.chart')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Codex details' }).click();
+  await expect(page.locator('.quick-statistics')).toContainText('Unavailable');
+  await expect(page.locator('.quick-models, .quick-sparkbars')).toHaveCount(0);
   await page.getByRole('button', { name: 'Connections', exact: true }).click();
   await page.getByRole('button', { name: 'Disconnect Codex', exact: true }).click();
   await page.getByRole('button', { name: 'Overview', exact: true }).click();
@@ -53,14 +54,15 @@ test('expired local credentials produce an error instead of fake zero usage', as
   await nativeBridge(page, true);
   await page.goto('/');
   await connectCodex(page);
+  await page.getByRole('button', { name: 'Overview', exact: true }).click();
   await expect(page.getByText('Your sign-in has expired. Sign in again using the provider app.')).toBeVisible();
   await expect(page.getByRole('article')).toHaveCount(0);
-  await expect(page.locator('.summary-grid')).not.toContainText('$0.00');
+  await expect(page.getByRole('main')).not.toContainText('$0.00');
 });
 
 test('live provider details keep unavailable history separate and route website buttons through the native bridge', async ({ page }) => {
   await nativeBridge(page, false, true);
-  await page.goto('/?view=quick');
+  await page.goto('/');
   await page.getByRole('button', { name: 'Codex details' }).click();
   await expect(page.getByRole('article')).toHaveCount(1);
   await expect(page.locator('.quick-statistics')).toContainText('Unavailable');
@@ -73,12 +75,14 @@ test('live provider details keep unavailable history separate and route website 
 
 test('Cursor local sign-in quota connection is available and labeled unofficial', async ({ page }) => {
   await nativeBridge(page, false, false, 'cursor');
-  await page.goto('/?page=connections');
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Connections', exact: true }).click();
   await page.getByRole('button', { name: 'Connect Cursor', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Connect Cursor', exact: true });
   await expect(dialog).toContainText('native process');
   await expect(dialog).toContainText('Unofficial');
   await dialog.getByRole('button', { name: 'Use local profile' }).click();
+  await page.getByRole('button', { name: 'Overview', exact: true }).click();
   await expect(page.getByRole('progressbar', { name: 'Cursor Session used' })).toHaveAttribute('aria-valuenow', '81.4');
   await expect(page.getByText(/paused pending|disabled pending/)).toHaveCount(0);
   // Cursor token history is not recorded locally, so it is never requested.
