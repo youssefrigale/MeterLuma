@@ -6,7 +6,7 @@ import type { Provider } from '../src/model';
 
 async function bridge(page: Page, accepted = true) {
   await page.addInitScript(({ accepted }) => {
-    if (!localStorage.getItem('meterluma.settings.v2')) localStorage.setItem('meterluma.settings.v2', JSON.stringify({ legalVersion: accepted ? '1.1-providers-4' : '', demo: false, liveProviders: ['codex'], enabled: ['codex'] }));
+    if (!localStorage.getItem('meterluma.settings.v2')) localStorage.setItem('meterluma.settings.v2', JSON.stringify({ legalVersion: accepted ? '1.1-providers-5' : '', demo: false, liveProviders: ['codex'], enabled: ['codex'] }));
     const calls: { command: string; args: Record<string, unknown> }[] = [];
     Object.assign(window, { isTauri: true, featureCalls: calls, __TAURI_INTERNALS__: { invoke: async (command: string, args: Record<string, unknown> = {}) => {
       calls.push({ command, args });

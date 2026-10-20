@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 128 128">
+<title>MeterLuma ? Dial concept, soft luminous background</title>
+<defs><radialGradient id="light" cx="50%" cy="100%" r="100%"><stop stop-color="#607e99"/><stop offset=".48" stop-color="#2d4052"/><stop offset="1" stop-color="#151e29"/></radialGradient></defs>
+<rect width="128" height="128" rx="30" fill="#151e29"/>
+<rect width="128" height="128" rx="30" fill="url(#light)" opacity=".6"/>
+<rect x=".5" y=".5" width="127" height="127" rx="29.5" fill="none" stroke="#fff" stroke-opacity=".09"/>
+<g transform="translate(19 19) scale(1.40625)" color="#f0f4f3"><path d="M12 44a20 20 0 0 1 40 0" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round"/><path d="m32 43 7-9" fill="none" stroke="currentColor" stroke-width="5.5" stroke-linecap="round"/><circle cx="32" cy="43" r="3.5" fill="currentColor"/></g>
+</svg>

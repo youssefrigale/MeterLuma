@@ -30,10 +30,10 @@ test('auto-refresh keeps quotas, details and recorded history visible while data
   await expect(meter).toHaveAttribute('aria-valuenow', '75');
   await expect(page.locator('.usage-history')).toContainText('recorded-model');
   await expect(page.getByText(/Reading Codex/)).toHaveCount(0);
-  await expect(page.locator('.quick-footer')).toContainText('Fetched');
+  await expect(page.locator('.quick-update')).toHaveAttribute('title', /Fetched/);
   await page.getByRole('button', { name: 'Overview', exact: true }).click();
   await expect(meter).toHaveAttribute('aria-valuenow', '75');
-  await expect(page.locator('.quick-footer')).toContainText('Updated');
+  await expect(page.locator('.quick-update')).toHaveAttribute('title', /Updated/);
   await releaseNative(page);
   await expect(page.getByRole('button', { name: 'Refresh usage' })).toBeEnabled();
   await page.getByRole('button', { name: 'Codex details' }).click();
@@ -411,7 +411,7 @@ test('cached quotas are never labeled live in details, the tray tooltip or Conne
   await expect(page.getByRole('article').filter({ hasText: 'Cursor' })).toContainText('Cached quotas');
   await page.getByRole('button', { name: 'Cursor details' }).click();
   await expect(page.locator('.quick-plan')).toHaveText('Cached quotas');
-  await expect(page.locator('.quick-footer')).toContainText('Cached from');
+  await expect(page.locator('.quick-update')).toHaveAttribute('title', /Cached from/);
   await expect(page.locator('.quick-detail')).not.toContainText('Expired window');
   await expect(page.locator('.quick-detail')).not.toContainText('Resets in Reset due');
   await page.getByRole('button', { name: 'Connections', exact: true }).click();
@@ -423,15 +423,15 @@ test('the time format setting applies to every displayed time', async ({ page })
   await page.clock.install({ time: new Date('2026-10-15T21:42:00Z') });
   await nativeBridge(page, { settings: { legalVersion: LEGAL, demo: false, timeFormat: '24', liveProviders: ['codex'], enabled: ['codex'] }, quotas: { codex: codexQuota }, histories: { codex: history() } });
   await page.goto('/');
-  await expect(page.locator('.quick-footer')).toContainText('Updated 21:42');
+  await expect(page.locator('.quick-update')).toHaveAttribute('title', /Updated 21:42/);
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await page.getByRole('button', { name: '12-hour', exact: true }).click();
   await page.getByRole('button', { name: 'Absolute', exact: true }).click();
-  await expect(page.locator('.quick-footer')).toContainText('Updated 9:42 PM');
+  await expect(page.locator('.quick-update')).toHaveAttribute('title', /Updated 9:42 PM/);
   await page.getByRole('button', { name: 'Overview', exact: true }).click();
   await expect(page.locator('.quick-metric-caption').first()).toContainText('Resets Oct 15, 10:42 PM');
   await page.getByRole('button', { name: 'Codex details' }).click();
   await expect(page.locator('.quick-data-note')).toContainText('Scanned 9:42 PM.');
-  await expect(page.locator('.quick-footer')).toContainText('Fetched 9:42 PM');
+  await expect(page.locator('.quick-update')).toHaveAttribute('title', /Fetched 9:42 PM/);
 });
 

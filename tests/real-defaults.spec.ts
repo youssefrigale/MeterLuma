@@ -7,6 +7,9 @@ test('fresh startup and saved prototype preferences use real-data mode without i
   await expect(page.getByRole('progressbar')).toHaveCount(0);
   await expect(page.getByText('Sample data only', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('article')).toHaveCount(0);
+  await expect(page.locator('.quick-update')).toHaveText('Next update in 5m');
+  await expect(page.locator('.quick-rail-providers button')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Costs', exact: true })).toHaveCount(0);
   await page.evaluate(() => {
     localStorage.setItem('meterluma.settings.v1', JSON.stringify({ demo: true, theme: 'dark', enabled: ['codex'] }));
     localStorage.removeItem('meterluma.settings.v2');
@@ -14,13 +17,13 @@ test('fresh startup and saved prototype preferences use real-data mode without i
   await page.reload();
   await expect(page.getByText('Live', { exact: true })).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-  await expect(page.getByRole('button', { name: 'Codex details' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Codex details' })).toHaveCount(0);
   await expect(page.getByRole('progressbar')).toHaveCount(0);
 });
 
 test('Claude device tokens and model shares come from local history without any quota request', async ({ page }) => {
   await page.addInitScript(() => {
-    localStorage.setItem('meterluma.settings.v2', JSON.stringify({ legalVersion: '1.1-providers-4', demo: false, liveProviders: ['claude'], enabled: ['claude'] }));
+    localStorage.setItem('meterluma.settings.v2', JSON.stringify({ legalVersion: '1.1-providers-5', demo: false, liveProviders: ['claude'], enabled: ['claude'] }));
     const calls: string[] = [];
     Object.assign(window, { isTauri: true, nativeCommands: calls, __TAURI_INTERNALS__: { invoke: async (command: string) => {
       calls.push(command);

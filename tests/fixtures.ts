@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
 
 // Synthetic data only. Nothing here reads real provider credentials or logs.
-export const LEGAL = '1.1-providers-4';
+export const LEGAL = '1.1-providers-5';
 export const SETTINGS_KEY = 'meterluma.settings.v2';
 
 const iso = (date: Date) => date.toISOString().slice(0, 10);
@@ -26,6 +26,8 @@ export interface BridgeOptions {
   histories?: Partial<Record<'claude' | 'codex', ReturnType<typeof history>>>;
   failResizeOnce?: boolean;
   malformedQuota?: boolean;
+  tokenError?: string;
+  forgetTokenError?: string;
   // Each quota response reports 5 points more usage than the previous one, so responses are distinguishable.
   rising?: boolean;
 }
@@ -43,7 +45,14 @@ export async function nativeBridge(page: Page, options: BridgeOptions) {
       calls.push({ command, args });
       const id = String(args.providerId ?? '');
       const step = options.rising ? calls.filter(call => call.command === 'refresh_provider' && call.args.providerId === id).length - 1 : 0;
-      if (state.holdNative && (command === 'refresh_provider' || command === 'read_usage_history')) await new Promise<void>(resolve => waiting.push(resolve));
+      if (state.holdNative && (command === 'refresh_provider' || command === 'read_usage_history' || command === 'connect_account_token')) await new Promise<void>(resolve => waiting.push(resolve));
+      if (command === 'connect_account_token') {
+        if (options.tokenError) throw options.tokenError;
+        const quota = (options.quotas as Record<string, QuotaMock | undefined> | undefined)?.[id];
+        if (!quota) throw 'Unexpected token connection';
+        return snapshot(id, quota);
+      }
+      if (command === 'forget_account_token' && options.forgetTokenError) throw options.forgetTokenError;
       if (command === 'refresh_provider') {
         const quota = (options.quotas as Record<string, QuotaMock | undefined> | undefined)?.[id];
         if (!quota) throw 'Unexpected quota request';

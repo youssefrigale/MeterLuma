@@ -13,7 +13,7 @@ test('tray panel exposes costs, remaining limits, a fixed Options footer and Con
   await expect(page.getByRole('article')).toHaveCount(3);
   await expect(page.getByRole('progressbar', { name: 'Codex Session remaining' })).toHaveAttribute('aria-valuenow', '78');
   await expect(page.locator('.quick-provider').filter({ hasText: 'Claude' })).toContainText('Local history only');
-  await expect(page.getByText(/Sample data only/)).toBeVisible();
+  await expect(page.getByText('Demo', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Sample spend today $8.42' })).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   expect(await page.locator('.quick-footer').evaluate(element => element.getBoundingClientRect().bottom <= window.innerHeight)).toBe(true);
@@ -48,13 +48,16 @@ test('cost tabs recalculate samples and Options supports keyboard navigation to 
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: '5 min', exact: true })).toBeVisible();
+  await expect(page.locator('.quick-version')).toHaveText(/MeterLuma \d+\.\d+\.\d+/);
+  await expect(page.locator('.quick-update')).toHaveText('Next update in 5m');
+  await page.getByRole('button', { name: '15 min', exact: true }).click();
+  await expect(page.locator('.quick-update')).toHaveText('Next update in 15m');
 });
 
-test('live tray panel shows unavailable costs without a simulated donut', async ({ page }) => {
+test('live tray panel hides Costs until a provider is chosen', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('meterluma.settings.v2', JSON.stringify({ demo: false })));
   await page.goto('/');
-  await page.getByRole('button', { name: 'Costs', exact: true }).click();
-  await expect(page.getByText('No estimated API value yet', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Costs', exact: true })).toHaveCount(0);
   await expect(page.getByRole('img')).toHaveCount(0);
   await expect(page.getByRole('article')).toHaveCount(0);
   await page.getByRole('button', { name: 'Overview', exact: true }).click();
@@ -91,7 +94,7 @@ test('provider sidebar isolates details and settings change bars, timers, order 
   await expect(page.getByRole('button', { name: 'Used', exact: true })).toHaveAttribute('aria-pressed', 'true');
 });
 
-test('disabled selected provider returns to overview and live details never include sample spending or models', async ({ page, context }) => {
+test('disabled selected provider returns to overview and leaving demo hides unconnected providers', async ({ page, context }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Cursor details' }).click();
   // Settings saved elsewhere (another copy of the panel here) reach the open panel.
@@ -102,7 +105,8 @@ test('disabled selected provider returns to overview and live details never incl
   await expect(page.getByRole('heading', { name: 'Overview', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await page.getByRole('checkbox', { name: 'Use sample data' }).uncheck();
-  await page.getByRole('button', { name: 'Claude details' }).click();
-  await expect(page.getByText('This provider is not connected.')).toBeVisible();
+  await expect(page.locator('.quick-rail-providers button')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Overview', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Choose providers', exact: true })).toBeVisible();
   await expect(page.locator('.quick-statistics, .quick-models, .quick-sparkbars')).toHaveCount(0);
 });

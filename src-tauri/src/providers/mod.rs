@@ -3,6 +3,8 @@ mod auth;
 mod map;
 mod cooldowns;
 mod snapshots;
+mod tokens;
+pub mod manual;
 
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
@@ -48,6 +50,7 @@ struct Lookup { done: Instant, result: Result<Snapshot, String> }
 
 pub struct ProviderService {
     client: reqwest::Client,
+    manual: Mutex<HashMap<String, Cache>>,
     cursor: Mutex<HashMap<String, Cache>>,
     codex: std::sync::Mutex<HashMap<String, Arc<Mutex<Option<Lookup>>>>>,
     codex_runner: fn(&Path) -> Result<serde_json::Value, String>,
@@ -81,6 +84,7 @@ impl ProviderService {
     fn with_cache(folder: Option<PathBuf>) -> Result<Self, reqwest::Error> {
         Ok(Self {
             client: client_builder().build().or_else(|_| client_builder().tls_built_in_native_certs(false).build())?,
+            manual: Mutex::new(HashMap::new()),
             cursor: Mutex::new(HashMap::new()), codex: Default::default(), codex_runner: codex::limits, cursor_credential: auth::cursor,
             cooldowns: std::sync::Mutex::new(cooldowns::Cooldowns::load(folder.as_ref().map(|path| path.join("usage-cooldowns-v2.json")))),
             snapshots: std::sync::Mutex::new(snapshots::Snapshots::load(folder.map(|path| path.join("quota-snapshots-v1.json")))),
@@ -150,8 +154,12 @@ impl ProviderService {
     }
 
     fn cursor_failure(&self, message: String, key: &str, fingerprint: [u8; 32]) -> ProviderFailure {
+        self.quota_failure(message, key, fingerprint, ProviderId::Cursor)
+    }
+
+    fn quota_failure(&self, message: String, key: &str, fingerprint: [u8; 32], id: ProviderId) -> ProviderFailure {
         let retry_at = self.cooldowns.lock().ok().and_then(|store| store.until(key, &fingerprint));
-        let last_snapshot = self.snapshots.lock().ok().and_then(|store| store.get(key, fingerprint, ProviderId::Cursor, chrono::Utc::now().timestamp_millis()));
+        let last_snapshot = self.snapshots.lock().ok().and_then(|store| store.get(key, fingerprint, id, chrono::Utc::now().timestamp_millis()));
         ProviderFailure::new(message, retry_at, last_snapshot)
     }
 
@@ -213,7 +221,8 @@ async fn response_result(request: reqwest::RequestBuilder, id: ProviderId) -> (R
 }
 
 #[tauri::command]
-pub async fn refresh_provider(service: tauri::State<'_, ProviderService>, provider_id: ProviderId, config_directory: Option<String>) -> Result<Snapshot, ProviderFailure> {
+pub async fn refresh_provider(service: tauri::State<'_, ProviderService>, provider_id: ProviderId, config_directory: Option<String>, token_mode: Option<bool>) -> Result<Snapshot, ProviderFailure> {
+    if token_mode == Some(true) { return service.refresh_token(provider_id).await; }
     service.refresh(provider_id, config_directory).await
 }
 

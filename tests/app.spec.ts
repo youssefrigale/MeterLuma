@@ -49,7 +49,7 @@ test('live mode never presents sample data as connected accounts', async ({ page
   await page.getByRole('dialog', { name: 'Connect in the desktop app.' }).getByRole('button', { name: 'Explore sample data' }).click();
   await page.getByRole('button', { name: 'Overview', exact: true }).click();
   await expect(page.getByRole('article')).toHaveCount(3);
-  await expect(page.getByText('Sample data only', { exact: true })).toBeVisible();
+  await expect(page.getByText('Demo', { exact: true })).toBeVisible();
 });
 
 test('personal-use license is readable from Help', async ({ page }) => {

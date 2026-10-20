@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 128 128">
+<title>MeterLuma Levels - Graphite clean</title>
+<defs><linearGradient id="tile" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#2d2d2d"/><stop offset=".5" stop-color="#222222"/><stop offset="1" stop-color="#0c0c0c"/></linearGradient><linearGradient id="edge" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#ffffff" stop-opacity=".24"/><stop offset=".6" stop-color="#ffffff" stop-opacity=".08"/><stop offset="1" stop-color="#ffffff" stop-opacity=".035"/></linearGradient></defs>
+<rect x=".5" y=".5" width="127" height="127" rx="34" fill="url(#tile)"/>
+<rect x=".5" y=".5" width="127" height="127" rx="34" fill="none" stroke="url(#edge)" stroke-width=".6"/>
+<g transform="translate(14 14) scale(1.5625)" color="#ffffff"><g fill="currentColor" opacity=".22"><rect x="14" y="14" width="9" height="36" rx="3"/><rect x="28" y="14" width="9" height="36" rx="3"/><rect x="42" y="14" width="9" height="36" rx="3"/></g><g fill="currentColor"><rect x="14" y="29" width="9" height="21" rx="3"/><rect x="28" y="19" width="9" height="31" rx="3"/><rect x="42" y="36" width="9" height="14" rx="3"/></g></g>
+</svg>

@@ -23,6 +23,8 @@ pub fn key(id: ProviderId, root: &Path) -> String {
 fn credential(fingerprint: &[u8; 32]) -> String { format!("{:x}", Sha256::digest(fingerprint)) }
 
 impl Cooldowns {
+    pub fn remove(&mut self, key: &str) { if self.entries.remove(key).is_some() { super::persist(&self.path, self); } }
+
     pub fn load(path: Option<PathBuf>) -> Self {
         let mut store = path.as_ref().and_then(|path| {
             let mut bytes = Vec::new();

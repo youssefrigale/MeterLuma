@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MeterLuma - Levels color study</title><meta name="color-scheme" content="light dark"><link rel="icon" href="data:,">
+<style>
+:root{font-family:Inter,'Segoe UI',Arial,sans-serif;--paper:#f4f2ed;--surface:#fbfaf7;--ink:#232524;--muted:#686b65;--line:#dadbd3;--chip:#e8e9e2;--focus:#647c8d;color-scheme:light;font-synthesis:none}
+:root[data-theme=dark]{--paper:#181b1b;--surface:#212525;--ink:#f2f3ed;--muted:#a9b0a8;--line:#3b4240;--chip:#303635;color-scheme:dark}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink)}button,input,a{font:inherit}button{cursor:pointer;color:inherit}button:focus-visible,a:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid var(--focus);outline-offset:4px}a{color:inherit;text-underline-offset:3px}main{max-width:1240px;margin:auto;padding:28px 40px}header{display:flex;align-items:center;justify-content:space-between;gap:15px;padding-bottom:22px;border-bottom:1px solid var(--line)}.brand{font-size:17px;font-weight:650;letter-spacing:-.7px;display:flex;align-items:center;gap:10px}.brand svg{height:21px;width:21px}.eyebrow{font:10px Consolas,monospace;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}.intro{display:flex;align-items:flex-end;justify-content:space-between;gap:25px;padding:30px 0 25px}h1{font-size:clamp(30px,3.5vw,43px);font-weight:530;line-height:1.15;letter-spacing:-1.7px;margin:0 0 10px}.intro p{margin:0;color:var(--muted);font-size:13px;line-height:1.7}.theme{display:flex;gap:3px;background:var(--chip);padding:3px;border-radius:7px}.theme button{background:none;border:0;border-radius:5px;padding:8px 13px;font-size:12px;color:var(--muted)}.theme button[aria-pressed=true]{background:var(--surface);color:var(--ink)}
+.palettes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px}.palette{display:grid;grid-template-columns:112px 1fr;align-items:center;gap:22px;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:28px 23px;min-width:0;min-height:190px;position:relative}.palette:hover{border-color:var(--muted)}.palette[aria-pressed=true]{border-color:var(--ink);box-shadow:0 0 0 1px var(--ink)}.palette img{width:112px;height:112px;display:block}.palette .letter{font:10px Consolas,monospace;color:var(--muted);display:block;margin-bottom:8px}.palette .name{display:block;font-size:21px;letter-spacing:-.6px;font-weight:550;margin-bottom:8px}.palette .note{display:block;color:var(--muted);font-size:11px;line-height:1.6;max-width:150px}.swatches{display:flex;gap:5px;margin-top:14px}.swatches i{width:13px;height:13px;display:block;border-radius:50%;border:1px solid #80808030}.palette .check{position:absolute;top:12px;right:14px;font-size:12px;visibility:hidden}.palette[aria-pressed=true] .check{visibility:visible}.caption{font-size:11px;color:var(--muted);margin:15px 0 23px;line-height:1.6}
+.preview{display:grid;grid-template-columns:190px 1fr 320px;gap:28px;align-items:center;border-top:1px solid var(--line);padding-top:24px}.large-icon{width:160px;height:160px;display:block;margin:auto}.preview h2{font-size:23px;font-weight:550;letter-spacing:-.7px;margin:0 0 9px}.preview p{font-size:12px;line-height:1.7;color:var(--muted);margin:0}.preview .eyebrow{display:block;margin-bottom:10px}.samples{display:flex;gap:20px;align-items:center;margin-top:18px}.sample{display:grid;justify-items:center;gap:6px}.sample img{display:block}.sample small{font:9px Consolas,monospace;color:var(--muted)}.mono{display:flex;align-items:center;gap:12px;margin-left:4px;padding-left:18px;border-left:1px solid var(--line)}.mono svg{width:18px;height:18px;display:block}.mono small{font-size:10px;color:var(--muted)}.specs{display:flex;flex-wrap:wrap;gap:13px;margin-bottom:18px}.spec{display:flex;align-items:center;gap:7px;font:10px Consolas,monospace;color:var(--muted)}.spec i{width:14px;height:14px;border-radius:4px;border:1px solid #80808040}.download{font-size:11px}.custom{border-top:1px solid var(--line);margin-top:24px;padding-top:18px}.custom summary{font-size:12px;cursor:pointer;width:fit-content}.custom-controls{display:flex;align-items:end;flex-wrap:wrap;gap:22px;padding:18px 0 4px}.custom label{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--muted)}input[type=color]{width:34px;height:30px;padding:2px;border:1px solid var(--line);background:var(--surface);border-radius:5px;cursor:pointer}input[type=range]{width:130px;accent-color:var(--ink)}.custom output{font:10px Consolas,monospace;min-width:30px}.status{padding:18px 0 0;color:var(--muted);font-size:12px;line-height:1.7}.status strong{color:var(--ink);font-weight:550}footer{display:flex;justify-content:space-between;gap:20px;margin-top:24px;border-top:1px solid var(--line);padding-top:18px;font-size:10px;color:var(--muted)}
+@media(max-width:1100px){.palette{grid-template-columns:86px 1fr;padding:22px 16px;gap:16px;min-height:165px}.palette img{width:86px;height:86px}.preview{grid-template-columns:150px 1fr 270px;gap:20px}.large-icon{width:140px;height:140px}.specs{gap:9px}}
+@media(max-width:850px){main{padding:24px}.palettes{grid-template-columns:repeat(2,minmax(0,1fr))}.preview{grid-template-columns:150px 1fr}.preview-side{grid-column:1/-1;display:flex;justify-content:space-between;gap:15px;align-items:center}.specs{margin-bottom:0}.intro{align-items:flex-start}.eyebrow{font-size:9px;letter-spacing:.5px}}
+@media(max-width:520px){main{padding:20px 18px}.intro{flex-direction:column;padding:25px 0;gap:18px}.palettes{gap:10px}.palette{display:flex;flex-direction:column;align-items:flex-start;padding:17px;gap:16px;min-height:250px}.palette img{width:84px;height:84px;align-self:center;margin-top:5px}.palette .letter{display:inline;margin-right:5px}.palette .name{display:inline;font-size:18px}.palette .note{margin-top:6px;font-size:11px}.swatches{margin-top:10px}.preview{grid-template-columns:95px 1fr;gap:20px}.large-icon{width:95px;height:95px}.samples{gap:12px}.mono{display:none}.preview-side{align-items:flex-start;flex-direction:column}.preview h2{font-size:21px}footer{flex-wrap:wrap}.custom-controls{gap:16px}.status{font-size:11px}}
+</style>
+</head>
+<body><main>
+<header><div class="brand"><span id="brand-mark" aria-hidden="true"></span>MeterLuma</div><span class="eyebrow">Levels selected / color study</span></header>
+<section class="intro"><div><h1>Levels, in color.</h1><p>Same flat meter. Same soft light. Six different palettes.<br>Pick a color to see the icon at app and taskbar sizes.</p></div><div class="theme" role="group" aria-label="Page appearance"><button type="button" data-theme="light" aria-pressed="true">Light</button><button type="button" data-theme="dark" aria-pressed="false">Dark</button></div></section>
+<section class="palettes" aria-label="Levels color options"></section>
+<p class="caption">The shape is selected. This round is only about color. The original violet is replaced with six new directions.</p>
+<section class="preview" aria-label="Selected palette preview"><img id="large-icon" class="large-icon" alt="Ice Levels icon" width="160" height="160"><div><span class="eyebrow">Selected preview</span><h2 id="preview-name">A / Ice</h2><p id="preview-note">Cool blue, almost-white bars.</p><div class="samples" id="samples"></div></div><div class="preview-side"><div class="specs" id="specs"></div><a class="download" id="download" download="MeterLuma-Levels-Ice.svg">Download this SVG</a></div></section>
+<details class="custom"><summary>Try your own colors</summary><div class="custom-controls"><label>Background <input type="color" id="base-color" value="#111c29"></label><label>Glow <input type="color" id="glow-color" value="#6896ae"></label><label>Bars <input type="color" id="bar-color" value="#d7f2fc"></label><label>Glow strength <input type="range" id="glow-strength" min="0" max="100" value="60"><output id="glow-value">60%</output></label></div></details>
+<p class="status" id="status" role="status" aria-live="polite">Preview only. Choose a palette, then tell me its letter or name in chat.</p>
+<footer><span>Levels / MeterLuma / Color exploration</span><span>Flat mark &middot; Luminous background</span></footer>
+</main>
+<script>
+const palettes=[
+  {
+    "id": "ice",
+    "letter": "A",
+    "name": "Ice",
+    "note": "Cool blue, almost-white bars.",
+    "base": "#111C29",
+    "middle": "#254759",
+    "glow": "#6896AE",
+    "ink": "#D7F2FC"
+  },
+  {
+    "id": "mint",
+    "letter": "B",
+    "name": "Mint",
+    "note": "Soft green on deep forest.",
+    "base": "#12251F",
+    "middle": "#23493D",
+    "glow": "#609879",
+    "ink": "#AAF0CE"
+  },
+  {
+    "id": "amber",
+    "letter": "C",
+    "name": "Amber",
+    "note": "Warm gold on dark espresso.",
+    "base": "#282017",
+    "middle": "#57402A",
+    "glow": "#B48B54",
+    "ink": "#F7D090"
+  },
+  {
+    "id": "coral",
+    "letter": "D",
+    "name": "Coral",
+    "note": "Peach and a quiet rose glow.",
+    "base": "#2A191C",
+    "middle": "#583039",
+    "glow": "#AF7474",
+    "ink": "#FFC0AA"
+  },
+  {
+    "id": "blue",
+    "letter": "E",
+    "name": "Blue",
+    "note": "Clear blue on midnight.",
+    "base": "#151D31",
+    "middle": "#2A4274",
+    "glow": "#718FD1",
+    "ink": "#9FBCFF"
+  },
+  {
+    "id": "pearl",
+    "letter": "F",
+    "name": "Pearl",
+    "note": "A light tile with deep green bars.",
+    "base": "#E9ECE6",
+    "middle": "#E1EAE2",
+    "glow": "#B7D3C4",
+    "ink": "#243D35"
+  }
+];
+const shape="<g fill=\"currentColor\" opacity=\".22\"><rect x=\"14\" y=\"14\" width=\"9\" height=\"36\" rx=\"3\"/><rect x=\"28\" y=\"14\" width=\"9\" height=\"36\" rx=\"3\"/><rect x=\"42\" y=\"14\" width=\"9\" height=\"36\" rx=\"3\"/></g><g fill=\"currentColor\"><rect x=\"14\" y=\"29\" width=\"9\" height=\"21\" rx=\"3\"/><rect x=\"28\" y=\"19\" width=\"9\" height=\"31\" rx=\"3\"/><rect x=\"42\" y=\"36\" width=\"9\" height=\"14\" rx=\"3\"/></g>";
+const mark=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">${shape}</svg>`;
+document.querySelector('#brand-mark').innerHTML=mark;
+const board=document.querySelector('.palettes');
+board.innerHTML=palettes.map(c=>`<button class="palette" type="button" aria-label="Preview ${c.name}" aria-pressed="false" data-palette="${c.id}"><span class="check" aria-hidden="true">&#10003;</span><img src="levels-${c.id}.svg" alt="" width="112" height="112"><span><span class="letter">${c.letter}</span><span class="name">${c.name}</span><span class="note">${c.note}</span><span class="swatches" aria-hidden="true">${[c.base,c.glow,c.ink].map(color=>`<i style="background:${color}"></i>`).join('')}</span></span></button>`).join('');
+let current={...palettes[0],strength:.6};let downloadUrl;
+function svg(c){return `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 128 128"><title>MeterLuma Levels - ${c.name}</title><defs><radialGradient id="light" cx="50%" cy="100%" r="100%"><stop stop-color="${c.glow}"/><stop offset=".48" stop-color="${c.middle}"/><stop offset="1" stop-color="${c.base}"/></radialGradient></defs><rect width="128" height="128" rx="30" fill="${c.base}"/><rect width="128" height="128" rx="30" fill="url(#light)" opacity="${c.strength}"/><rect x=".5" y=".5" width="127" height="127" rx="29.5" fill="none" stroke="${c.ink}" stroke-opacity=".09"/><g transform="translate(19 19) scale(1.40625)" color="${c.ink}">${shape}</g></svg>`;}
+function render(chosen=false){const c=current;const src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg(c));document.querySelector('#large-icon').src=src;document.querySelector('#large-icon').alt=`${c.name} Levels icon`;document.querySelector('#preview-name').textContent=c.letter?`${c.letter} / ${c.name}`:c.name;document.querySelector('#preview-note').textContent=c.note;document.querySelector('#samples').innerHTML=[16,24,32].map(size=>`<span class="sample"><img src="${src}" width="${size}" height="${size}" alt="${size} pixel icon"><small>${size}px</small></span>`).join('')+`<span class="mono" aria-label="Monochrome tray symbol">${mark}<small>Tray mark</small></span>`;document.querySelector('#specs').innerHTML=[['Base',c.base],['Glow',c.glow],['Bars',c.ink]].map(([label,color])=>`<span class="spec"><i style="background:${color}"></i><span>${label}<br>${color.toUpperCase()}</span></span>`).join('');if(downloadUrl)URL.revokeObjectURL(downloadUrl);downloadUrl=URL.createObjectURL(new Blob([svg(c)],{type:'image/svg+xml'}));const link=document.querySelector('#download');link.href=downloadUrl;link.download=`MeterLuma-Levels-${c.name}.svg`;document.querySelectorAll('[data-palette]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.palette===c.id)));if(chosen)document.querySelector('#status').textContent=c.id?`Previewing ${c.letter} / ${c.name}. Tell me "approve ${c.name}" in chat to use this palette.`:`Custom colors: background ${c.base}, glow ${c.glow}, bars ${c.ink}, strength ${Math.round(c.strength*100)}%. Tell me to use these colors in chat.`;}
+function syncInputs(){document.querySelector('#base-color').value=current.base;document.querySelector('#glow-color').value=current.glow;document.querySelector('#bar-color').value=current.ink;document.querySelector('#glow-strength').value=Math.round(current.strength*100);document.querySelector('#glow-value').textContent=Math.round(current.strength*100)+'%';}
+function mix(a,b){return '#'+[1,3,5].map(i=>Math.round(parseInt(a.slice(i,i+2),16)*.6+parseInt(b.slice(i,i+2),16)*.4).toString(16).padStart(2,'0')).join('');}
+board.querySelectorAll('[data-palette]').forEach(button=>button.addEventListener('click',()=>{current={...palettes.find(c=>c.id===button.dataset.palette),strength:.6};syncInputs();render(true);}));
+document.querySelectorAll('.custom input').forEach(input=>input.addEventListener('input',()=>{current={id:null,name:'Custom',letter:null,note:'Your palette on the selected Levels shape.',base:document.querySelector('#base-color').value,glow:document.querySelector('#glow-color').value,ink:document.querySelector('#bar-color').value,strength:Number(document.querySelector('#glow-strength').value)/100};current.middle=mix(current.base,current.glow);document.querySelector('#glow-value').textContent=Math.round(current.strength*100)+'%';render(true);}));
+document.querySelectorAll('button[data-theme]').forEach(button=>button.addEventListener('click',()=>{document.documentElement.dataset.theme=button.dataset.theme;document.querySelectorAll('button[data-theme]').forEach(el=>{if(el.tagName==='BUTTON')el.setAttribute('aria-pressed',String(el===button));});}));
+render();
+</script></body></html>

@@ -114,7 +114,50 @@ pub fn limits(root: &Path) -> Result<Value, String> {
     exchange(input, output, Duration::from_secs(20))
 }
 
-fn exchange(mut input: impl Write, output: impl Read + Send + 'static, limit: Duration) -> Result<Value, String> {
+// A separate, temporary Codex home prevents the external-token path from reading
+// the user's CLI auth.json, config.toml, sessions, or workspace configuration.
+struct TokenHome { path: PathBuf, parent: PathBuf }
+impl TokenHome {
+    fn new() -> Result<Self, String> {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static NEXT: AtomicU64 = AtomicU64::new(0);
+        let parent = std::env::temp_dir().canonicalize().map_err(|_| "A private Codex token session could not be created.")?;
+        let name = format!("meterluma-token-{}-{}-{}", std::process::id(), chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default(), NEXT.fetch_add(1, Ordering::Relaxed));
+        let path = parent.join(name);
+        std::fs::create_dir(&path).map_err(|_| "A private Codex token session could not be created.")?;
+        Ok(Self { path, parent })
+    }
+}
+impl Drop for TokenHome {
+    fn drop(&mut self) {
+        if let Ok(resolved) = self.path.canonicalize() {
+            if resolved.parent() == Some(self.parent.as_path()) && resolved.file_name().is_some_and(|name| name.to_string_lossy().starts_with("meterluma-token-")) { let _ = std::fs::remove_dir_all(resolved); }
+        }
+    }
+}
+
+pub fn limits_with_token(token: &super::tokens::AccountToken) -> Result<Value, String> {
+    let program = executable().ok_or("Install the official Codex CLI to use a supplied account token. No CLI sign-in or local history is required.")?;
+    let home = TokenHome::new()?;
+    let mut command = Command::new(program);
+    command.args(["app-server", "--listen", "stdio://", "-c", "cli_auth_credentials_store=\"file\""])
+        .env("CODEX_HOME", &home.path).current_dir(&home.path)
+        .env_remove("OPENAI_API_KEY").env_remove("OPENAI_BASE_URL").env_remove("CODEX_API_KEY")
+        .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null());
+    #[cfg(target_os = "windows")]
+    { use std::os::windows::process::CommandExt; command.creation_flags(0x08000000); }
+    let mut server = Server(command.spawn().map_err(|_| "The official Codex app-server could not be started.")?);
+    let input = server.0.stdin.take().ok_or("Codex input was unavailable.")?;
+    let output = server.0.stdout.take().ok_or("Codex output was unavailable.")?;
+    // The token travels over stdin, never argv or an environment variable.
+    exchange_token(input, output, Duration::from_secs(30), Some(token))
+}
+
+fn exchange(input: impl Write, output: impl Read + Send + 'static, limit: Duration) -> Result<Value, String> {
+    exchange_token(input, output, limit, None)
+}
+
+fn exchange_token(mut input: impl Write, output: impl Read + Send + 'static, limit: Duration, token: Option<&super::tokens::AccountToken>) -> Result<Value, String> {
     let (sender, receiver) = mpsc::sync_channel(8);
     std::thread::spawn(move || {
         let mut reader = BufReader::new(output);
@@ -134,22 +177,33 @@ fn exchange(mut input: impl Write, output: impl Read + Send + 'static, limit: Du
     let mut send = |value: Value| -> Result<(), String> {
         writeln!(input, "{value}").and_then(|_| input.flush()).map_err(|_| "The Codex app-server request could not be sent.".into())
     };
-    send(hello())?;
+    let mut initialize = hello();
+    if token.is_some() { initialize["params"]["capabilities"] = json!({"experimentalApi":true}); }
+    send(initialize)?;
     let deadline = Instant::now() + limit;
     loop {
         let wait = deadline.checked_duration_since(Instant::now()).ok_or("Codex quota lookup timed out. Local history is still available.")?;
         let line = receiver.recv_timeout(wait).map_err(|_| "Codex quota lookup timed out or closed. Update the official CLI and sign in again.")?
             .map_err(|_| "The Codex app-server response exceeded the safe size limit.")?;
         let value: Value = serde_json::from_slice(&line).map_err(|_| "The Codex app-server returned an unsupported response.")?;
+        if value["method"] == "account/chatgptAuthTokens/refresh" {
+            send(json!({"id":value["id"],"error":{"code":-32000,"message":"Reconnect the account token in MeterLuma."}}))?;
+            return Err("Your Codex account token expired. Replace it in Connections.".into());
+        }
         if value["id"] == 0 {
             if value.get("error").is_some() { return Err("Codex app-server initialization failed. Update the official CLI.".into()); }
             send(json!({"method":"initialized","params":{}}))?;
+            if let Some(token) = token {
+                send(json!({"id":2,"method":"account/login/start","params":{"type":"chatgptAuthTokens","accessToken":token.access_token,"chatgptAccountId":token.account_id}}))?;
+            } else { send(json!({"id":1,"method":"account/rateLimits/read"}))?; }
+        } else if value["id"] == 2 && token.is_some() {
+            if value.get("error").is_some() || value["result"]["type"] != "chatgptAuthTokens" { return Err("Codex could not accept the account token. Check the token and account ID, and update the official CLI if needed.".into()); }
             send(json!({"id":1,"method":"account/rateLimits/read"}))?;
         } else if value["id"] == 1 {
-            if value.get("error").is_some() { return Err("Codex could not read quotas. Sign in using the official CLI; API-key-only accounts may not provide plan quotas.".into()); }
+            if value.get("error").is_some() { return Err(if token.is_some() { "The Codex account token cannot read subscription limits. Replace it in Connections." } else { "Codex could not read quotas. Sign in using the official CLI; API-key-only accounts may not provide plan quotas." }.into()); }
             return Ok(value["result"].clone());
         }
-        // Notifications are ignored. No inference, thread, login, or tool methods are sent.
+        // No inference, thread, or tool methods are sent. External token auth is memory-only.
     }
 }
 
@@ -263,6 +317,33 @@ mod tests {
         let started = Instant::now();
         assert!(exchange(Vec::new(), Stall, Duration::from_millis(100)).err().unwrap().contains("timed out"));
         assert!(started.elapsed() < Duration::from_secs(2));
+    }
+
+    #[test]
+    fn external_token_exchange_authenticates_before_limits_without_using_local_login() {
+        let token = super::super::tokens::AccountToken { access_token: "synthetic-access-token".into(), account_id: Some("fixture-account".into()) };
+        let replies = b"{\"id\":0,\"result\":{}}\n{\"id\":2,\"result\":{\"type\":\"chatgptAuthTokens\"}}\n{\"id\":1,\"result\":{\"rateLimits\":{\"primary\":{\"usedPercent\":32}}}}\n";
+        let mut sent = Vec::new();
+        let value = exchange_token(&mut sent, std::io::Cursor::new(replies.to_vec()), Duration::from_secs(2), Some(&token)).unwrap();
+        assert_eq!(value["rateLimits"]["primary"]["usedPercent"], 32);
+        let calls: Vec<Value> = String::from_utf8(sent).unwrap().lines().map(|line| serde_json::from_str(line).unwrap()).collect();
+        assert_eq!(calls.iter().map(|call| call["method"].as_str().unwrap()).collect::<Vec<_>>(), ["initialize", "initialized", "account/login/start", "account/rateLimits/read"]);
+        assert_eq!(calls[0]["params"]["capabilities"]["experimentalApi"], true);
+        assert_eq!(calls[2]["params"]["type"], "chatgptAuthTokens");
+        assert_eq!(calls[2]["params"]["accessToken"], "synthetic-access-token");
+        assert_eq!(calls[2]["params"]["chatgptAccountId"], "fixture-account");
+        let refresh = b"{\"method\":\"account/chatgptAuthTokens/refresh\",\"id\":9,\"params\":{}}\n";
+        let mut sent = Vec::new();
+        let error = exchange_token(&mut sent, std::io::Cursor::new(refresh.to_vec()), Duration::from_secs(2), Some(&token)).err().unwrap();
+        assert!(error.contains("expired"));
+        assert!(!error.contains(&token.access_token));
+        let rejected = b"{\"id\":0,\"result\":{}}\n{\"id\":2,\"error\":{\"message\":\"synthetic-access-token\"}}\n";
+        let error = exchange_token(Vec::new(), std::io::Cursor::new(rejected.to_vec()), Duration::from_secs(2), Some(&token)).err().unwrap();
+        assert!(!error.contains(&token.access_token));
+        let home = TokenHome::new().unwrap(); let path = home.path.clone();
+        assert!(!path.join("auth.json").exists());
+        assert!(!path.join("config.toml").exists());
+        drop(home); assert!(!path.exists());
     }
 
     #[test]

@@ -9,7 +9,7 @@ Windows beta path under `.tools/`) are for personal testing only and are never d
 | Workflow | Trigger | What it does |
 | --- | --- | --- |
 | `checks.yml` | every push to `main` and every pull request run Release metadata and Interface checks; Desktop runs only on manual dispatch (Run workflow, with "desktop" ticked) | **Release metadata**: versions agree and `THIRD_PARTY_NOTICES.txt` covers every locked package. **Interface checks**: type-check and build, then Chromium tests (dev server), release-build tests (`vite preview` of `dist`, so no demo controls) and WebKit tests. **Desktop (windows/macos)**: native tests with `--locked` (macOS also runs the Intel slice under Rosetta), `cargo test --release --lib --features updater --locked`, and an unsigned CI bundle that is not for distribution. |
-| `release.yml` | a pushed tag `v*`, or manual with an existing tag | Verifies that the tag matches the versions and that the tree is clean, checks notices, and runs all interface tests. Then it builds the Windows x64 NSIS installer (MSVC) and the universal macOS DMG with `--locked`, signs, notarizes and adds the updater only when the secrets exist, and writes `SHA256SUMS.txt`, `BUILD-INFO.json` and, when the updater is configured, `latest.json`. Everything is uploaded as a workflow artifact and attached to a **draft** GitHub release. |
+| `release.yml` | a pushed tag `v*`, or manual with an existing tag | Verifies that the tag matches the versions and that the tree is clean, audits the Rust lockfile with cargo-audit 0.22.2, regenerates notices from the dependencies and rejects drift, and runs all interface tests. Then it builds the Windows x64 NSIS installer (MSVC) and the universal macOS DMG with `--locked`, keeps Windows unsigned by policy, and applies macOS signing/notarization and the updater only when their secrets exist, and writes `SHA256SUMS.txt`, `BUILD-INFO.json` and, when the updater is configured, `latest.json`. Everything is uploaded as a workflow artifact and attached to a **draft** GitHub release. |
 
 `npm run test:release` serves the existing `dist/` through `vite preview`, so run `npm run build` first.
 
@@ -72,7 +72,7 @@ the release build does four things:
 - produces `MeterLuma_<version>_x64-setup.exe.sig` and `MeterLuma_<version>_universal.app.tar.gz` with its `.sig`
 - writes `latest.json` for the `windows-x86_64`, `darwin-aarch64` and `darwin-x86_64` platforms
 
-The base `tauri.conf.json` never contains updater settings.
+The base `tauri.conf.json` never contains updater settings. Windows updates use the signed NSIS `.exe` directly, and macOS updates use `.app.tar.gz`. The updater dependency keeps TLS and system-proxy support, with its optional Windows ZIP extractor disabled; do not publish a ZIP as the Windows update payload.
 
 To rotate the key:
 1. Generate a new pair.
@@ -117,7 +117,9 @@ notarizes and staples the DMG, and checks four things:
 - both the app and the DMG have a valid stapled ticket
 - `spctl` accepts the app
 
-### 3. Windows code signing
+### 3. Windows code signing (optional future work)
+
+Owner decision, 2026-10-20: the current Windows release will be unsigned because paid signing is outside the budget. The release workflow sets `WINDOWS_SIGNING_ENABLED` to `false`, ignores Windows signing secrets, and records `signed: false`. Windows Authenticode signing is not a release gate. State "Unsigned Windows installer" in download/release information. The options below are retained only for a possible future signed release; enabling them requires an explicit policy change and setting `WINDOWS_SIGNING_ENABLED` to `true`.
 
 Since June 2023, publicly trusted code-signing keys must live in hardware (an HSM or a token), so
 most certificate authorities no longer issue exportable `.pfx` files. Microsoft also ended EV
@@ -186,7 +188,7 @@ https://downloads.example.com/meterluma/0.2.0/SHA256SUMS.txt and BUILD-INFO.json
 - [ ] `THIRD_PARTY_NOTICES.txt` was regenerated after any dependency change (`scripts/generate-notices.py`). The Release metadata job fails when a locked package is missing.
 - [ ] `PRIVACY.md` and `LEGAL_VERSION` are updated if data handling changed.
 - [ ] Smoke-tested from the unsigned CI artifacts of the same commit, on real Windows 10/11 and macOS 13 or later machines (Apple silicon and Intel if possible): consent gate, tray icon, quick panel, Codex quotas, the Cursor "Unofficial" label, recorded Claude Code history, export, and the uninstaller's delete-app-data option.
-- [ ] Signing secrets are in place, or you have consciously decided to send unsigned builds to testers only.
+- [x] Windows signing policy is decided: ship Windows unsigned (owner decision, 2026-10-20); label the download accordingly. macOS signing/notarization remain separate requirements.
 - [ ] The updater private key is backed up offline, and the endpoint answers over HTTPS.
 - [ ] The download page states the platform floor and links `SHA256SUMS.txt`.
 - [ ] `npm run release:verify -- v0.2.0` passes on a clean checkout. It runs the same tag, version and clean-tree check as CI.

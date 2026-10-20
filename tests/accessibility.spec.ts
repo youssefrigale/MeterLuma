@@ -10,7 +10,7 @@ test.beforeEach(async ({ page }) => {
 for (const theme of ['dark', 'light'] as const) {
 test(`${theme} compact tray panel and Options have no accessibility violations`, async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 660 });
-  await page.addInitScript(theme => localStorage.setItem('meterluma.settings.v2', JSON.stringify({ theme })), theme);
+  await page.addInitScript(theme => localStorage.setItem('meterluma.settings.v2', JSON.stringify({ theme, demo: true })), theme);
   await page.goto('/');
   for (const open of [false, true]) {
     if (open) await page.getByRole('button', { name: 'Options', exact: true }).click();

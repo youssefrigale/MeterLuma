@@ -147,6 +147,7 @@ function finalize() {
   if (flags.notes) writeFileSync(resolve(flags.notes), [
     `MeterLuma ${version}, built by CI from commit ${commit}${info.workflow.url ? ` in ${info.workflow.url}` : ''}.`, '',
     ...platforms.map(item => `- ${item.platform} (${item.target}): signed ${yes(item.signed)}, notarized ${yes(item.notarized)}, updater artifacts ${yes(item.updaterArtifacts)}`), '',
+    ...(platforms.some(item => item.platform === 'windows' && !item.signed) ? ['Windows download: unsigned Windows installer (publisher release policy).', ''] : []),
     `Clean tree: ${yes(info.cleanTree)}. Updater manifest: ${manifest ? 'latest.json' : 'not generated'}.`,
     'Verify downloads against SHA256SUMS.txt as described in docs/release-process.md.', '',
     '| File | SHA-256 |', '| --- | --- |', ...sums.map(file => `| ${file.name} | \`${file.sha256}\` |`), '',

@@ -1,6 +1,6 @@
 [package]
 name = "meterluma"
-version = "0.1.0"
+version = "0.1.2"
 description = "All your AI usage, one glance."
 license-file = "../LICENSE"
 edition = "2021"
@@ -25,12 +25,15 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-single-instance = "2"
 tauri-plugin-dialog = "2"
-tauri-plugin-updater = { version = "2", optional = true }
+# Windows updates use the NSIS .exe directly; macOS uses .app.tar.gz.
+# Keep TLS/proxy support without the plugin's unused Windows ZIP extractor.
+tauri-plugin-updater = { version = "2", optional = true, default-features = false, features = ["rustls-tls", "system-proxy"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "rustls-tls-native-roots", "system-proxy"] }
 rusqlite = { version = "0.40", features = ["bundled"] }
 sha2 = "0.10"
+base64 = "0.23.1"
 dirs = "6"
 chrono = "0.4"
 tokio = { version = "1", features = ["sync"] }

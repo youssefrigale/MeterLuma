@@ -1,7 +1,8 @@
 name: Release MeterLuma
 
 # Builds release candidates only from a clean, tagged commit. Every signing step is skipped when its
-# secrets are absent, and fails loudly when they are only partly configured. See docs/release-process.md.
+# secrets are absent, and fails loudly when enabled but partly configured. Windows signing is disabled
+# by owner policy. See docs/release-process.md.
 on:
   push:
     tags: ['v*']
@@ -46,6 +47,18 @@ jobs:
       - name: Third-party notices cover every locked package
         run: node .github/scripts/release-meta.mjs notices
       - run: npm ci
+      - name: Prepare Rust for dependency verification
+        run: |
+          rustup update stable
+          rustup default stable
+      - name: Reject known Rust dependency vulnerabilities
+        run: |
+          cargo install cargo-audit --version 0.22.2 --locked
+          cargo audit --file src-tauri/Cargo.lock
+      - name: Regenerate notices from the release dependencies
+        run: |
+          python scripts/generate-notices.py --fetch-upstream
+          git diff --exit-code -- THIRD_PARTY_NOTICES.txt
       - name: Type-check and build the release frontend
         run: npm run build
       - run: npx playwright install --with-deps chromium webkit
@@ -138,6 +151,8 @@ jobs:
         id: signing
         shell: bash
         env:
+          # Owner decision 2026-10-20: Windows releases are intentionally unsigned.
+          WINDOWS_SIGNING_ENABLED: 'false'
           HAS_APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE != '' }}
           HAS_APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD != '' }}
           HAS_APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY != '' }}
@@ -171,13 +186,15 @@ jobs:
             if [ "$cert_state" = all ]; then apple_sign=true; fi
             if [ "$api_state" = all ]; then apple_notarize=api-key; elif [ "$id_state" = all ]; then apple_notarize=apple-id; fi
             if [ "$apple_notarize" != none ] && [ "$apple_sign" != true ]; then echo "::error::Notarization needs Apple code signing too: APPLE_CERTIFICATE, APPLE_CERTIFICATE_PASSWORD and APPLE_SIGNING_IDENTITY."; exit 1; fi
-          else
+          elif [ "$WINDOWS_SIGNING_ENABLED" = true ]; then
             pfx=(WINDOWS_CERTIFICATE WINDOWS_CERTIFICATE_PASSWORD); azure=(AZURE_CLIENT_ID AZURE_CLIENT_SECRET AZURE_TENANT_ID AZURE_ARTIFACT_SIGNING_ENDPOINT AZURE_ARTIFACT_SIGNING_ACCOUNT AZURE_ARTIFACT_SIGNING_PROFILE)
             pfx_state=$(state "${pfx[@]}"); azure_state=$(state "${azure[@]}")
             if [ "$pfx_state" = partial ]; then partial "Windows certificate signing" "${pfx[@]}"; fi
             if [ "$azure_state" = partial ]; then partial "Azure Artifact Signing" "${azure[@]}"; fi
             if [ "$pfx_state" = all ] && [ "$azure_state" = all ]; then echo "::error::Both a Windows PFX certificate and Azure Artifact Signing are configured. Keep only one."; exit 1; fi
             if [ "$pfx_state" = all ]; then windows_sign=pfx; elif [ "$azure_state" = all ]; then windows_sign=azure; fi
+          else
+            echo "Windows code signing is disabled by release policy; building unsigned."
           fi
           keys=(TAURI_SIGNING_PRIVATE_KEY METERLUMA_UPDATER_PUBKEY METERLUMA_UPDATER_ENDPOINT); updater_state=$(state "${keys[@]}")
           if [ "$updater_state" = partial ]; then partial "The updater" "${keys[@]}"; fi

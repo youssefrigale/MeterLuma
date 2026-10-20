@@ -19,7 +19,9 @@ export function AccountProfiles({ settings, update }: { settings: Settings; upda
       try {
         const canonical = await invoke<string>('validate_profile', { providerId, directory });
         if (settings.profiles.some(row => row.providerId === providerId && row.directory === canonical)) throw 'This local profile is already connected.';
-        update({ profiles: [...settings.profiles, { key: crypto.randomUUID(), providerId, label: label.trim(), directory: canonical }], demo: false, enabled: [...new Set([...settings.enabled, providerId])] });
+        const tokenMode = settings.tokenProviders?.includes(providerId);
+        if (tokenMode) await invoke('forget_account_token', { providerId });
+        update({ ...(tokenMode ? { tokenProviders: settings.tokenProviders?.filter(id => id !== providerId), liveProviders: settings.liveProviders.filter(id => id !== providerId) } : {}), profiles: [...settings.profiles, { key: crypto.randomUUID(), providerId, label: label.trim(), directory: canonical }], demo: false, enabled: [...new Set([...settings.enabled, providerId])] });
         setLabel(''); setDirectory('');
       } catch (reason) { setError(typeof reason === 'string' ? reason : 'This local profile could not be connected.'); }
       finally { setSaving(false); }
@@ -30,6 +32,6 @@ export function AccountProfiles({ settings, update }: { settings: Settings; upda
       <button className="button" disabled={saving || settings.profiles.length >= 12 || !label.trim()}>{saving ? 'Checking profile…' : 'Add local account'}</button>
     </form>
     {error && <p role="status">{error}</p>}
-    <ul className="feature-rows">{settings.profiles.map(profile => <li key={profile.key}><span>{profile.label} · {providerNames[profile.providerId]}</span><button className="text-button" aria-label={`Remove ${profile.label}`} onClick={() => update({ profiles: settings.profiles.filter(row => row.key !== profile.key) })}>Remove</button></li>)}</ul>
+    <ul className="feature-rows">{settings.profiles.map(profile => <li key={profile.key}><span>{profile.label} · {providerNames[profile.providerId]}{profile.paused ? ' (paused)' : settings.tokenProviders?.includes(profile.providerId) ? ' (paused for token connection)' : ''}</span><button className="text-button" aria-label={`Remove ${profile.label}`} onClick={() => update({ profiles: settings.profiles.filter(row => row.key !== profile.key) })}>Remove</button></li>)}</ul>
   </section>;
 }

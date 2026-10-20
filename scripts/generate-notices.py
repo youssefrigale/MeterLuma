@@ -1,21 +1,33 @@
 """Generate notices from installed frontend dependencies and cargo metadata.
 
-Run cargo metadata --manifest-path src-tauri/Cargo.toml --format-version 1
---locked --all-features and save its JSON as .tools/dependency-metadata.json
-before running this script (--all-features covers the optional updater crates).
+Runs cargo metadata --locked --all-features itself (including optional updater
+crates). Use --metadata PATH to supply an existing metadata JSON file instead.
+On a fresh checkout use --fetch-upstream to collect notices omitted by archives.
 The inventory includes transitive/build/platform dependencies; an exact binary
 may include only a subset. No third-party license is replaced by LICENSE.
 The provider logos in src/assets/providers are the providers' own trademarks,
 used unmodified from their official brand resources; a closing section names
 their owners and sources.
 """
+import argparse
 import json
-import sys
+import subprocess
 import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-metadata = json.loads((ROOT / '.tools/dependency-metadata.json').read_text(encoding='utf-8-sig'))
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--metadata', type=Path, help='Read cargo metadata from this JSON file instead of invoking cargo.')
+parser.add_argument('--fetch-upstream', action='store_true', help='Fetch pinned upstream notice sources when archives omit them.')
+parser.add_argument('--cache-dir', type=Path, default=ROOT / '.tools/upstream-notices', help='Cache directory, created when needed.')
+args = parser.parse_args()
+if args.metadata:
+    metadata = json.loads(args.metadata.read_text(encoding='utf-8-sig'))
+else:
+    metadata = json.loads(subprocess.check_output([
+        'cargo', 'metadata', '--manifest-path', str(ROOT / 'src-tauri/Cargo.toml'),
+        '--format-version', '1', '--locked', '--all-features',
+    ], cwd=ROOT, encoding='utf-8'))
 lock = json.loads((ROOT / 'package-lock.json').read_text(encoding='utf-8'))
 sections = [
     'MeterLuma third-party notices',
@@ -48,8 +60,8 @@ def add(name, version, license_name, source, directory):
             sections.append(f'--- {file.name} ---\n{file.read_text(encoding="utf-8", errors="replace")}\n')
             found = True
     if not found:
-        upstream = ROOT / '.tools/upstream-notices' / f'{name}-{version}.json'
-        if not upstream.exists() and '--fetch-upstream' in sys.argv:
+        upstream = args.cache_dir / f'{name}-{version}.json'
+        if not upstream.exists() and args.fetch_upstream:
             recovered = []
             for url in sources.get(f'{name}-{version}', []):
                 if not url.startswith('https://raw.githubusercontent.com/'):
@@ -115,7 +127,12 @@ sections.append(f'\n{"=" * 72}\nProvider logos\n'
     'MeterLuma is not affiliated with or endorsed by Anthropic, OpenAI or Anysphere.\n'
     'Sources: https://www.anthropic.com/press-kit, https://openai.com/brand/, https://cursor.com/brand\n')
 
-(ROOT / 'THIRD_PARTY_NOTICES.txt').write_text('\n\n'.join(sections), encoding='utf-8', newline='\n')
-(ROOT / '.tools/license-inventory.json').write_text(json.dumps(inventory, indent=2), encoding='utf-8')
+inventory_path = ROOT / '.tools/license-inventory.json'
+inventory_path.parent.mkdir(parents=True, exist_ok=True)
+inventory_path.write_text(json.dumps(inventory, indent=2), encoding='utf-8')
 print(f'Inventoried {len(inventory)} packages; {len(missing)} still need notice follow-up.')
 print('Unresolved notices: ' + ', '.join(missing))
+if missing:
+    print('THIRD_PARTY_NOTICES.txt was not changed because notices are incomplete.')
+    raise SystemExit(1)
+(ROOT / 'THIRD_PARTY_NOTICES.txt').write_text('\n\n'.join(sections), encoding='utf-8', newline='\n')

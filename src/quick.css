@@ -4,6 +4,8 @@
   .tray-panel[data-theme='dark'] { --panel-rail: #212124; --panel-bg: #222225; --panel-card: #28282c; --panel-tabs: #303034; --panel-track: #3e3e44; --panel-text: #f2f2f4; --panel-muted: #b0b0b8; --panel-line: #3b3b41; --panel-accent: #f4f4f5; --panel-accent-bg: #ffffff0c; --panel-meter: #ededf0; --mark-ink: #202024; }
   .tray-panel body { min-width: 300px; background: var(--panel-bg); }
   .quick-view { position: relative; padding: 0; margin: 0; width: 100%; height: 100dvh; min-height: 0; display: flex; flex-direction: row; overflow: hidden; border: 1px solid var(--panel-line); border-radius: 14px; background: var(--panel-bg); color: var(--panel-text); font-size: 12px; }
+  /* Let Windows draw one outer edge; a second HTML curve leaves lines inside its corners. */
+  .native-windows .quick-view { border: 0; border-radius: 0; }
   .quick-body { display: flex; flex-direction: column; flex: 1; min-width: 0; }
   .quick-rail { flex: 0 0 45px; padding: 14px 0 10px; display: flex; flex-direction: column; gap: 8px; border-right: 1px solid var(--panel-line); background: var(--panel-rail); }
   .quick-rail button { position: relative; display: grid; place-items: center; width: 100%; height: 40px; color: var(--panel-muted); }
@@ -15,7 +17,6 @@
   .quick-rail-providers { display: grid; gap: 4px; }
   .quick-rail-bottom { margin-top: auto; display: grid; gap: 4px; }
   .quick-scroll { flex: 1; min-height: 0; padding: 21px 15px 18px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--panel-line) transparent; }
-  .quick-scroll:focus-visible { outline: 1px solid var(--panel-muted); outline-offset: -1px; border-radius: 12px; }
   .quick-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 20px; }
   .quick-header > div { display: flex; align-items: center; gap: 9px; }
   .quick-header h1 { font-size: 21px; font-weight: 620; letter-spacing: -.6px; }
@@ -70,19 +71,17 @@
   .quick-metric-caption { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-top: 7px; line-height: 1.5; font-size: 11px; color: var(--panel-muted); }
   .quick-metric-caption > span:last-child { font-size: 10px; text-align: right; }
   .quick-footer { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 6px; margin: 0; padding: 11px 12px; border-top: 1px solid var(--panel-line); background: var(--panel-bg); }
-  .quick-footer > div { color: var(--panel-muted); font-size: 9px; line-height: 1.7; min-width: 0; }
-  .quick-footer small { font-size: 8px; display: block; }
-  .quick-status { display: flex; align-items: center; gap: 5px; }
-  .quick-status i { width: 5px; height: 5px; border-radius: 50%; background: var(--panel-accent); }
-  .quick-options-button { flex-shrink: 0; display: flex; align-items: center; gap: 5px; padding: 7px; background: var(--panel-accent-bg); color: var(--panel-accent); border: 1px solid var(--panel-line); border-radius: 8px; font-size: 10px; }
-  .quick-options-button > svg { transform: rotate(90deg); }
-  .quick-options { position: absolute; bottom: 61px; right: 16px; width: 190px; padding: 5px; border: 1px solid var(--panel-line); border-radius: 10px; background: var(--panel-card); box-shadow: 0 8px 28px #00000035; z-index: 2; }
+  .quick-footer { color: var(--panel-muted); font-size: 10px; line-height: 1.7; }
+  .quick-version { display: inline-flex; align-items: center; gap: 5px; padding: 0; font: inherit; color: inherit; white-space: nowrap; }
+  .quick-version:hover { color: var(--panel-text); }
+  .quick-version > svg { transform: rotate(90deg); }
+  .quick-update { margin-left: auto; white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
+  .quick-options { position: absolute; bottom: 49px; left: 57px; width: 190px; padding: 5px; border: 1px solid var(--panel-line); border-radius: 10px; background: var(--panel-card); box-shadow: 0 8px 28px #00000035; z-index: 2; }
   .quick-options button { display: flex; align-items: center; gap: 9px; width: 100%; padding: 10px; border-radius: 5px; text-align: left; font-size: 12px; }
   .quick-options button:hover, .quick-options button:focus { color: var(--panel-accent); background: var(--panel-accent-bg); }
   .quick-options hr { margin: 4px; border: 0; border-top: 1px solid var(--panel-line); }
   .quick-empty { text-align: center; color: var(--panel-muted); padding: 30px 10px; }
   .quick-empty button { margin: 15px auto 0; display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--panel-text); }
-  .quick-view button:focus-visible { outline-color: var(--panel-accent); outline-offset: 2px; }
   .quick-view button { transition: none; }
   .quick-cost-summary { display: flex; align-items: center; gap: 8px; width: 100%; border-top: 1px solid var(--panel-line); padding-top: 15px; color: var(--panel-muted); font-size: 10px; }
   .quick-cost-summary strong { margin-left: auto; font-size: 15px; color: var(--panel-accent); font-weight: 500; }

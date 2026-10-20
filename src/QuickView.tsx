@@ -35,9 +35,15 @@ export default function QuickView() {
   const live = useLiveProviders(settings);
   const catalog = sampleProviders(anchor);
   const providers = (settings.demo ? catalog.filter(provider => settings.enabled.includes(provider.id)) : live.results.flatMap(result => result.provider ? [result.provider] : [])).sort((a, b) => settings.providerOrder.indexOf(a.id) - settings.providerOrder.indexOf(b.id));
-  const navigationProviders = settings.providerOrder.flatMap(id => settings.enabled.includes(id) ? catalog.filter(provider => provider.id === id) : []);
+  const selectedProviders = new Set(settings.demo ? settings.enabled : [
+    ...settings.liveProviders,
+    ...settings.profiles.filter(profile => !profile.paused && !settings.tokenProviders?.includes(profile.providerId)).map(profile => profile.providerId),
+  ]);
+  const navigationProviders = settings.providerOrder.flatMap(id => settings.enabled.includes(id) && selectedProviders.has(id) ? catalog.filter(provider => provider.id === id) : []);
+  const selectedViewAvailable = navigationProviders.some(provider => provider.id === view);
+  const hasChosenProviders = navigationProviders.length > 0;
   // A connection that failed without any data still gets a details page with its state and a retry.
-  const failed: Provider[] = settings.demo ? [] : live.results.filter(result => result.id === view && !result.provider && result.error && !result.loading).map(result => ({ id: result.id, name: providerNames[result.id], plan: '', color: colors[result.id], initials: '', spendToday: null, metrics: [], historyOnly: !hasQuotas(result.id), quotaState: hasQuotas(result.id) ? result.quotaFailure?.code ?? 'unavailable' : undefined, retryAt: result.quotaFailure?.retryAt, connectionKey: result.key, accountLabel: result.label }));
+  const failed: Provider[] = settings.demo ? [] : live.results.filter(result => result.id === view && !result.provider && result.error && !result.loading).map(result => ({ id: result.id, name: providerNames[result.id], plan: '', color: colors[result.id], initials: '', spendToday: null, metrics: [], historyOnly: !hasQuotas(result.id), tokenOnly: result.key.startsWith('token-'), quotaState: hasQuotas(result.id) ? result.quotaFailure?.code ?? 'unavailable' : undefined, retryAt: result.quotaFailure?.retryAt, connectionKey: result.key, accountLabel: result.label }));
   const details = [...providers.filter(provider => provider.id === view), ...failed];
   const detail = details.find(provider => provider.connectionKey === profileKey) ?? details[0];
   const isProviderView = ['claude', 'codex', 'cursor'].includes(view);
@@ -49,7 +55,9 @@ export default function QuickView() {
   const unpriced = costs.reduce((sum, provider) => sum + provider.unpriced, 0);
   const since = costs.find(provider => provider.label.startsWith('Since'))?.label;
   const interval = Math.max(5, settings.refreshMinutes) * 60_000;
-  const nextRefresh = settings.demo ? Math.max(1, Math.ceil((interval - (now - refreshed) % interval) / 60_000)) : live.nextRefreshAt ? Math.max(1, Math.ceil((live.nextRefreshAt - now) / 60_000)) : null;
+  const nextRefresh = settings.demo ? Math.max(1, Math.ceil((interval - (now - refreshed) % interval) / 60_000)) : live.nextRefreshAt ? Math.max(1, Math.ceil((live.nextRefreshAt - now) / 60_000)) : Math.max(5, settings.refreshMinutes);
+  const updateStatus = settings.demo ? 'Sample data only' : isProviderView && detail?.historyOnly ? detail.history ? `Scanned ${formatTime(detail.history.scannedAt, settings.timeFormat)}` : 'Recorded local history' : displayedFetchedAt ? `${isProviderView ? detail?.cached ? 'Cached from' : 'Fetched' : 'Updated'} ${formatTime(displayedFetchedAt, settings.timeFormat)}` : detail?.quotaState === 'rate_limited' ? 'Usage rate limited' : 'Connect to refresh';
+  const updateHint = `${updateStatus}${detail?.retryAt && detail.retryAt > now ? `. Usage retry in ${retryCountdown(detail.retryAt, now)}` : ''}`;
   const trayLimits = providers.flatMap(provider => { const metric = visibleMetrics(provider, now)[0]; return metric ? [`${provider.name} ${Math.round(Math.max(0, 100 - metric.usedPercent))}% left${provider.cached ? ' (cached)' : ''}`] : []; }).join(' · ');
   const traySummary = `${settings.demo ? 'Demo · ' : ''}${trayLimits.slice(0, 130) || (providers.length ? 'Recorded local history' : live.loading ? 'Reading usage…' : 'Choose your providers in Settings')}`;
 
@@ -65,8 +73,15 @@ export default function QuickView() {
     apply(); media.addEventListener('change', apply);
     return () => media.removeEventListener('change', apply);
   }, [settings.theme]);
-  useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()), 30_000); return () => clearInterval(timer); }, []);
-  useEffect(() => { if (isProviderView && !settings.enabled.includes(view as ProviderId)) setView('overview'); }, [settings.enabled, view, isProviderView]);
+  useEffect(() => {
+    const tick = () => { if (document.visibilityState !== 'hidden') setNow(Date.now()); };
+    const timer = window.setInterval(tick, 30_000);
+    window.addEventListener('focus', tick);
+    document.addEventListener('visibilitychange', tick);
+    return () => { clearInterval(timer); window.removeEventListener('focus', tick); document.removeEventListener('visibilitychange', tick); };
+  }, []);
+  useEffect(() => { if (isProviderView && !selectedViewAvailable) setView('overview'); }, [selectedViewAvailable, isProviderView]);
+  useEffect(() => { if (view === 'costs' && !hasChosenProviders) setView('overview'); }, [view, hasChosenProviders]);
   // The panel is never reloaded, so messages are cleared on navigation and after a short time.
   useEffect(() => { scroll.current?.scrollTo(0, 0); setOptions(false); setMessage(''); }, [view]);
   useEffect(() => { if (!message) return; const timer = window.setTimeout(() => setMessage(''), 8000); return () => clearTimeout(timer); }, [message]);
@@ -104,7 +119,7 @@ export default function QuickView() {
     <nav className="quick-rail" aria-label="Panel navigation">
       <button className={view === 'overview' ? 'active' : ''} aria-label="Overview" aria-current={view === 'overview' ? 'page' : undefined} title="Overview" onClick={() => setView('overview')}><Mark size={25}/></button>
       <div className="quick-rail-providers">{navigationProviders.map(provider => <button key={provider.id} className={view === provider.id ? 'active' : ''} aria-label={`${provider.name} details`} aria-current={view === provider.id ? 'page' : undefined} title={provider.name} onClick={() => setView(provider.id)}><ProviderLogo id={provider.id} size={22}/></button>)}</div>
-      <button className={view === 'costs' ? 'active' : ''} aria-label="Costs" aria-current={view === 'costs' ? 'page' : undefined} title="Costs" onClick={() => setView('costs')}><Icon name="activity" size={20} selected={view === 'costs'}/></button>
+      {hasChosenProviders && <button className={view === 'costs' ? 'active' : ''} aria-label="Costs" aria-current={view === 'costs' ? 'page' : undefined} title="Costs" onClick={() => setView('costs')}><Icon name="activity" size={20} selected={view === 'costs'}/></button>}
       <div className="quick-rail-bottom"><button className={view === 'connections' ? 'active' : ''} aria-label="Connections" aria-current={view === 'connections' ? 'page' : undefined} title="Connections" onClick={() => setView('connections')}><Icon name="link" size={20} selected={view === 'connections'}/></button><button className={view === 'help' ? 'active' : ''} aria-label="Help" aria-current={view === 'help' ? 'page' : undefined} title="Help" onClick={() => setView('help')}><Icon name="info" size={20} selected={view === 'help'}/></button><button className={view === 'settings' ? 'active' : ''} aria-label="Settings" aria-current={view === 'settings' ? 'page' : undefined} title="Settings" onClick={() => setView('settings')}><Icon name="settings" size={20} selected={view === 'settings'}/></button></div>
     </nav>
     <LicenseGate settings={settings} update={updateSettings}/>
@@ -117,12 +132,12 @@ export default function QuickView() {
         const fraction = total ? provider.cost / total * 100 : 0; const start = offset; offset += fraction;
         return <circle key={provider.key} cx="60" cy="60" r="48" pathLength="100" fill="none" stroke={colors[provider.id]} strokeWidth="12" strokeDasharray={`${Math.max(0, fraction - 1.7)} ${100 - Math.max(0, fraction - 1.7)}`} strokeDashoffset={-start} transform="rotate(-90 60 60)"/>;
       })}</svg><div><strong>{settings.demo ? '' : '~'}{money(total)}</strong><span>{settings.demo ? 'USD · sample' : 'USD · estimate'}</span></div></div><ul className="quick-cost-legend">{costs.map(provider => <li key={provider.key}><i style={{ background: colors[provider.id] }}/><span>{provider.name}</span><strong>{money(provider.cost)}</strong></li>)}</ul></div> : <div className="quick-cost-empty"><Icon name="info" size={19}/><p>{settings.demo ? 'Enable a provider to preview costs.' : <><span>No estimated API value yet</span><small>Dollar estimates need recorded Claude Code history with known model prices.</small></>}</p></div>}</section>{!settings.demo && costs.length > 0 && (since || unpriced > 0) && <p className="quick-info quick-cost-notes">{range === '30 Days' && since ? `${since}: earlier days have no local logs. ` : ''}{unpriced > 0 ? `Excludes ${count(unpriced)} tokens from models without a known price.` : ''}</p>}</>}
-      {view === 'connections' && <QuickConnections settings={settings} update={updateSettings} results={live.results}/>}
+      {view === 'connections' && <QuickConnections settings={settings} update={updateSettings} results={live.results} onTokenChange={live.tokenChanged}/>}
       {view === 'settings' && <QuickSettings settings={settings} update={updateSettings} catalog={catalog} providers={providers} connect={() => setView('connections')}/>}
       {view === 'help' && <section className="quick-help"><Mark size={42}/><h2>All your AI usage,<br/>one glance.</h2><p>MeterLuma keeps your plan limits, reset times and recorded token history close while you work.</p><div><h3>Connect your accounts</h3><p>Codex quotas come from its official CLI. Cursor's monthly allowance uses your local Cursor sign-in with an unofficial endpoint. Claude shows recorded token history only. {CLAUDE_LOCAL}</p><button onClick={() => setView('connections')}>Manage connections <Icon name="arrow" size={14}/></button></div><NotAffiliated className="quick-info"/><p className="quick-info">MeterLuma v{APP_VERSION}{import.meta.env.DEV ? ' · development build' : ''}. Free for personal, noncommercial use only. Selling and redistribution are prohibited.</p><div className="quick-help-actions"><button onClick={() => setDialog('license')}>View license</button><button onClick={() => setDialog('reset')}>Reset preferences</button></div></section>}
       {failures.filter(result => !(isProviderView && detail && result.key === detail.connectionKey)).map(result => <p className="quick-info" role="status" key={result.key}>{result.loading && !result.provider ? `Reading ${providerNames[result.id]}${result.label ? ` · ${result.label}` : ''}…` : `${providerNames[result.id]}${result.label ? ` · ${result.label}` : ''}: ${result.error}`}</p>)}
       {message && <p role="status" className="quick-info">{message}</p>}
-    </div><footer className="quick-footer"><div><span className="quick-status">{settings.demo ? 'Sample data only' : isProviderView && detail?.historyOnly ? detail.history ? `Scanned ${formatTime(detail.history.scannedAt, settings.timeFormat)}` : 'Recorded local history' : displayedFetchedAt ? `${isProviderView ? detail?.cached ? 'Cached from' : 'Fetched' : 'Updated'} ${formatTime(displayedFetchedAt, settings.timeFormat)}` : detail?.quotaState === 'rate_limited' ? 'Usage rate limited' : 'Recorded activity / available quotas'}</span><small>MeterLuma {APP_VERSION} · {detail?.retryAt && detail.retryAt > now ? `Usage retry in ${retryCountdown(detail.retryAt, now)}` : nextRefresh !== null ? `Next update in ${nextRefresh}m` : 'Connect to refresh'}</small></div><button className="quick-options-button" ref={optionsButton} aria-haspopup="menu" aria-expanded={options} aria-controls="quick-options" onClick={() => setOptions(value => !value)}>Options <Icon name="chevron" size={12}/></button></footer></div>
+    </div><footer className="quick-footer"><button className="quick-version" aria-label="Options" title="MeterLuma options" ref={optionsButton} aria-haspopup="menu" aria-expanded={options} aria-controls="quick-options" onClick={() => setOptions(value => !value)}>MeterLuma {APP_VERSION}<Icon name="chevron" size={11}/></button><span className="quick-update" title={updateHint}>Next update in {nextRefresh}m</span></footer></div>
     {options && <div id="quick-options" className="quick-options" role="menu" aria-label="Options" ref={optionsMenu} onKeyDown={event => {
       if (event.key === 'Escape') { event.preventDefault(); setOptions(false); optionsButton.current?.focus(); }
       if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {

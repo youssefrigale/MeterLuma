@@ -5,7 +5,7 @@ const NOT_AFFILIATED = 'MeterLuma is not affiliated with or endorsed by Anthropi
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(cached => {
     // A saved preview preference must migrate to live mode in the shipped build.
-    if (!localStorage.getItem('meterluma.settings.v2')) localStorage.setItem('meterluma.settings.v2', JSON.stringify({ demo: true, legalVersion: '1.1-providers-4', liveProviders: ['claude', 'codex', 'cursor'], enabled: ['claude', 'codex', 'cursor'] }));
+    if (!localStorage.getItem('meterluma.settings.v2')) localStorage.setItem('meterluma.settings.v2', JSON.stringify({ demo: true, legalVersion: '1.1-providers-5', liveProviders: ['claude', 'codex', 'cursor'], enabled: ['claude', 'codex', 'cursor'] }));
     if (cached) { const settings = JSON.parse(localStorage.getItem('meterluma.settings.v2')!); settings.alerts = [{ key: 'test', providerId: 'cursor', threshold: 80, enabled: true }]; localStorage.setItem('meterluma.settings.v2', JSON.stringify(settings)); }
     const calls: { command: string; providerId?: string }[] = [];
     Object.assign(window, { isTauri: true, nativeCalls: calls, __TAURI_INTERNALS__: { invoke: async (command: string, args: { providerId?: string } = {}) => {
@@ -29,7 +29,7 @@ test('cached quotas stay visible during throttling and are labeled without trigg
   await expect(page.getByRole('progressbar', { name: 'Cached Cursor Monthly remaining' })).toHaveAttribute('aria-valuenow', '10');
   await expect(page.locator('.quick-plan')).toHaveText('Cached quotas');
   await expect(page.locator('.quick-cache-notice')).toContainText('Cached quotas from');
-  await expect(page.locator('.quick-footer')).toContainText('Cached from');
+  await expect(page.locator('.quick-update')).toHaveAttribute('title', /Cached from/);
   await expect(page.getByRole('region', { name: 'Usage alerts' })).toHaveCount(0);
   await page.reload();
   await page.getByRole('button', { name: 'Cursor details' }).click();
@@ -72,7 +72,7 @@ test('release tray shows rate limiting and disables retries until the deadline',
   await expect(page.getByRole('button', { name: 'Waiting', exact: true })).toBeDisabled();
   await expect(page.getByRole('progressbar')).toHaveCount(0);
   await expect(page.locator('.quick-detail')).toContainText('Unofficial');
-  await expect(page.locator('.quick-footer')).toContainText('Usage retry in');
+  await expect(page.locator('.quick-update')).toHaveAttribute('title', /Usage retry in/);
   await page.getByRole('button', { name: 'Claude details' }).click();
   await expect(page.locator('.quick-plan')).toHaveText('Local history');
   await expect(page.locator('.quick-models')).toContainText('recorded-model');

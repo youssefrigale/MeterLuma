@@ -48,7 +48,7 @@ export function LicenseGate({ settings, update }: { settings: Settings; update: 
   const [error, setError] = useState('');
   if (!isTauri() || settings.legalVersion === LEGAL_VERSION) return null;
   return <Modal title="Before you connect" onClose={() => {}} dismissible={false}>
-    <p className="modal-intro">MeterLuma is free for personal, noncommercial use only. Selling and redistribution are prohibited. Read the license and privacy information before connecting local data.</p>
+    <p className="modal-intro">MeterLuma is free for personal, noncommercial use only. Selling and redistribution are prohibited. Read the license and privacy information before connecting account tokens or local data.</p>
     <LegalMaterials/>
     <label className="legal-agreement"><input type="checkbox" checked={agreed} onChange={event => setAgreed(event.target.checked)}/>I agree to the personal-use license and have read the privacy information.</label>
     <div className="legal-buttons"><button className="button primary" disabled={!agreed} onClick={() => update({ legalVersion: LEGAL_VERSION })}>Agree and continue</button><button className="button" onClick={() => void invoke('quit_app').catch(() => setError('Quit MeterLuma using the tray menu.'))}>Quit</button></div>

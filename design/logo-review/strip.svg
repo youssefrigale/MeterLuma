@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 128 128">
+<title>MeterLuma ? Strip concept, soft luminous background</title>
+<defs><radialGradient id="light" cx="50%" cy="100%" r="100%"><stop stop-color="#658c80"/><stop offset=".48" stop-color="#2c433e"/><stop offset="1" stop-color="#172522"/></radialGradient></defs>
+<rect width="128" height="128" rx="30" fill="#172522"/>
+<rect width="128" height="128" rx="30" fill="url(#light)" opacity=".6"/>
+<rect x=".5" y=".5" width="127" height="127" rx="29.5" fill="none" stroke="#fff" stroke-opacity=".09"/>
+<g transform="translate(19 19) scale(1.40625)" color="#f0f4f3"><rect x="9" y="22" width="46" height="22" rx="6" fill="none" stroke="currentColor" stroke-width="3.5"/><path d="M18 29v8m9-8v8m9-8v8" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round"/><path d="M45 29v8" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" opacity=".3"/></g>
+</svg>

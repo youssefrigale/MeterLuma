@@ -1,0 +1,62 @@
+[
+  {
+    "id": "ice",
+    "letter": "A",
+    "name": "Ice",
+    "note": "Cool blue, almost-white bars.",
+    "base": "#111C29",
+    "middle": "#254759",
+    "glow": "#6896AE",
+    "ink": "#D7F2FC"
+  },
+  {
+    "id": "mint",
+    "letter": "B",
+    "name": "Mint",
+    "note": "Soft green on deep forest.",
+    "base": "#12251F",
+    "middle": "#23493D",
+    "glow": "#609879",
+    "ink": "#AAF0CE"
+  },
+  {
+    "id": "amber",
+    "letter": "C",
+    "name": "Amber",
+    "note": "Warm gold on dark espresso.",
+    "base": "#282017",
+    "middle": "#57402A",
+    "glow": "#B48B54",
+    "ink": "#F7D090"
+  },
+  {
+    "id": "coral",
+    "letter": "D",
+    "name": "Coral",
+    "note": "Peach and a quiet rose glow.",
+    "base": "#2A191C",
+    "middle": "#583039",
+    "glow": "#AF7474",
+    "ink": "#FFC0AA"
+  },
+  {
+    "id": "blue",
+    "letter": "E",
+    "name": "Blue",
+    "note": "Clear blue on midnight.",
+    "base": "#151D31",
+    "middle": "#2A4274",
+    "glow": "#718FD1",
+    "ink": "#9FBCFF"
+  },
+  {
+    "id": "pearl",
+    "letter": "F",
+    "name": "Pearl",
+    "note": "A light tile with deep green bars.",
+    "base": "#E9ECE6",
+    "middle": "#E1EAE2",
+    "glow": "#B7D3C4",
+    "ink": "#243D35"
+  }
+]

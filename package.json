@@ -1,6 +1,6 @@
 {
   "name": "meterluma",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "private": true,
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
@@ -8,6 +8,7 @@
     "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 127.0.0.1",
+    "icons": "tauri icon public/mark.svg",
     "desktop:dev": "tauri dev",
     "desktop:build": "tauri build",
     "test": "playwright test",
