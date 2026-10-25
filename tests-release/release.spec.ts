@@ -5,7 +5,7 @@ const NOT_AFFILIATED = 'MeterLuma is not affiliated with or endorsed by Anthropi
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(cached => {
     // A saved preview preference must migrate to live mode in the shipped build.
-    if (!localStorage.getItem('meterluma.settings.v2')) localStorage.setItem('meterluma.settings.v2', JSON.stringify({ demo: true, legalVersion: '1.1-providers-5', liveProviders: ['claude', 'codex', 'cursor'], enabled: ['claude', 'codex', 'cursor'] }));
+    if (!localStorage.getItem('meterluma.settings.v2')) localStorage.setItem('meterluma.settings.v2', JSON.stringify({ demo: true, legalVersion: '1.1-providers-6', liveProviders: ['claude', 'codex', 'cursor'], enabled: ['claude', 'codex', 'cursor'] }));
     if (cached) { const settings = JSON.parse(localStorage.getItem('meterluma.settings.v2')!); settings.alerts = [{ key: 'test', providerId: 'cursor', threshold: 80, enabled: true }]; localStorage.setItem('meterluma.settings.v2', JSON.stringify(settings)); }
     const calls: { command: string; providerId?: string }[] = [];
     Object.assign(window, { isTauri: true, nativeCalls: calls, __TAURI_INTERNALS__: { invoke: async (command: string, args: { providerId?: string } = {}) => {

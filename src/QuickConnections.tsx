@@ -27,7 +27,7 @@ export function QuickConnections({ settings, update, results, onTokenChange }: {
   async function disconnect(id: ProviderId) {
     setError('');
     try { if (tokenProviders.includes(id)) await invoke('forget_account_token', { providerId: id });
-      update({ liveProviders: settings.liveProviders.filter(value => value !== id) }); onTokenChange(id);
+      update({ liveProviders: settings.liveProviders.filter(value => value !== id), ignoredLocalProviders: [...new Set([...(settings.ignoredLocalProviders ?? []), id])] }); onTokenChange(id);
     } catch { setError('The saved token could not be removed. Try disconnecting again.'); }
   }
   function connectionState(id: ProviderId) {
@@ -47,12 +47,12 @@ export function QuickConnections({ settings, update, results, onTokenChange }: {
       try { await invoke('forget_account_token', { providerId: id }); } catch { setError('The saved token could not be removed. Try disconnecting again.'); return; }
     }
     // The browser preview cannot read local profiles, so it offers labeled sample data instead.
-    if (isTauri()) update({ demo: false, liveProviders: [...new Set([...settings.liveProviders, id])], tokenProviders: tokenProviders.filter(value => value !== id), profiles: settings.profiles.map(row => row.providerId === id ? { ...row, paused: false } : row), enabled: [...new Set([...settings.enabled, id])] });
+    if (isTauri()) update({ demo: false, liveProviders: [...new Set([...settings.liveProviders, id])], tokenProviders: tokenProviders.filter(value => value !== id), ignoredLocalProviders: (settings.ignoredLocalProviders ?? []).filter(value => value !== id), profiles: settings.profiles.map(row => row.providerId === id ? { ...row, paused: false } : row), enabled: [...new Set([...settings.enabled, id])] });
     else update({ demo: true });
     setPending(null);
   }
   return <div className="quick-connections">
-    <p className="quick-info">{isTauri() ? 'Connect Codex and Cursor with account tokens to fetch subscription limits online. Local profiles are optional. Claude supports recorded local history only, without its sign-in.' : 'This browser preview uses sample data. Live connections run in the Mac and Windows desktop app.'}</p>
+    <p className="quick-info">{isTauri() ? 'MeterLuma automatically finds local Claude Code history and existing Codex and Cursor connections on this computer. No separate login or pasted token is needed. After signing in to a provider app, use Refresh here.' : 'This browser preview uses sample data. Live connections run in the Mac and Windows desktop app.'}</p>
     <ul className="quick-connection-list">{providerIds.map(id => {
       const name = providerNames[id];
       const connected = settings.liveProviders.includes(id);
@@ -70,19 +70,17 @@ export function QuickConnections({ settings, update, results, onTokenChange }: {
     })}</ul>
     {error && <p className="quick-info" role="alert">{error}</p>}
     <AccountProfiles settings={settings} update={update}/>
-    <p className="quick-info"><Icon name="check" size={13}/> {settings.demo ? 'Demo mode does not read provider credentials or make usage requests.' : "Account tokens are sent only to their provider and stored with operating-system protection, never in preferences. Token connections do not read local history. Claude's separate history connection never reads the Claude sign-in or contacts Anthropic."}</p>
+    <p className="quick-info"><Icon name="check" size={13}/> {settings.demo ? 'Demo mode does not read provider credentials or make usage requests.' : "Existing sign-ins stay in their provider apps. Disconnecting here stops automatic detection for that provider without signing you out. Claude reads local history only and never accesses the Claude sign-in or contacts Anthropic."}</p>
     <NotAffiliated className="quick-info"/>
     {pending && <Modal dismissible={!tokenBusy} title={isTauri() ? `Connect ${providerNames[pending]}` : 'Connect in the desktop app.'} onClose={() => { if (!tokenBusy) setPending(null); }}>
-      {isTauri() && pending !== 'claude' && <TokenConnection key={pending} providerId={pending} onBusy={setTokenBusy} onConnected={() => {
-        update({ demo: false, liveProviders: [...new Set([...settings.liveProviders, pending])], tokenProviders: [...new Set([...tokenProviders, pending])], enabled: [...new Set([...settings.enabled, pending])] });
-        onTokenChange(pending); setPending(null);
-      }}/>}
-      <details className="license-details" open={pending === 'claude' || !isTauri()}><summary>Optional local profile connection</summary>
       <p className="modal-intro">{isTauri() ? connectIntro[pending] : 'Live account connections need the MeterLuma desktop app. This browser preview does not access your local sign-ins.'}</p>
       <div className="notice compact"><Icon name="info"/><p>{isTauri() ? connectDetail[pending] : 'You can explore the interface using labeled sample data. No provider tokens are requested here.'}</p></div>
       {isTauri() && pending === 'cursor' && <UnofficialNote className="modal-note"/>}
-      </details>
-      <button className={isTauri() && pending !== 'claude' ? 'button full-width' : 'button primary full-width'} disabled={tokenBusy} onClick={() => connect(pending)}>{isTauri() ? 'Use local profile' : 'Explore sample data'} <Icon name="arrow" size={16}/></button>
+      <button className="button primary full-width" disabled={tokenBusy} onClick={() => connect(pending)}>{isTauri() ? 'Use local profile' : 'Explore sample data'} <Icon name="arrow" size={16}/></button>
+      {isTauri() && pending !== 'claude' && <details className="license-details" open={tokenProviders.includes(pending) && settings.liveProviders.includes(pending)}><summary>Advanced: use an account token instead</summary><TokenConnection key={pending} providerId={pending} onBusy={setTokenBusy} onConnected={() => {
+        update({ demo: false, liveProviders: [...new Set([...settings.liveProviders, pending])], tokenProviders: [...new Set([...tokenProviders, pending])], enabled: [...new Set([...settings.enabled, pending])] });
+        onTokenChange(pending); setPending(null);
+      }}/></details>}
     </Modal>}
   </div>;
 }

@@ -31,20 +31,20 @@ test('sidebar keeps active local profiles, excludes paused and token-suppressed 
   await expect(page.getByRole('button', { name: 'Costs', exact: true })).toHaveCount(0);
 });
 
-test('updating from local-only connections pauses existing profiles until the user chooses a new source', async ({ page }) => {
+test('updating local connections retains their selections and waits for renewed privacy consent', async ({ page }) => {
   await nativeBridge(page, { settings: { legalVersion: '1.1-providers-4', enabled: ['claude', 'codex', 'cursor'], liveProviders: ['claude', 'codex', 'cursor'], profiles: [{ key: 'old-local', providerId: 'claude', label: 'Old history', directory: 'C:\\fixture\\claude' }] }, quotas: { codex: quota, cursor: quota } });
   await page.goto('/');
   const gate = page.getByRole('dialog', { name: 'Before you connect' });
+  expect(await countCalls(page, 'discover_local_providers')).toBe(0);
+  expect(await countCalls(page, 'refresh_provider')).toBe(0);
   await gate.getByRole('checkbox').check();
   await gate.getByRole('button', { name: 'Agree and continue' }).click();
-  await expect(page.getByRole('progressbar')).toHaveCount(0);
-  expect(await countCalls(page, 'read_usage_history')).toBe(0);
-  expect(await countCalls(page, 'refresh_provider')).toBe(0);
-  await expect(page.locator('.quick-rail-providers button')).toHaveCount(0);
+  await expect(page.locator('.quick-rail-providers button')).toHaveCount(3);
+  await expect.poll(() => countCalls(page, 'refresh_provider')).toBeGreaterThan(0);
   const settings = await page.evaluate(() => JSON.parse(localStorage.getItem('meterluma.settings.v2')!));
-  expect(settings.liveProviders).toEqual([]);
-  expect(settings.tokenProviders).toEqual(['codex', 'cursor']);
-  expect(settings.profiles[0].paused).toBe(true);
+  expect(settings.liveProviders).toEqual(['claude', 'codex', 'cursor']);
+  expect(settings.tokenProviders).toEqual([]);
+  expect(settings.profiles[0].paused).toBe(false);
   expect(settings.profiles[0].directory).toBe('C:\\fixture\\claude');
 });
 
@@ -54,6 +54,7 @@ test('a supplied Codex token fetches limits without local history and never ente
   await expect(page.locator('.quick-rail-providers button')).toHaveCount(0);
   await page.getByRole('button', { name: 'Connections', exact: true }).click();
   await page.getByRole('button', { name: 'Connect Codex', exact: true }).click();
+  await page.getByText('Advanced: use an account token instead', { exact: true }).click();
   await page.getByLabel('Account access token', { exact: true }).fill(fixtureToken);
   await page.getByLabel('ChatGPT account ID (optional)').fill('fixture-account');
   await page.getByRole('button', { name: 'Connect with token', exact: true }).click();
@@ -96,6 +97,7 @@ test('a rejected token is cleared from the form without enabling a connection', 
   await page.goto('/');
   await page.getByRole('button', { name: 'Connections', exact: true }).click();
   await page.getByRole('button', { name: 'Connect Cursor', exact: true }).click();
+  await page.getByText('Advanced: use an account token instead', { exact: true }).click();
   await page.getByLabel('Account access token', { exact: true }).fill(fixtureToken);
   await page.getByRole('button', { name: 'Connect with token', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('expired');
@@ -112,6 +114,7 @@ test('an in-flight token check cannot be dismissed before it finishes', async ({
   await page.getByRole('button', { name: 'Connections', exact: true }).click();
   await page.getByRole('button', { name: 'Connect Cursor', exact: true }).click();
   await holdNative(page);
+  await page.getByText('Advanced: use an account token instead', { exact: true }).click();
   await page.getByLabel('Account access token', { exact: true }).fill(fixtureToken);
   await page.getByRole('button', { name: 'Connect with token', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Checking token…', exact: true })).toBeDisabled();

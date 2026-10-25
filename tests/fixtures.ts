@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
 
 // Synthetic data only. Nothing here reads real provider credentials or logs.
-export const LEGAL = '1.1-providers-5';
+export const LEGAL = '1.1-providers-6';
 export const SETTINGS_KEY = 'meterluma.settings.v2';
 
 const iso = (date: Date) => date.toISOString().slice(0, 10);
@@ -22,6 +22,7 @@ export function history({ days = 30, today = '2026-10-15', recordedDays, tokens 
 export interface QuotaMock { plan?: string; metrics?: { label: string; usedPercent: number; resetIn: number | null }[]; ageMs?: number; error?: unknown; retryIn?: number; snapshot?: QuotaMock }
 export interface BridgeOptions {
   settings: Record<string, unknown>;
+  localProviders?: ('claude' | 'codex' | 'cursor')[];
   quotas?: Partial<Record<'codex' | 'cursor', QuotaMock>>;
   histories?: Partial<Record<'claude' | 'codex', ReturnType<typeof history>>>;
   failResizeOnce?: boolean;
@@ -44,6 +45,7 @@ export async function nativeBridge(page: Page, options: BridgeOptions) {
     Object.assign(window, { isTauri: true, nativeCalls: calls, holdNative: false, releaseNative: (newestFirst = false) => { state.holdNative = false; const pending = waiting.splice(0); (newestFirst ? pending.reverse() : pending).forEach(resolve => resolve()); }, __TAURI_INTERNALS__: { invoke: async (command: string, args: Record<string, unknown> = {}) => {
       calls.push({ command, args });
       const id = String(args.providerId ?? '');
+      if (command === 'discover_local_providers') return options.localProviders ?? [];
       const step = options.rising ? calls.filter(call => call.command === 'refresh_provider' && call.args.providerId === id).length - 1 : 0;
       if (state.holdNative && (command === 'refresh_provider' || command === 'read_usage_history' || command === 'connect_account_token')) await new Promise<void>(resolve => waiting.push(resolve));
       if (command === 'connect_account_token') {

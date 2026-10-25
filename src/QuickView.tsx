@@ -3,6 +3,7 @@ import { invoke, isTauri } from '@tauri-apps/api/core';
 import { Icon, Mark } from './icons';
 import { readSettings, resetPreferences, sampleProviders, dailySpend, money, SETTINGS_KEY, type Provider, type Settings, type ProviderId } from './model';
 import { hasQuotas, useLiveProviders } from './useLiveProviders';
+import { useLocalDiscovery } from './useLocalDiscovery';
 import { QuickSettings } from './QuickSettings';
 import { QuickProvider, colors, thirtyDaySpend } from './QuickProvider';
 import { ProviderLogo } from './ProviderLogo';
@@ -33,6 +34,7 @@ export default function QuickView() {
   const optionsButton = useRef<HTMLButtonElement>(null);
   const optionsMenu = useRef<HTMLDivElement>(null);
   const live = useLiveProviders(settings);
+  const discovery = useLocalDiscovery(settings, updateSettings);
   const catalog = sampleProviders(anchor);
   const providers = (settings.demo ? catalog.filter(provider => settings.enabled.includes(provider.id)) : live.results.flatMap(result => result.provider ? [result.provider] : [])).sort((a, b) => settings.providerOrder.indexOf(a.id) - settings.providerOrder.indexOf(b.id));
   const selectedProviders = new Set(settings.demo ? settings.enabled : [
@@ -112,7 +114,7 @@ export default function QuickView() {
     setDialog(null);
     if (updateSettings(resetPreferences(settings))) setMessage('Preferences reset. Connections, alerts and consent were kept.');
   }
-  function refresh() { live.refresh(); setRefreshed(Date.now()); setNow(Date.now()); setOptions(false); setMessage(''); }
+  function refresh() { discovery.refresh(); live.refresh(); setRefreshed(Date.now()); setNow(Date.now()); setOptions(false); setMessage(''); }
   const failures = !settings.demo ? live.results.filter(result => (view === 'overview' || result.id === view) && ((result.loading && !result.provider) || result.error)) : [];
   let offset = 0;
   return <main className="quick-view" aria-label="MeterLuma usage panel">
@@ -132,7 +134,7 @@ export default function QuickView() {
         const fraction = total ? provider.cost / total * 100 : 0; const start = offset; offset += fraction;
         return <circle key={provider.key} cx="60" cy="60" r="48" pathLength="100" fill="none" stroke={colors[provider.id]} strokeWidth="12" strokeDasharray={`${Math.max(0, fraction - 1.7)} ${100 - Math.max(0, fraction - 1.7)}`} strokeDashoffset={-start} transform="rotate(-90 60 60)"/>;
       })}</svg><div><strong>{settings.demo ? '' : '~'}{money(total)}</strong><span>{settings.demo ? 'USD · sample' : 'USD · estimate'}</span></div></div><ul className="quick-cost-legend">{costs.map(provider => <li key={provider.key}><i style={{ background: colors[provider.id] }}/><span>{provider.name}</span><strong>{money(provider.cost)}</strong></li>)}</ul></div> : <div className="quick-cost-empty"><Icon name="info" size={19}/><p>{settings.demo ? 'Enable a provider to preview costs.' : <><span>No estimated API value yet</span><small>Dollar estimates need recorded Claude Code history with known model prices.</small></>}</p></div>}</section>{!settings.demo && costs.length > 0 && (since || unpriced > 0) && <p className="quick-info quick-cost-notes">{range === '30 Days' && since ? `${since}: earlier days have no local logs. ` : ''}{unpriced > 0 ? `Excludes ${count(unpriced)} tokens from models without a known price.` : ''}</p>}</>}
-      {view === 'connections' && <QuickConnections settings={settings} update={updateSettings} results={live.results} onTokenChange={live.tokenChanged}/>}
+      {view === 'connections' && <>{discovery.checking && <p className="quick-info" role="status">Checking local connections...</p>}{discovery.error && <p className="quick-info" role="status">{discovery.error}</p>}<QuickConnections settings={settings} update={updateSettings} results={live.results} onTokenChange={live.tokenChanged}/></>}
       {view === 'settings' && <QuickSettings settings={settings} update={updateSettings} catalog={catalog} providers={providers} connect={() => setView('connections')}/>}
       {view === 'help' && <section className="quick-help"><Mark size={42}/><h2>All your AI usage,<br/>one glance.</h2><p>MeterLuma keeps your plan limits, reset times and recorded token history close while you work.</p><div><h3>Connect your accounts</h3><p>Codex quotas come from its official CLI. Cursor's monthly allowance uses your local Cursor sign-in with an unofficial endpoint. Claude shows recorded token history only. {CLAUDE_LOCAL}</p><button onClick={() => setView('connections')}>Manage connections <Icon name="arrow" size={14}/></button></div><NotAffiliated className="quick-info"/><p className="quick-info">MeterLuma v{APP_VERSION}{import.meta.env.DEV ? ' · development build' : ''}. Free for personal, noncommercial use only. Selling and redistribution are prohibited.</p><div className="quick-help-actions"><button onClick={() => setDialog('license')}>View license</button><button onClick={() => setDialog('reset')}>Reset preferences</button></div></section>}
       {failures.filter(result => !(isProviderView && detail && result.key === detail.connectionKey)).map(result => <p className="quick-info" role="status" key={result.key}>{result.loading && !result.provider ? `Reading ${providerNames[result.id]}${result.label ? ` · ${result.label}` : ''}…` : `${providerNames[result.id]}${result.label ? ` · ${result.label}` : ''}: ${result.error}`}</p>)}

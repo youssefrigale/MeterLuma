@@ -50,13 +50,14 @@ Run `npm run build` before the release UI suite. The project supports a universa
 
 ## First Mac work
 
+- Start with the default local workflow: after privacy revision 6 consent, Claude Code history, the signed-in Codex CLI and the Cursor desktop profile should appear automatically without a MeterLuma login or token entry. Test startup from Finder, detection after Refresh, missing/expired local sign-ins, explicit disconnect persistence, hidden providers and paused custom profiles. Verify the Cursor default-profile Keychain fallback. Claude must remain history-only.
 - Compile and exercise the new macOS Keychain account-token path in `src-tauri/src/providers/tokens.rs`. Windows checks cannot verify this native code. Test saving, replacement, restart, disconnect, access denial and a locked Keychain without exposing tokens in screenshots or logs.
 - Verify Codex external-token quotas using an up-to-date official CLI, including when MeterLuma starts from Finder. Token mode uses a separate temporary Codex home and must never fall back to local sign-ins or history. Expired tokens need replacement inside MeterLuma.
 - Verify Cursor account-token limits and its Unofficial disclosures. Successful real manual-token QA remains pending on both platforms; previous Windows local-sign-in checks covered a separate path.
 - Check menu-bar placement on multiple displays, full-screen Spaces, an auto-hidden menu bar, scale changes and physical sleep/wake. Test on macOS 13 or later, with Apple silicon and Intel coverage where available.
 - Retain the approved Levels Clean graphite logo, no focus outlines, hidden provider/Costs icons before selecting a provider, and the footer with version left and next update minutes right. `AGENTS.md` records owner decisions.
 
-Claude remains optional local history only. Do not collect Claude.ai session credentials. Windows builds remain intentionally unsigned; that policy does not waive macOS release signing/notarization requirements.
+Account-token connections above are optional advanced functionality; they are not the default onboarding workflow. Claude remains local history only. Do not collect Claude.ai session credentials. Windows builds remain intentionally unsigned; that policy does not waive macOS release signing/notarization requirements.
 
 ## What is included
 

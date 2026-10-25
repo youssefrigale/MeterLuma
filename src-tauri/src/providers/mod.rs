@@ -11,6 +11,9 @@ use tokio::sync::Mutex;
 use std::{collections::HashMap, path::{Path, PathBuf}, sync::Arc, time::{Duration, Instant}};
 
 pub const CLAUDE_UNAVAILABLE: &str = "Claude live quotas are not available in MeterLuma. Recorded Claude Code history is read from local logs.";
+
+#[cfg(any(target_os = "windows", test))]
+pub(crate) fn has_cursor_sign_in(root: &Path) -> bool { auth::cursor(root, false).is_ok() }
 const USER_AGENT: &str = concat!("MeterLuma/", env!("CARGO_PKG_VERSION"));
 const CURSOR_USAGE: &str = "https://api2.cursor.sh/aiserver.v1.DashboardService/GetCurrentPeriodUsage";
 // Both always-alive windows poll at least every 5 minutes; a just-under-5-minute window keeps them on one CLI run.

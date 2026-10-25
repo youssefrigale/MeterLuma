@@ -1,1 +1,1 @@
-export const LEGAL_VERSION = '1.1-providers-5';
+export const LEGAL_VERSION = '1.1-providers-6';

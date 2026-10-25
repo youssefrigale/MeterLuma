@@ -3,7 +3,7 @@ import AxeBuilder from '@axe-core/playwright';
 
 async function referenceBridge(page: Page, theme: string, providerId: 'codex' | 'claude', expired = false) {
   await page.addInitScript(({ theme, providerId, expired }) => {
-    localStorage.setItem('meterluma.settings.v2', JSON.stringify({ theme, legalVersion: '1.1-providers-5', demo: false, enabled: [providerId], liveProviders: [providerId] }));
+    localStorage.setItem('meterluma.settings.v2', JSON.stringify({ theme, legalVersion: '1.1-providers-6', demo: false, enabled: [providerId], liveProviders: [providerId] }));
     Object.assign(window, { isTauri: true, __TAURI_INTERNALS__: { invoke: async (command: string, args: { providerId?: string } = {}) => {
       if (command === 'refresh_provider') {
         if (args.providerId === 'claude') throw new Error('Claude quotas must never be requested');

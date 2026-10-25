@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 
 async function nativeBridge(page: Page, shouldFail = false, quick = false, providerId: 'cursor' | 'codex' = 'codex') {
   await page.addInitScript(({ shouldFail, quick, providerId }) => {
-    localStorage.setItem('meterluma.settings.v2', JSON.stringify(quick ? { legalVersion: '1.1-providers-5', demo: false, remaining: true, enabled: [providerId], liveProviders: [providerId] } : { legalVersion: '1.1-providers-5', remaining: false, demo: true }));
+    localStorage.setItem('meterluma.settings.v2', JSON.stringify(quick ? { legalVersion: '1.1-providers-6', demo: false, remaining: true, enabled: [providerId], liveProviders: [providerId] } : { legalVersion: '1.1-providers-6', remaining: false, demo: true }));
     const calls: string[] = [];
     Object.assign(window, {
       isTauri: true,

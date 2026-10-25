@@ -2,6 +2,18 @@
 
 Version 0.1.2, Windows 11 Pro 10.0.26300, x64 MSVC, branch `restore-provider-logos`. This checkpoint supports continuing development and testing on Mac; it is not a public-release sign-off.
 
+## Latest follow-up: automatic local connections
+
+The owner superseded the token-first default: MeterLuma now discovers existing local Claude Code history, Codex CLI profiles and Cursor desktop profiles after privacy revision 6 consent. No separate login or pasted token is required. Explicit disconnects, hidden providers, paused custom profiles and active explicit token connections are respected. Advanced token entry is collapsed by default. Windows also checks the known Codex MSIX redirected Cursor location, preferring an existing sign-in.
+
+The final Chromium suite passed 138 checks, WebKit 69 and production UI 3. Windows Rust release tests passed 79 checks; the updater-enabled suite passed 80, with two opt-in local-data tests ignored in each suite. Version consistency and coverage of all 531 locked packages in the notices passed. No dependencies changed after the earlier successful audits.
+
+Eleven native checks passed against the rebuilt candidate using disposable MeterLuma data and the owner's existing local provider connections. All three providers appeared automatically with no token entry. Claude and Codex history loaded with matching model/day totals; both Codex and Cursor returned live limits through their default local connection. Claude remained history-only. Provider-scoped discovery, reload persistence, persistent disconnects, hidden Costs after disconnect and absence of credential fields in preferences passed. No comparison with account dashboards or account-switching exercise is claimed.
+
+At 22:13 UTC, the unsigned 0.1.2 installer replaced the owner's previous Costs build. All 316 existing app-data files were unchanged before launch. Installed resources match source; the executable matches the tested candidate except for the expected three-byte NSIS bundle marker. The app was reopened normally without debugging. The owner accepts the updated privacy notice in the normal app; acceptance was automated only in the disposable test profile.
+
+Latest private candidate/evidence: `artifacts/local/windows-qa-2026-10-25-local-discovery/`. Owner backup: `artifacts/local/windows-install-2026-10-25-221341/`. Isolation/restoration: `artifacts/local/windows-qa-2026-10-25-local-isolation/`. The earlier report below remains historical; its live-token limitation concerns the optional advanced feature, not the now-verified default local workflow. Uninstall/tool limitations and unavailable Windows environments remain unchanged.
+
 ## Bug fixed
 
 A clock tick or navigation after a rate-limit deadline could cancel its pending retry during the one-second grace period. Retry scheduling now retains the deadline until a new lookup starts. Already-spent deadlines cannot start a retry loop. The regression failed before the fix and passed three consecutive WebKit runs after it.

@@ -23,7 +23,7 @@ test('fresh startup and saved prototype preferences use real-data mode without i
 
 test('Claude device tokens and model shares come from local history without any quota request', async ({ page }) => {
   await page.addInitScript(() => {
-    localStorage.setItem('meterluma.settings.v2', JSON.stringify({ legalVersion: '1.1-providers-5', demo: false, liveProviders: ['claude'], enabled: ['claude'] }));
+    localStorage.setItem('meterluma.settings.v2', JSON.stringify({ legalVersion: '1.1-providers-6', demo: false, liveProviders: ['claude'], enabled: ['claude'] }));
     const calls: string[] = [];
     Object.assign(window, { isTauri: true, nativeCommands: calls, __TAURI_INTERNALS__: { invoke: async (command: string) => {
       calls.push(command);
