@@ -6,6 +6,8 @@ MeterLuma is not affiliated with or endorsed by Anthropic, OpenAI or Anysphere (
 
 ## Current status
 
+Latest Windows QA: [October 25 checkpoint](docs/windows-qa-2026-10-25.md). Fixed a rate-limit retry cancellation race; the final interface checks, Windows Rust suites, audits and unsigned installer build pass. Live-token, restricted native-UI and additional Windows hardware/environment checks remain explicitly listed there. Mac testing can proceed; this is not public-release approval.
+
 This is an internal pre-release of version 0.1.2 with the unreleased changes listed in [CHANGELOG.md](CHANGELOG.md). Windows releases will be unsigned by the owner's decision of 2026-10-20; Windows code signing is not a launch requirement. Public release still needs the remaining functional QA and release-workflow validation; macOS also needs its platform checks (see [Windows QA checkpoint](#windows-qa-checkpoint--2026-10-20) and [earlier verification](#current-verification--2026-10-15)).
 
 - **Claude Code**: recorded token history from local Claude Code logs only. No quotas or alerts. MeterLuma does not read Claude credentials and never contacts Anthropic (Claude's Status and Usage dashboard buttons only open Anthropic's public pages in your browser when you click them).

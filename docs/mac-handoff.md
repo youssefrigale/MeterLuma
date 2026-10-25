@@ -1,6 +1,6 @@
 # Continue MeterLuma on Mac
 
-Windows checkpoint: 2026-10-20, version 0.1.2. Continue on branch `restore-provider-logos` in `youssefrigale/MeterLuma`.
+Windows checkpoint: [2026-10-25](windows-qa-2026-10-25.md), version 0.1.2. Continue on branch `restore-provider-logos` in `youssefrigale/MeterLuma`. The latest change fixes cancellation of a scheduled rate-limit retry; the new regression failed before the fix and passes afterward. The checkpoint distinguishes completed Windows tests from live-token, tool-blocked and hardware-dependent checks.
 
 ## Get the code
 

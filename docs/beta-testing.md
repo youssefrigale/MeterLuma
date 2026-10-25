@@ -6,6 +6,8 @@ This build defaults Codex and Cursor to supplied account tokens for subscription
 
 ## Windows
 
+Latest QA and rebuilt retry-fix candidate: [October 25 checkpoint](windows-qa-2026-10-25.md), `artifacts/local/windows-qa-2026-10-25/MeterLuma_0.1.2_x64-setup.exe`. This candidate is unsigned and private. The checkpoint identifies which tests used this fix and which native checks used the preceding installed candidate.
+
 Current installed candidate: `artifacts/local/windows-qa-2026-10-20-v012-costs-hidden/MeterLuma_0.1.2_x64-setup.exe`. Costs now stays hidden until a provider is chosen and visible, and removing the final provider from the Costs page returns to Overview. Focused Chromium 28, WebKit 14, production UI 3 and native checks 11 pass. The installer preserved all 307 existing app-data files before launch; earlier provider QA limitations still apply.
 
 Preceding candidate: `artifacts/local/windows-qa-2026-10-20-v012-footer/MeterLuma_0.1.2_x64-setup.exe`. The footer now has the app/version on the left and next update minutes on the right, using the chosen Settings interval even before connecting a provider. Click the version for Options and hover over the update text for fetch/cache/retry details. Chromium 126, WebKit 63, production UI 3 and native checks 10 pass, including all four interval choices and reload persistence. The installer preserved all 306 existing app-data files before launch. Earlier provider QA limitations still apply.

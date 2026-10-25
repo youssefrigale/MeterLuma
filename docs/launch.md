@@ -1,5 +1,7 @@
 # Worldwide launch requirements
 
+Latest checkpoint: [Windows QA, 2026-10-25](windows-qa-2026-10-25.md). A rate-limit retry cancellation bug is fixed and regression-tested. Windows Rust suites, final interface checks, dependency audits and the unsigned installer build pass. Successful manual-token QA, blocked native UI checks and unavailable Windows hardware/environment cases are listed separately. Continue Mac testing without treating this checkpoint as public-release approval.
+
 MeterLuma is an active project. Passing interface and native checks makes it a working pre-release, not a product ready for a worldwide launch. This page lists what is done in the code as of 2026-10-15 (`release-readiness` at `1b4c9c1`) and what remains. The release mechanics are in [release-process.md](release-process.md).
 
 Windows QA update, 2026-10-20: the current NSIS installer, same-version replacement, a 0.1.0 to 0.1.1 upgrade preserving settings/data, uninstall preserving data, exports, and real Claude/Codex/Cursor connections were exercised on Windows 11 x64. Cursor passed using a custom profile for the Codex package's redirected app-data folder. The uninstall data-deletion checkbox is still blocked by the UI automation tool, and Windows 10, missing-WebView2 installation and additional hardware/account scenarios remain untested. A simulated long-gap resume regression is fixed; physical sleep/wake remains untested. See the [Windows QA checkpoint](../README.md#windows-qa-checkpoint--2026-10-20) for the exact scope and evidence.

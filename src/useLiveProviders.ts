@@ -80,9 +80,9 @@ export function useLiveProviders(settings: Settings) {
     document.addEventListener('visibilitychange', resume);
     return () => { window.removeEventListener('focus', resume); document.removeEventListener('visibilitychange', resume); };
   }, [settings.demo, sources, settings.refreshMinutes, permitted]);
-  // Only settled rows with a deadline still ahead schedule an early retry; a carried-over, elapsed deadline would refire every second.
-  const now = Date.now();
-  const retryDeadline = Math.min(...results.flatMap(result => !result.loading && typeof result.quotaFailure?.retryAt === 'number' && result.quotaFailure.retryAt > now ? [result.quotaFailure.retryAt] : []));
+  // Keep a settled retry scheduled when a clock tick or navigation renders after its
+  // deadline. Once a new lookup starts, deadlines from before that lookup are spent.
+  const retryDeadline = Math.min(...results.flatMap(result => !result.loading && typeof result.quotaFailure?.retryAt === 'number' && result.quotaFailure.retryAt > (lastStarted.current ?? 0) ? [result.quotaFailure.retryAt] : []));
   useEffect(() => {
     if (settings.demo || !isTauri() || !permitted || sources === '[]') { setNextRefreshAt(null); return; }
     const interval = Math.max(5, settings.refreshMinutes) * 60_000;

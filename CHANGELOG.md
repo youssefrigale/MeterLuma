@@ -11,6 +11,8 @@ Prepared for version 0.1.2; no release has been published.
 
 ### Changed
 
+- Keep a rate-limit retry scheduled when a clock tick or navigation renders just after its deadline. Spent deadlines do not cause repeated retries.
+
 - Costs is hidden from the sidebar until a provider is chosen, and returns to Overview if the final provider is removed while viewing Costs.
 
 - The footer now shows MeterLuma and its version on the left and the next update time on the right, including the selected interval before any provider is connected. Click the version to open Options; fetch/cache/retry details remain in the update tooltip.

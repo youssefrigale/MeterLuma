@@ -35,6 +35,8 @@
 
 ## Release evidence
 
+- **2026-10-25 - Windows QA continuation.** See `docs/windows-qa-2026-10-25.md`. Fixed a rate-limit retry cancelled by a render after its deadline; regression failed before and passed after the fix. Final Chromium 126 plus 2 added-regression checks, WebKit 63 plus 1 added-regression check, production UI 3, Rust 77 and updater Rust 78 pass (2 opt-in checks ignored in each Rust suite). Native tests against the preceding Costs candidate: UI 11, invalid-token 6, synthetic history/lifecycle 6. Fresh install/replacement passed in isolation. All 308 owner app-data files restored byte-for-byte. New private rebuilt candidate: `artifacts/local/windows-qa-2026-10-25/`; it has not yet replaced the owner's installed Costs candidate. The computer-use tool again blocked the disposable uninstaller and could not expose a targetable native panel for export/tray interaction. Do not bypass the block or report those checks as passed. Real manual-token QA was handed to the owner inside the normal app with debugging disabled. Mac, Windows 10, missing-WebView2 and additional hardware checks remain pending; no Actions or release publication was performed.
+
 - Keep the current readiness status in `README.md` and `docs/launch.md`, and release mechanics in `docs/release-process.md`.
 - Private local QA reports and binaries live under gitignored `artifacts/local/windows-qa-*` directories. They are not public releases. Do not commit provider credentials, private usage exports, or WebView profiles.
 
