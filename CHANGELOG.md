@@ -11,6 +11,8 @@ Prepared for version 0.1.2; no release has been published.
 
 ### Changed
 
+- Keep the panel and footer at the same size and position when switching pages. Replace the cramped Costs donut with a readable total, explicit USD label and aligned provider breakdown, including zero-value periods and long account names.
+
 - Detect existing local Claude Code history, Codex CLI profiles and Cursor desktop profiles automatically after privacy revision 6 consent. No separate login or pasted token is needed. Keep explicit disconnects, visibility choices and paused custom profiles; retain active explicit token connections without fallback. Token entry moves under an advanced disclosure. Windows Cursor discovery also handles the known Codex MSIX redirected roaming profile.
 
 - Keep a rate-limit retry scheduled when a clock tick or navigation renders just after its deadline. Spent deadlines do not cause repeated retries.

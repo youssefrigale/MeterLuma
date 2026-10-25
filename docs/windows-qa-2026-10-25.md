@@ -2,7 +2,15 @@
 
 Version 0.1.2, Windows 11 Pro 10.0.26300, x64 MSVC, branch `restore-provider-logos`. This checkpoint supports continuing development and testing on Mac; it is not a public-release sign-off.
 
-## Latest follow-up: automatic local connections
+## Latest follow-up: stable panel and Costs layout
+
+Navigation now keeps the standard 360 by 660 logical-pixel panel across all pages, subject to the existing native screen-work-area clamp. Costs and Help no longer shrink the window. The Costs donut is replaced by a readable estimated total, USD label, zero-usage explanation and aligned provider rows. Long account names truncate before the amount; pricing and coverage calculations are unchanged.
+
+The production build, 68 targeted Chromium checks, 34 targeted WebKit checks and 3 production UI checks passed. Coverage includes both themes, accessibility, zero costs, large amounts, long names and no additional native resize calls during navigation. Five native checks passed against the rebuilt Windows candidate: consent, local detection, stable viewport/footer across all eight pages, all three Costs ranges without overflow, and both themes with reload. These UI-only changes did not require rerunning the previously passed Rust suites.
+
+At 23:15 UTC the unsigned 0.1.2 update was installed and reopened normally. All 314 existing app-data files were unchanged before launch and were also restored byte-for-byte after isolated testing. The installed executable matches the candidate except for the expected three-byte NSIS marker. Private evidence: `artifacts/local/windows-qa-2026-10-25-panel-layout/`; owner backup: `artifacts/local/windows-install-2026-10-25-231524/`; isolation: `artifacts/local/windows-qa-2026-10-25-layout-isolation/`. This supersedes the candidate below; the remaining QA limitations are unchanged.
+
+## Earlier follow-up: automatic local connections
 
 The owner superseded the token-first default: MeterLuma now discovers existing local Claude Code history, Codex CLI profiles and Cursor desktop profiles after privacy revision 6 consent. No separate login or pasted token is required. Explicit disconnects, hidden providers, paused custom profiles and active explicit token connections are respected. Advanced token entry is collapsed by default. Windows also checks the known Codex MSIX redirected Cursor location, preferring an existing sign-in.
 

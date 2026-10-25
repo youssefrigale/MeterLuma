@@ -89,9 +89,8 @@ export default function QuickView() {
   useEffect(() => { if (!message) return; const timer = window.setTimeout(() => setMessage(''), 8000); return () => clearTimeout(timer); }, [message]);
   useEffect(() => {
     if (!isTauri()) return;
-    const height = view === 'costs' ? 480 : view === 'help' ? 560 : 660;
-    void invoke('resize_quick', { height }).catch(() => setMessage('The panel could not be resized.'));
-  }, [view, isProviderView, detail?.id]);
+    void invoke('resize_quick', { height: 660 }).catch(() => setMessage('The panel could not be resized.'));
+  }, []);
   useEffect(() => {
     if (!options) return;
     optionsMenu.current?.querySelector<HTMLButtonElement>('button')?.focus();
@@ -116,7 +115,6 @@ export default function QuickView() {
   }
   function refresh() { discovery.refresh(); live.refresh(); setRefreshed(Date.now()); setNow(Date.now()); setOptions(false); setMessage(''); }
   const failures = !settings.demo ? live.results.filter(result => (view === 'overview' || result.id === view) && ((result.loading && !result.provider) || result.error)) : [];
-  let offset = 0;
   return <main className="quick-view" aria-label="MeterLuma usage panel">
     <nav className="quick-rail" aria-label="Panel navigation">
       <button className={view === 'overview' ? 'active' : ''} aria-label="Overview" aria-current={view === 'overview' ? 'page' : undefined} title="Overview" onClick={() => setView('overview')}><Mark size={25}/></button>
@@ -130,10 +128,23 @@ export default function QuickView() {
       <UsageAlerts settings={settings} providers={providers} now={now}/>{view === 'overview' && <><div className="quick-providers">{providers.map(provider => <QuickProvider key={provider.connectionKey ?? provider.id} provider={provider} settings={settings} now={now}/>)}</div>{!providers.length && !live.loading && <div className="quick-empty"><p>Keep your allowances in view.</p><button onClick={() => setView('connections')}>Choose providers <Icon name="arrow" size={14}/></button></div>}{settings.demo && providers.length > 0 && <button className="quick-cost-summary" onClick={() => setView('costs')}><span>Sample spend today</span><strong>{money(providers.reduce((sum, provider) => sum + provider.spendToday!, 0))}</strong><Icon name="chevron" size={13}/></button>}</>}
       {isProviderView && details.length > 1 && <label className="quick-account-picker">Local account<select value={detail.connectionKey} onChange={event => setProfileKey(event.target.value)}>{details.map(provider => <option key={provider.connectionKey} value={provider.connectionKey}>{provider.accountLabel ?? 'Default profile'}</option>)}</select></label>}
       {isProviderView && (detail ? <QuickProvider provider={detail} settings={settings} now={now} detailed retry={refresh} connectionError={live.results.find(result => result.key === detail.connectionKey)?.error} reconnect={() => setView('connections')}/> : !live.loading && <div className="quick-empty"><p>This provider is not connected.</p><button onClick={() => setView('connections')}>Connection options <Icon name="arrow" size={14}/></button></div>)}
-      {view === 'costs' && <><p className="quick-info">{settings.demo ? 'Simulated spending in USD. These are not your bills.' : 'Estimated API value in USD: recorded local tokens at standard API rates. Not a bill or subscription charge.'}</p><section className="quick-cost" aria-label="Provider costs"><div className="quick-tabs" aria-label="Cost date range">{(['Today', 'Yesterday', '30 Days'] as const).map(value => <button key={value} aria-pressed={range === value} className={range === value ? 'selected' : ''} onClick={() => setRange(value)}>{value}</button>)}</div>{costs.length > 0 ? <div className="quick-cost-content"><div className="quick-donut" role="img" aria-label={settings.demo ? `${range} simulated costs: ${money(total)}` : `${range} estimated API value: ${money(total)}`}><svg viewBox="0 0 120 120" aria-hidden="true"><circle className="quick-donut-track" cx="60" cy="60" r="48"/>{costs.map(provider => {
-        const fraction = total ? provider.cost / total * 100 : 0; const start = offset; offset += fraction;
-        return <circle key={provider.key} cx="60" cy="60" r="48" pathLength="100" fill="none" stroke={colors[provider.id]} strokeWidth="12" strokeDasharray={`${Math.max(0, fraction - 1.7)} ${100 - Math.max(0, fraction - 1.7)}`} strokeDashoffset={-start} transform="rotate(-90 60 60)"/>;
-      })}</svg><div><strong>{settings.demo ? '' : '~'}{money(total)}</strong><span>{settings.demo ? 'USD · sample' : 'USD · estimate'}</span></div></div><ul className="quick-cost-legend">{costs.map(provider => <li key={provider.key}><i style={{ background: colors[provider.id] }}/><span>{provider.name}</span><strong>{money(provider.cost)}</strong></li>)}</ul></div> : <div className="quick-cost-empty"><Icon name="info" size={19}/><p>{settings.demo ? 'Enable a provider to preview costs.' : <><span>No estimated API value yet</span><small>Dollar estimates need recorded Claude Code history with known model prices.</small></>}</p></div>}</section>{!settings.demo && costs.length > 0 && (since || unpriced > 0) && <p className="quick-info quick-cost-notes">{range === '30 Days' && since ? `${since}: earlier days have no local logs. ` : ''}{unpriced > 0 ? `Excludes ${count(unpriced)} tokens from models without a known price.` : ''}</p>}</>}
+      {view === 'costs' && <>
+        <section className="quick-cost" aria-label="Provider costs">
+          <div className="quick-tabs" aria-label="Cost date range">{(['Today', 'Yesterday', '30 Days'] as const).map(value => <button key={value} aria-pressed={range === value} className={range === value ? 'selected' : ''} onClick={() => setRange(value)}>{value}</button>)}</div>
+          {costs.length > 0 ? <>
+            <div className="quick-cost-total" role="group" aria-label={settings.demo ? `${range} simulated costs: ${money(total)}` : `${range} estimated API value: ${money(total)}`}>
+              <div className="quick-cost-label"><span>{settings.demo ? 'Sample spending' : 'Estimated API value'}</span><span>USD</span></div>
+              <strong className="quick-cost-amount">{money(total)}</strong>
+              <p>{total === 0 ? 'No priced usage in this period.' : settings.demo ? 'Illustrative sample data' : 'From recorded token usage'}</p>
+            </div>
+            <div className="quick-cost-breakdown"><h2>By provider</h2><ul className="quick-cost-legend">{costs.map(provider => <li key={provider.key}>
+              <ProviderLogo id={provider.id} size={20}/><span title={provider.name}>{provider.name}</span><strong>{money(provider.cost)}</strong>
+            </li>)}</ul></div>
+          </> : <div className="quick-cost-empty"><Icon name="info" size={19}/><p>{settings.demo ? 'Enable a provider to preview costs.' : <><span>No estimated API value yet</span><small>Dollar estimates need recorded Claude Code history with known model prices.</small></>}</p></div>}
+        </section>
+        <p className="quick-info quick-cost-disclaimer">{settings.demo ? 'Simulated spending in USD. These are not your bills.' : 'Recorded tokens at standard API rates. Not a bill or subscription charge.'}</p>
+        {!settings.demo && costs.length > 0 && (since || unpriced > 0) && <p className="quick-info quick-cost-notes">{range === '30 Days' && since ? `${since}: earlier days have no local logs. ` : ''}{unpriced > 0 ? `Excludes ${count(unpriced)} tokens from models without a known price.` : ''}</p>}
+      </>}
       {view === 'connections' && <>{discovery.checking && <p className="quick-info" role="status">Checking local connections...</p>}{discovery.error && <p className="quick-info" role="status">{discovery.error}</p>}<QuickConnections settings={settings} update={updateSettings} results={live.results} onTokenChange={live.tokenChanged}/></>}
       {view === 'settings' && <QuickSettings settings={settings} update={updateSettings} catalog={catalog} providers={providers} connect={() => setView('connections')}/>}
       {view === 'help' && <section className="quick-help"><Mark size={42}/><h2>All your AI usage,<br/>one glance.</h2><p>MeterLuma keeps your plan limits, reset times and recorded token history close while you work.</p><div><h3>Connect your accounts</h3><p>Codex quotas come from its official CLI. Cursor's monthly allowance uses your local Cursor sign-in with an unofficial endpoint. Claude shows recorded token history only. {CLAUDE_LOCAL}</p><button onClick={() => setView('connections')}>Manage connections <Icon name="arrow" size={14}/></button></div><NotAffiliated className="quick-info"/><p className="quick-info">MeterLuma v{APP_VERSION}{import.meta.env.DEV ? ' · development build' : ''}. Free for personal, noncommercial use only. Selling and redistribution are prohibited.</p><div className="quick-help-actions"><button onClick={() => setDialog('license')}>View license</button><button onClick={() => setDialog('reset')}>Reset preferences</button></div></section>}

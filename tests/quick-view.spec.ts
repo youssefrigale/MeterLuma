@@ -32,9 +32,9 @@ test('cost tabs recalculate samples and Options supports keyboard navigation to 
   await page.goto('/');
   await page.getByRole('button', { name: 'Costs', exact: true }).click();
   await page.getByRole('button', { name: 'Yesterday', exact: true }).click();
-  await expect(page.getByRole('img', { name: 'Yesterday simulated costs: $5.90' })).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Yesterday simulated costs: $5.90' })).toBeVisible();
   await page.getByRole('button', { name: '30 Days', exact: true }).click();
-  await expect(page.getByRole('img', { name: /30 Days simulated costs:/ })).toBeVisible();
+  await expect(page.getByRole('group', { name: /30 Days simulated costs:/ })).toBeVisible();
   await expect(page.locator('.quick-cost-legend')).toContainText('$');
   await page.getByRole('button', { name: 'Options', exact: true }).click();
   await expect(page.getByRole('menuitem', { name: 'Refresh now' })).toBeFocused();

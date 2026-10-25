@@ -1,6 +1,6 @@
 # Worldwide launch requirements
 
-Latest checkpoint: [Windows QA, 2026-10-25](windows-qa-2026-10-25.md), including the installed automatic-local-connection follow-up. Real Claude/Codex history and live Codex/Cursor limits pass without pasted tokens. Chromium 138, WebKit 69, production UI 3, Rust 79, updater Rust 80 and native local checks 11 pass. Optional advanced-token QA, blocked native UI checks and unavailable Windows hardware/environment cases are listed separately. Continue Mac testing without treating this checkpoint as public-release approval.
+Latest checkpoint: [Windows QA, 2026-10-25](windows-qa-2026-10-25.md), including the installed stable-panel and Costs-layout follow-up: 68 targeted Chromium, 34 WebKit, 3 production UI and 5 native checks pass. Earlier automatic-local-connection validation passed Chromium 138, WebKit 69, Rust 79, updater Rust 80 and native local checks 11. Real Claude/Codex history and live Codex/Cursor limits pass without pasted tokens. Optional advanced-token QA, blocked native UI checks and unavailable Windows hardware/environment cases are listed separately. Continue Mac testing without treating this checkpoint as public-release approval.
 
 MeterLuma is an active project. Passing interface and native checks makes it a working pre-release, not a product ready for a worldwide launch. This page lists what is done in the code as of 2026-10-15 (`release-readiness` at `1b4c9c1`) and what remains. The release mechanics are in [release-process.md](release-process.md).
 

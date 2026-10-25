@@ -267,11 +267,11 @@ test('dollar estimates say how many tokens they exclude for unknown model prices
   await expect(page.locator('.quick-unpriced')).toHaveText('Excludes 4,500 tokens from models without a known price.');
   await expect(page.locator('.quick-usage-totals')).toContainText('~$6.00 · 30K tokens');
   await page.getByRole('button', { name: 'Costs', exact: true }).click();
-  await expect(page.getByRole('img', { name: 'Today estimated API value: $0.20' })).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Today estimated API value: $0.20' })).toBeVisible();
   await expect(page.locator('.quick-cost-notes')).toContainText('Excludes 150 tokens from models without a known price.');
   await expect(page.getByText('Not a bill or subscription charge.', { exact: false })).toBeVisible();
   await page.getByRole('button', { name: '30 Days', exact: true }).click();
-  await expect(page.getByRole('img', { name: '30 Days estimated API value: $6.00' })).toBeVisible();
+  await expect(page.getByRole('group', { name: '30 Days estimated API value: $6.00' })).toBeVisible();
 });
 
 test('Cursor is labeled unofficial on its connection option, overview and details', async ({ page }) => {
