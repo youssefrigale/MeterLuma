@@ -4,6 +4,8 @@ Windows checkpoint: [2026-10-25](windows-qa-2026-10-25.md), version 0.1.2. Conti
 
 ## Get the code
 
+On October 26 the owner deleted the old GitHub repository, and a new private repository was created at the same `youssefrigale/MeterLuma` URL. Both `main` and `restore-provider-logos` contain the latest app. Old pull requests were not migrated. Use a fresh clone when continuing on Mac; keep any local work from an older checkout separately and do not push its old branches or history. GitHub Actions is disabled in the replacement while the allowance is exhausted.
+
 Git history was rewritten on October 26 to remove AI co-author trailers. For an older checkout, save any uncommitted work and local commits first, then use `git fetch origin` and `git reset --hard origin/restore-provider-logos` on that branch, or make a fresh clone. Do not merge the old history back. The normal fast-forward commands below apply to checkouts made after the rewrite.
 
 The latest Codex page also shows subscription details from the existing CLI quota lookup. Verify plan formatting, credits, available resets, missing fields, cached labels and the expanded section on Mac; older snapshot files must still load.
