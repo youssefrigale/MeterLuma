@@ -4,6 +4,8 @@ Windows checkpoint: [2026-10-25](windows-qa-2026-10-25.md), version 0.1.2. Conti
 
 ## Get the code
 
+Git history was rewritten on October 26 to remove AI co-author trailers. For an older checkout, save any uncommitted work and local commits first, then use `git fetch origin` and `git reset --hard origin/restore-provider-logos` on that branch, or make a fresh clone. Do not merge the old history back. The normal fast-forward commands below apply to checkouts made after the rewrite.
+
 The latest Codex page also shows subscription details from the existing CLI quota lookup. Verify plan formatting, credits, available resets, missing fields, cached labels and the expanded section on Mac; older snapshot files must still load.
 
 Claude now explicitly labels its subscription status unavailable. Local history does not detect paused billing; verify the notice on Mac without treating it as live account-status support.

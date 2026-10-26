@@ -2,6 +2,8 @@
 
 ## Owner decisions
 
+- **2026-10-26 - Repository attribution.** The owner requested removing Claude/Codex contributor attribution from all published branches. Use only the owner's configured Git author/committer identity. Do not add AI co-author trailers, generated-by signatures or contributor credits to commits, PR descriptions or project documentation. Preserve provider/product names and required third-party license notices. Historical AI co-author trailers were removed through a backed-up metadata-only history rewrite; do not reintroduce the old history from another checkout.
+
 - **2026-10-26 - Codex subscription details.** The owner wants the richer reference layout: readable plan labels (`prolite` shown as Pro 5x), available rate-limit reset count, credits and subscription detail disclosure alongside usage/history. Preserve actual weekly/session window labels. Show only returned values; missing is unavailable, not zero. Keep cached data labeled. Billing charges, renewal dates and dollar estimates cannot be inferred from subscription token counts. No reset redemption or credit purchase is authorized by this display request.
 
 - **2026-10-26 - Claude history is not subscription status.** The owner showed a paused Claude subscription while MeterLuma still displayed saved history. Keep history visible but explicitly mark the subscription status unavailable. Never infer active/paused billing from local history, zero usage, a saved plan name or CLI login status. Diagnostic `claude auth status --json` on this PC still reported signed-in Max and no billing-state field while the website showed paused. Live pause detection remains unimplemented; do not claim that the notice implements it or hardcode the screenshot state.
