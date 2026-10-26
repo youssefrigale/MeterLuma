@@ -30,6 +30,7 @@ export interface Provider {
   id: ProviderId;
   name: string;
   plan: string;
+  codexAccount?: { credits: { hasCredits: boolean | null; unlimited: boolean | null; balance: number | null } | null; availableResets: number | null; includedUsageAllowed: boolean | null };
   color: string;
   initials: string;
   spendToday: number | null;

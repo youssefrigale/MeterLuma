@@ -19,7 +19,7 @@ export function history({ days = 30, today = '2026-10-15', recordedDays, tokens 
   return { available: true, partial: false, periodDays: days, recordCount: recordedDays, scannedAt: 0, today, coverageStart: recordedDays ? list[days - recordedDays].date : null, days: list, models: models.map(model => ({ name: model.name, totalTokens: Math.round(total * model.share) })) };
 }
 
-export interface QuotaMock { plan?: string; metrics?: { label: string; usedPercent: number; resetIn: number | null }[]; ageMs?: number; error?: unknown; retryIn?: number; snapshot?: QuotaMock }
+export interface QuotaMock { codexAccount?: import('../src/model').Provider['codexAccount']; plan?: string; metrics?: { label: string; usedPercent: number; resetIn: number | null }[]; ageMs?: number; error?: unknown; retryIn?: number; snapshot?: QuotaMock }
 export interface BridgeOptions {
   settings: Record<string, unknown>;
   localProviders?: ('claude' | 'codex' | 'cursor')[];
@@ -39,7 +39,7 @@ export async function nativeBridge(page: Page, options: BridgeOptions) {
     if (!localStorage.getItem('meterluma.settings.v2')) localStorage.setItem('meterluma.settings.v2', JSON.stringify(options.settings));
     const calls: { command: string; args: Record<string, unknown> }[] = [];
     const waiting: (() => void)[] = [];
-    const snapshot = (id: string, quota: QuotaMock, step = 0) => ({ id, name: id === 'codex' ? 'Codex' : 'Cursor', plan: quota.plan ?? 'Subscription', color: '#d97757', initials: '', spendToday: null, fetchedAt: Date.now() - (quota.ageMs ?? 0), metrics: options.malformedQuota ? null : (quota.metrics ?? []).map(metric => ({ label: metric.label, usedPercent: metric.usedPercent + step * 5, resetAt: metric.resetIn === null ? null : Date.now() + metric.resetIn })) });
+    const snapshot = (id: string, quota: QuotaMock, step = 0) => ({ id, name: id === 'codex' ? 'Codex' : 'Cursor', plan: quota.plan ?? 'Subscription', codexAccount: quota.codexAccount, color: '#d97757', initials: '', spendToday: null, fetchedAt: Date.now() - (quota.ageMs ?? 0), metrics: options.malformedQuota ? null : (quota.metrics ?? []).map(metric => ({ label: metric.label, usedPercent: metric.usedPercent + step * 5, resetAt: metric.resetIn === null ? null : Date.now() + metric.resetIn })) });
     const state = window as unknown as { holdNative?: boolean };
     // Tests call holdNative() to keep later data requests pending until releaseNative().
     Object.assign(window, { isTauri: true, nativeCalls: calls, holdNative: false, releaseNative: (newestFirst = false) => { state.holdNative = false; const pending = waiting.splice(0); (newestFirst ? pending.reverse() : pending).forEach(resolve => resolve()); }, __TAURI_INTERNALS__: { invoke: async (command: string, args: Record<string, unknown> = {}) => {

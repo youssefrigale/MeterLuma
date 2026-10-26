@@ -1,4 +1,4 @@
-use super::{Metric, ProviderId, Snapshot};
+use super::{CodexAccount, CodexCredits, Metric, ProviderId, Snapshot};
 use chrono::DateTime;
 use serde_json::Value;
 
@@ -23,6 +23,15 @@ pub fn map(id: ProviderId, value: &Value) -> Result<Snapshot, String> {
         id, name: name.into(), plan: value["plan_type"].as_str().unwrap_or("Subscription").into(),
         color: color.into(), initials: initials.into(), spend_today: None, metrics,
         fetched_at: chrono::Utc::now().timestamp_millis(),
+        codex_account: matches!(id, ProviderId::Codex).then(|| CodexAccount {
+            credits: value["credits"].as_object().map(|_| CodexCredits {
+                has_credits: value["credits"]["hasCredits"].as_bool(),
+                unlimited: value["credits"]["unlimited"].as_bool(),
+                balance: number(&value["credits"]["balance"]),
+            }),
+            available_resets: value["available_resets"].as_u64().filter(|count| *count <= 9_007_199_254_740_991),
+            included_usage_allowed: value["included_usage_allowed"].as_bool(),
+        }),
     })
 }
 
@@ -76,6 +85,32 @@ mod tests {
     use super::*;
     use serde_json::json;
 
+    #[test]
+    fn codex_account_details_preserve_zero_false_and_missing_values() {
+        let data = super::super::codex::normalized(&json!({
+            "rateLimits": {"planType":"prolite", "primary":{"usedPercent":31,"windowDurationMins":10080}, "credits":{"hasCredits":false,"unlimited":false,"balance":"0"}},
+            "rateLimitResetCredits":{"availableCount":0}, "ordinaryUsageAllowed":false,
+        }));
+        let mapped = map(ProviderId::Codex, &data).unwrap();
+        assert_eq!(mapped.plan,"prolite");
+        let account=mapped.codex_account.unwrap();
+        assert_eq!(account.available_resets,Some(0));
+        assert_eq!(account.included_usage_allowed,Some(false));
+        let credits=account.credits.unwrap();
+        assert_eq!(credits.balance,Some(0.0));
+        assert_eq!(credits.has_credits,Some(false));
+        let missing=map(ProviderId::Codex,&json!({"rate_limit":{"primary_window":{"used_percent":5}}})).unwrap().codex_account.unwrap();
+        assert!(missing.credits.is_none() && missing.available_resets.is_none() && missing.included_usage_allowed.is_none());
+    }
+    #[test]
+    fn codex_details_reject_invalid_numbers_and_use_selected_bucket() {
+        for balance in ["NaN", "inf", "-1", "not a number"] {
+            let data=super::super::codex::normalized(&json!({"rateLimits":{"credits":{"balance":"999"}},"rateLimitsByLimitId":{"codex":{"primary":{"usedPercent":2},"credits":{"balance":balance}}},"rateLimitResetCredits":{"availableCount":-1}}));
+            let account=map(ProviderId::Codex,&data).unwrap().codex_account.unwrap();
+            assert!(account.credits.unwrap().balance.is_none());
+            assert!(account.available_resets.is_none());
+        }
+    }
     #[test]
     fn unknown_payload_is_not_zero_usage() {
         assert!(map(ProviderId::Codex, &json!({"futureSchema": true})).is_err());

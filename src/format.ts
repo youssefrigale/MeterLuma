@@ -9,6 +9,12 @@ export const NOT_AFFILIATED = 'MeterLuma is not affiliated with or endorsed by A
 export const CURSOR_UNOFFICIAL = 'Uses an undocumented Cursor endpoint that is not endorsed by Cursor and may change or stop working without notice.';
 export const CLAUDE_LOCAL = "MeterLuma reads token counts from Claude Code's local logs. It does not read the Claude sign-in or contact Anthropic.";
 
+export function planLabel(provider: Pick<Provider, 'id' | 'plan'>): string {
+  if (provider.id !== 'codex') return provider.plan;
+  const labels: Record<string, string> = { free: 'Free', go: 'Go', plus: 'Plus', pro: 'Pro', prolite: 'Pro 5x', promax: 'Pro Max', team: 'Team', business: 'Business', enterprise: 'Enterprise', edu: 'Edu', unknown: 'Subscription' };
+  return labels[provider.plan.toLowerCase()] ?? provider.plan.replaceAll('_', ' ');
+}
+
 type TimeFormat = Settings['timeFormat'];
 const clock = (timeFormat: TimeFormat): Intl.DateTimeFormatOptions => timeFormat === 'auto' ? {} : { hourCycle: timeFormat === '12' ? 'h12' : 'h23' };
 export function formatTime(value: number, timeFormat: TimeFormat) { return new Date(value).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', ...clock(timeFormat) }); }

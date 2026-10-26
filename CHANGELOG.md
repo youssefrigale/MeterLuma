@@ -11,6 +11,8 @@ Prepared for version 0.1.2; no release has been published.
 
 ### Changed
 
+- Show Codex included-usage permission, available rate-limit resets and credit balance from the existing official CLI quota response. Format plan labels and add expandable subscription details with connection source and fetch time. Preserve missing values and cached labeling; older snapshot files remain compatible.
+
 - Explicitly label Claude subscription status as unavailable. Recorded local history remains available even when the subscription is paused; history and a saved plan name do not establish billing status.
 
 - Keep the panel and footer at the same size and position when switching pages. Replace the cramped Costs donut with a readable total, explicit USD label and aligned provider breakdown, including zero-value periods and long account names.

@@ -213,7 +213,7 @@ pub fn normalized(value: &Value) -> Value {
         let row = &bucket[key];
         json!({"used_percent":row["usedPercent"],"reset_at":row["resetsAt"],"limit_window_seconds":row["windowDurationMins"].as_i64().and_then(|minutes| minutes.checked_mul(60))})
     };
-    json!({"plan_type":bucket["planType"],"rate_limit":{"primary_window":window("primary"),"secondary_window":window("secondary")}})
+    json!({"plan_type":bucket["planType"],"credits":bucket["credits"],"available_resets":value["rateLimitResetCredits"]["availableCount"],"included_usage_allowed":value["ordinaryUsageAllowed"],"rate_limit":{"primary_window":window("primary"),"secondary_window":window("secondary")}})
 }
 
 #[cfg(test)]

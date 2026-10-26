@@ -62,9 +62,20 @@ mod tests {
     use super::super::Metric;
     fn snapshot(id: ProviderId, fetched_at: i64, resets: &[Option<i64>]) -> Snapshot {
         let metrics = resets.iter().enumerate().map(|(index, reset_at)| Metric { label: format!("Window {index}"), used_percent: 20.0 + index as f64, reset_at: *reset_at }).collect();
-        Snapshot { id, name: "Provider".into(), plan: "Subscription".into(), color: "#000000".into(), initials: "P".into(), spend_today: None, metrics, fetched_at }
+        Snapshot { id, name: "Provider".into(), plan: "Subscription".into(), color: "#000000".into(), initials: "P".into(), spend_today: None, metrics, fetched_at, codex_account: None }
     }
     fn temporary(name: &str) -> PathBuf { std::env::temp_dir().join(format!("meterluma-{name}-{}-{}.json", std::process::id(), chrono::Utc::now().timestamp_nanos_opt().unwrap())) }
+    #[test]
+    fn older_snapshots_load_without_account_details_and_new_details_survive() {
+        let current=snapshot(ProviderId::Codex,chrono::Utc::now().timestamp_millis(),&[None]);
+        let old=serde_json::to_value(&current).unwrap();
+        assert!(old.get("codexAccount").is_none());
+        assert!(serde_json::from_value::<Snapshot>(old).unwrap().codex_account.is_none());
+        let mut with_account=current;
+        with_account.codex_account=Some(super::super::CodexAccount { credits:None,available_resets:Some(0),included_usage_allowed:Some(false) });
+        let restored:Snapshot=serde_json::from_value(serde_json::to_value(with_account).unwrap()).unwrap();
+        assert_eq!(restored.codex_account.unwrap().included_usage_allowed,Some(false));
+    }
     #[test]
     fn survives_restart_but_never_crosses_credentials_or_shows_expired_windows() {
         let path = temporary("snapshots");

@@ -1,5 +1,7 @@
 # Worldwide launch requirements
 
+Latest October 26 installed follow-up: richer Codex subscription details from the existing official CLI quota lookup. Chromium coverage 154 after a focused layout correction, WebKit 77, production UI 3, Rust 82 (2 opt-in ignored) and native checks 6 passed. No billing charges or renewal dates are inferred. The checkpoint below records the scope and remaining platform/release limitations.
+
 October 26 installed follow-up: Claude explicitly marks subscription status unavailable; automatic paused-status detection remains unimplemented. All 29 targeted browser, production and native checks passed. Details are in the checkpoint below.
 
 Latest checkpoint: [Windows QA, 2026-10-25](windows-qa-2026-10-25.md), including the installed stable-panel and Costs-layout follow-up: 68 targeted Chromium, 34 WebKit, 3 production UI and 5 native checks pass. Earlier automatic-local-connection validation passed Chromium 138, WebKit 69, Rust 79, updater Rust 80 and native local checks 11. Real Claude/Codex history and live Codex/Cursor limits pass without pasted tokens. Optional advanced-token QA, blocked native UI checks and unavailable Windows hardware/environment cases are listed separately. Continue Mac testing without treating this checkpoint as public-release approval.

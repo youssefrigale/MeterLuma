@@ -2,6 +2,8 @@
 
 ## Owner decisions
 
+- **2026-10-26 - Codex subscription details.** The owner wants the richer reference layout: readable plan labels (`prolite` shown as Pro 5x), available rate-limit reset count, credits and subscription detail disclosure alongside usage/history. Preserve actual weekly/session window labels. Show only returned values; missing is unavailable, not zero. Keep cached data labeled. Billing charges, renewal dates and dollar estimates cannot be inferred from subscription token counts. No reset redemption or credit purchase is authorized by this display request.
+
 - **2026-10-26 - Claude history is not subscription status.** The owner showed a paused Claude subscription while MeterLuma still displayed saved history. Keep history visible but explicitly mark the subscription status unavailable. Never infer active/paused billing from local history, zero usage, a saved plan name or CLI login status. Diagnostic `claude auth status --json` on this PC still reported signed-in Max and no billing-state field while the website showed paused. Live pause detection remains unimplemented; do not claim that the notice implements it or hardcode the screenshot state.
 
 - **2026-10-25 - Stable panel size and readable Costs.** Keep the same 360 by 660 logical-pixel panel across pages, subject to native screen-work-area clamping. Navigation must not shrink Costs or Help or move the footer. Costs uses a clear estimated total and aligned provider rows instead of a cramped donut, with readable zero amounts and long account labels.
@@ -25,6 +27,8 @@
 - **2026-10-20 - Approved logo: Levels Clean in graphite.** The owner chose Clean after reviewing the monochrome reference: flat white level bars with translucent tracks, a charcoal rounded tile, subtle gray illumination and a fine top edge. Canonical artwork: `public/mark.svg`. Regenerate native icons from it with `npm run icons`; keep the native tray, app, installer and frontend branding consistent. Earlier concepts in `design/logo-review/` are exploration only.
 
 ## Owner installation
+
+- **2026-10-26, 00:25 UTC:** Installed and reopened the Codex subscription-details follow-up, version 0.1.2. The live default connection supplies Pro 5x, included-usage permission, credits and available resets; the detail disclosure shows source and fetch time. Chromium coverage 154 cases after the focused layout correction, WebKit 77, production UI 3, Rust 82 (2 opt-in ignored) and native checks 6 passed. All 316 existing app-data files were unchanged before launch; installed executable matches the candidate except for the expected three-byte NSIS marker. Candidate: `artifacts/local/windows-qa-2026-10-26-codex-details/`; backup: `artifacts/local/windows-install-2026-10-26-002500/`. This supersedes the earlier installation below.
 
 - **2026-10-26, 00:11 UTC:** Installed and reopened the Claude subscription-status clarification, version 0.1.2. Claude explicitly says subscription status unavailable; automatic paused-status detection remains unimplemented. Chromium 14, WebKit 7, production UI 3 and native checks 5 passed, including both themes, visible history and stable panel size. All 315 existing app-data files were unchanged before launch. The installed executable matches the candidate apart from the expected three-byte NSIS marker. Candidate: `artifacts/local/windows-qa-2026-10-26-claude-status/`; backup: `artifacts/local/windows-install-2026-10-26-001127/`. This supersedes the earlier installation below.
 

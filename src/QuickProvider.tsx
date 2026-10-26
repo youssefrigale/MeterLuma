@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { Icon } from './icons';
 import { UsageHistory } from './UsageHistory';
 import { retryCountdown } from './providerState';
-import { CLAUDE_LOCAL, formatTime, neutralColors, resetText, short, visibleMetrics } from './format';
+import { CLAUDE_LOCAL, formatTime, neutralColors, planLabel, resetText, short, visibleMetrics } from './format';
+import { CodexSubscription } from './CodexSubscription';
 import { dayValue } from './coverage';
 import { UnofficialBadge, UnofficialNote } from './ProviderNotes';
 import { CURSOR_HISTORY_NOTE } from './exportUsage';
@@ -44,7 +45,7 @@ export function QuickProvider({ provider, settings, now, detailed = false, conne
     catch { setLinkError('The provider page could not be opened.'); }
   }
   return <article className={`quick-provider ${detailed ? 'quick-detail' : ''}`}>
-    {!detailed && <div className="quick-provider-heading"><h2>{provider.name}</h2><span>{provider.accountLabel ? `${provider.accountLabel} · ` : ''}{provider.plan}{provider.id === 'cursor' && <> <UnofficialBadge/></>}</span></div>}
+    {!detailed && <div className="quick-provider-heading"><h2>{provider.name}</h2><span>{provider.accountLabel ? `${provider.accountLabel} · ` : ''}{planLabel(provider)}{provider.id === 'cursor' && <> <UnofficialBadge/></>}</span></div>}
     {detailed && <div className="quick-provider-links"><button onClick={() => void openWebsite('status')}>Status <Icon name="external" size={12}/></button><button onClick={() => void openWebsite('usage')}>Usage dashboard <Icon name="external" size={12}/></button></div>}
     {detailed && provider.id === 'cursor' && <UnofficialNote className="quick-info"/>}
     {provider.historyOnly && detailed && <section className="quick-subscription-unknown" aria-label="Claude subscription status"><h2>Subscription status unavailable</h2><p>Local history cannot show whether your plan is active or paused. Check your Claude account in the Usage dashboard.</p></section>}
@@ -54,6 +55,7 @@ export function QuickProvider({ provider, settings, now, detailed = false, conne
     {provider.cached && metrics.length > 0 && <div className="quick-reconnect quick-cache-notice" role="status"><span>Cached quotas from {formatTime(provider.fetchedAt!, settings.timeFormat)}{coolingDown ? `. Retry in ${retryCountdown(provider.retryAt!, now)}` : '. Refresh unavailable'}.</span></div>}
     {metrics.length > 0 && <div className="quick-metrics">{(detailed ? metrics.slice(0, 2) : metrics).map(metric => <QuotaMetric key={metric.label} provider={provider} metric={metric} settings={settings} now={now}/>)}</div>}
     {detailed && metrics.length > 2 && <details className="quick-more-limits"><summary>More limits ({metrics.length - 2})</summary>{metrics.slice(2).map(metric => <QuotaMetric key={metric.label} provider={provider} metric={metric} settings={settings} now={now}/>)}</details>}
+    {detailed && provider.id === 'codex' && !settings.demo && <CodexSubscription provider={provider} settings={settings}/>}
     {detailed && <>{settings.demo ? <><section className="quick-statistics" aria-label={`${provider.name} sample spending`}><dl>{(['Today', 'Yesterday', 'Last 30 days'] as const).map((label, index) => <div key={label}><dt>{label}</dt><dd>{money(index === 0 ? provider.spendToday! : index === 1 ? dailySpend[provider.id].at(-2)! : thirtyDaySpend(provider.id))}</dd></div>)}</dl></section><section className="quick-inline-trend"><h3>Usage trend</h3><div className="quick-sparkbars" role="img" aria-label={`${provider.name} simulated spending over 14 days`}>{dailySpend[provider.id].map((value, index, values) => <i key={index} style={{ height: `${Math.max(5, value / Math.max(...values) * 100)}%` }}/>)}</div></section><section className="quick-models"><dl>{sampleModels[provider.id].map(([model, percentage]) => <div key={model}><dt>{model}</dt><dd>{percentage}%</dd></div>)}</dl><p className="quick-sample-note">Illustrative · sample data</p></section></> : provider.tokenOnly ? <p className="quick-info quick-history-note">Connected with an account token. Subscription limits come from the provider; local history and sign-in files are not read.</p> : provider.history?.available ? <UsageHistory history={provider.history} providerId={provider.id} timeFormat={settings.timeFormat}/> : provider.id === 'cursor' ? <p className="quick-info quick-history-note">{CURSOR_HISTORY_NOTE}</p> : <section className="quick-statistics"><dl>{['Today', 'Yesterday', `Last ${settings.historyDays} days`].map(label => <div key={label}><dt>{label}</dt><dd>Unavailable</dd></div>)}</dl><p className="quick-info">{provider.historyLoading ? 'Reading recorded local usage…' : connectionError?.includes('history could not be read') ? 'Recorded local history could not be read. Try refreshing.' : 'No recorded activity found in this local profile.'}</p></section>}
     </>}
     {linkError && <p role="status" className="quick-info">{linkError}</p>}

@@ -34,6 +34,18 @@
   .quick-subscription-unknown { margin: 0 0 16px; padding: 12px; border: 1px solid var(--panel-line); border-radius: 9px; }
   .quick-subscription-unknown h2 { margin: 0 0 6px; font-size: 11px; font-weight: 600; }
   .quick-subscription-unknown p { margin: 0; color: var(--panel-muted); font-size: 11px; line-height: 1.6; }
+  .quick-subscription { margin: 22px 0 18px; }
+  .quick-subscription dl { display: grid; gap: 11px; margin: 0; }
+  .quick-subscription dl > div { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; line-height: 1.5; }
+  .quick-subscription dt { color: var(--panel-muted); }
+  .quick-subscription dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+  .quick-subscription details { margin-top: 12px; font-size: 10px; color: var(--panel-muted); }
+  .quick-subscription summary { cursor: pointer; }
+  .quick-subscription details dl { margin-top: 12px; }
+  .quick-subscription details dl > div { font-size: 11px; }
+  .quick-subscription details p { margin: 12px 0 0; font-size: 10px; line-height: 1.6; }
+  .quick-subscription-compact { margin: 8px 0; }
+  .quick-subscription-compact details { margin-top: 0; }
   .quick-cost { padding: 14px; background: var(--panel-card); border: 1px solid var(--panel-line); border-radius: 12px; }
   .quick-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding: 3px; border-radius: 7px; background: var(--panel-tabs); }
   .quick-tabs button { border-radius: 5px; padding: 7px 3px; color: var(--panel-muted); font-size: 10px; line-height: 1.5; }

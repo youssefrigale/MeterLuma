@@ -2,7 +2,17 @@
 
 Version 0.1.2, Windows 11 Pro 10.0.26300, x64 MSVC, branch `restore-provider-logos`. This checkpoint supports continuing development and testing on Mac; it is not a public-release sign-off.
 
-## October 26 follow-up: Claude subscription-status limitation
+## October 26 follow-up: Codex subscription details
+
+The Codex page now preserves and displays included-usage permission, credit balance and available rate-limit reset count from the existing `account/rateLimits/read` response, with a readable plan label and expandable connection/fetch details. Missing fields are unavailable, not zero or active. No credit purchase or reset redemption method is called. Existing cached snapshots without the added optional fields still deserialize, and cached account details remain labeled.
+
+The installed CLI's generated protocol and a live quota-only diagnostic confirmed these fields. This account returned `prolite`, a weekly limit, zero credits, zero available resets and included usage allowed. The owner's reference plan label is displayed as Pro 5x. The [official app-server reference](https://learn.chatgpt.com/docs/app-server) documents credit details and earned-reset counts. Billing charges/renewal dates are not supplied, and credit balances are not converted to dollars. [Official pricing](https://learn.chatgpt.com/docs/pricing) distinguishes API prices from subscription usage; this update does not invent Codex dollar estimates from local tokens.
+
+Rust release tests passed 82 checks with 2 opt-in local-data tests ignored. The initial Chromium run passed 148 checks and exposed 6 layout failures from unavailable detail rows taking space. Those rows now collapse into the details disclosure when no account data is returned; all 18 affected detail/reference checks passed afterward, covering all 154 unique suite cases. Production UI checks passed 3. Cases cover zero/missing/invalid fields, blocked included usage, unlimited credits, cached values, older snapshots, accessibility and both themes.
+
+The full WebKit suite passed 77 checks. Six native checks passed, including the real Codex fields through the rebuilt backend and both themes, expanded details, automatic local discovery and stable geometry across all eight pages. At 00:25 UTC the unsigned 0.1.2 update was installed and reopened normally. All 316 original app-data files were restored after isolation and unchanged by installation before launch; installed resources match source and the executable differs from the candidate only by the expected three-byte NSIS marker. Latest evidence/candidate: `artifacts/local/windows-qa-2026-10-26-codex-details/`; backup: `artifacts/local/windows-install-2026-10-26-002500/`; isolation: `artifacts/local/windows-qa-2026-10-26-codex-isolation/`. This supersedes the earlier installed builds below. Other unverified platform and release cases remain unchanged.
+
+## Earlier October 26 follow-up: Claude subscription-status limitation
 
 The owner showed a paused subscription in Claude's website while MeterLuma displayed recorded local history. The Claude page now explicitly says **Subscription status unavailable** and explains that local history cannot establish active or paused status. History remains visible; automatic pause detection is not implemented.
 

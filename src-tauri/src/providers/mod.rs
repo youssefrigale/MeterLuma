@@ -37,6 +37,22 @@ pub struct Metric {
 
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct CodexCredits {
+    pub has_credits: Option<bool>,
+    pub unlimited: Option<bool>,
+    pub balance: Option<f64>,
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CodexAccount {
+    pub credits: Option<CodexCredits>,
+    pub available_resets: Option<u64>,
+    pub included_usage_allowed: Option<bool>,
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Snapshot {
     pub id: ProviderId,
     pub name: String,
@@ -46,6 +62,8 @@ pub struct Snapshot {
     pub spend_today: Option<f64>,
     pub metrics: Vec<Metric>,
     pub fetched_at: i64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub codex_account: Option<CodexAccount>,
 }
 
 struct Cache { fingerprint: [u8; 32], until: Instant, result: Result<Snapshot, String> }
