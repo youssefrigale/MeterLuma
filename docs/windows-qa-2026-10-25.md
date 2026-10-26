@@ -2,7 +2,17 @@
 
 Version 0.1.2, Windows 11 Pro 10.0.26300, x64 MSVC, branch `restore-provider-logos`. This checkpoint supports continuing development and testing on Mac; it is not a public-release sign-off.
 
-## Latest follow-up: stable panel and Costs layout
+## October 26 follow-up: Claude subscription-status limitation
+
+The owner showed a paused subscription in Claude's website while MeterLuma displayed recorded local history. The Claude page now explicitly says **Subscription status unavailable** and explains that local history cannot establish active or paused status. History remains visible; automatic pause detection is not implemented.
+
+A read-only diagnostic of the installed Claude Code 2.1.304 CLI returned signed-in `claude.ai` and subscription type `max`, without any billing-state field. No credentials or account identifiers were printed. The [official CLI reference](https://code.claude.com/docs/en/cli-reference) describes `auth status` as authentication status; that does not establish whether billing is paused. The app still does not invoke Claude authentication or access Claude credentials.
+
+Production build, 14 targeted Chromium checks, 7 WebKit checks and 3 production UI checks passed, including explicit unavailable wording, preserved history, accessibility and no Claude quota request.
+
+Five native checks passed for consent, automatic local discovery, stable panel geometry across all eight pages and the notice with retained history in both themes. At 00:11 UTC on October 26, the unsigned 0.1.2 update was installed and reopened normally. All 315 owner app-data files were restored after isolation and unchanged by installation before launch. The executable matches the candidate apart from the expected three-byte NSIS marker. Private candidate/evidence: `artifacts/local/windows-qa-2026-10-26-claude-status/`; backup: `artifacts/local/windows-install-2026-10-26-001127/`; isolation: `artifacts/local/windows-qa-2026-10-26-status-isolation/`. This supersedes the earlier installed build below.
+
+## Earlier follow-up: stable panel and Costs layout
 
 Navigation now keeps the standard 360 by 660 logical-pixel panel across all pages, subject to the existing native screen-work-area clamp. Costs and Help no longer shrink the window. The Costs donut is replaced by a readable estimated total, USD label, zero-usage explanation and aligned provider rows. Long account names truncate before the amount; pricing and coverage calculations are unchanged.
 

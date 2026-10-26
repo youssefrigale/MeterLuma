@@ -31,6 +31,9 @@
   .quick-info-button { color: var(--panel-muted); display: grid; place-items: center; width: 22px; height: 22px; padding: 4px; border-radius: 50%; }
   .quick-mode { margin-left: auto; padding: 3px 7px; border-radius: 5px; font-size: 9px; color: var(--panel-accent); background: var(--panel-accent-bg); }
   .quick-info { margin: 0 3px 12px; color: var(--panel-muted); font-size: 11px; line-height: 1.6; }
+  .quick-subscription-unknown { margin: 0 0 16px; padding: 12px; border: 1px solid var(--panel-line); border-radius: 9px; }
+  .quick-subscription-unknown h2 { margin: 0 0 6px; font-size: 11px; font-weight: 600; }
+  .quick-subscription-unknown p { margin: 0; color: var(--panel-muted); font-size: 11px; line-height: 1.6; }
   .quick-cost { padding: 14px; background: var(--panel-card); border: 1px solid var(--panel-line); border-radius: 12px; }
   .quick-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding: 3px; border-radius: 7px; background: var(--panel-tabs); }
   .quick-tabs button { border-radius: 5px; padding: 7px 3px; color: var(--panel-muted); font-size: 10px; line-height: 1.5; }

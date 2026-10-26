@@ -47,6 +47,8 @@ test('Claude device tokens and model shares come from local history without any 
   await expect(page.locator('.quick-sparkbars')).toHaveCount(1);
   await expect(page.locator('.quick-usage-totals')).not.toContainText('$');
   await expect(page.locator('.quick-reconnect')).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Claude subscription status' })).toContainText('Subscription status unavailable');
+  await expect(page.getByRole('region', { name: 'Claude subscription status' })).toContainText('Local history cannot show whether your plan is active or paused.');
   await expect(page.locator('.quick-detail')).toContainText("MeterLuma reads token counts from Claude Code's local logs. It does not read the Claude sign-in or contact Anthropic.");
   const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
   expect(results.violations).toEqual([]);

@@ -6,11 +6,13 @@ MeterLuma is not affiliated with or endorsed by Anthropic, OpenAI or Anysphere (
 
 ## Current status
 
+October 26 follow-up installed: Claude explicitly marks subscription status unavailable while keeping recorded history visible. Automatic paused-status detection is not implemented. All 29 targeted browser, production and native checks passed; see the checkpoint below.
+
 Latest Windows QA: [October 25 checkpoint](docs/windows-qa-2026-10-25.md). The installed follow-up keeps the panel size stable across pages and replaces the cramped Costs donut with a readable total and provider breakdown: 68 targeted Chromium, 34 WebKit, 3 production UI and 5 native checks passed. Earlier automatic-local-connection validation passed Chromium 138, WebKit 69, Rust 79, updater Rust 80 and native local-provider checks 11. Real Claude/Codex history and live Codex/Cursor limits work without token entry. Optional advanced-token, restricted native-UI and additional Windows hardware/environment checks remain listed there. Mac testing can proceed; this is not public-release approval.
 
 This is an internal pre-release of version 0.1.2 with the unreleased changes listed in [CHANGELOG.md](CHANGELOG.md). Windows releases will be unsigned by the owner's decision of 2026-10-20; Windows code signing is not a launch requirement. Public release still needs the remaining functional QA and release-workflow validation; macOS also needs its platform checks (see [Windows QA checkpoint](#windows-qa-checkpoint--2026-10-20) and [earlier verification](#current-verification--2026-10-15)).
 
-- **Claude Code**: recorded token history from local Claude Code logs only. No quotas or alerts. MeterLuma does not read Claude credentials and never contacts Anthropic (Claude's Status and Usage dashboard buttons only open Anthropic's public pages in your browser when you click them).
+- **Claude Code**: recorded token history from local Claude Code logs only. No quotas or alerts. Subscription status is explicitly unavailable: the app cannot detect active or paused billing from these logs. MeterLuma does not read Claude credentials and never contacts Anthropic (Claude's Status and Usage dashboard buttons only open Anthropic's public pages in your browser when you click them).
 - **Codex**: automatically detects the existing local CLI profile, reads subscription limits through the signed-in official CLI and shows recorded local history. No separate login or pasted token is needed.
 - **Cursor (Unofficial)**: automatically detects the existing desktop profile and uses its sign-in to read monthly allowance from an undocumented Cursor endpoint. No token history.
 - Free for personal use: 30/90/365-day recorded history and trends, multiple local account profiles, in-app quota alerts, and CSV/JSON exports. There is no paid edition or checkout.
