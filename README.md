@@ -13,7 +13,6 @@ A menu-bar and system-tray companion for your AI tools.</p>
 
 <p align="center">
   <a href="https://meterluma.com">Website</a> ·
-  <a href="https://meterluma.com/dashboard">Browser dashboard</a> ·
   <a href="#features">Features</a> ·
   <a href="#supported-providers">Providers</a> ·
   <a href="#availability">Availability</a> ·
@@ -113,7 +112,7 @@ Read the full [privacy information](PRIVACY.md) before connecting a provider. Ke
 
 ## Availability
 
-The [website](https://meterluma.com) and [browser dashboard](https://meterluma.com/dashboard) are online. The dashboard displays sample data or a locally imported MeterLuma JSON usage export; it does not connect to desktop sign-ins.
+The [website](https://meterluma.com) introduces the desktop app, its providers and an interactive preview using sample data.
 
 MeterLuma is in development for macOS and Windows. Public desktop installers are not published yet. Follow this repository for release updates.
 
