@@ -2,6 +2,8 @@
 
 ## Owner decisions
 
+- **2026-10-30 - Public source repository and README.** The owner requested a public GitHub repository and a rewritten README. This supersedes the earlier private-visibility decision. Publish documentation for the current default-branch source; preserve uncommitted local app work. Keep the existing personal-use license, attribution policy and release gates. This request does not publish installers or tag a release.
+
 - **2026-10-26 - GitHub repository recreated.** At the owner's request, the original repository was deleted and replaced at `youssefrigale/MeterLuma` (new repository ID `1433780610`, old ID `1417356256`). Visibility remains private. `main` and `restore-provider-logos` contain the latest app; the cleaned `release-readiness` branch is preserved. Verification found zero pull requests, only `youssefrigale` as contributor, and no access to the old attributed commit. Actions are disabled while the allowance is exhausted. Local backups are in gitignored `artifacts/local/github-recreate-2026-10-26/`; never push those backups or the original history. Use a fresh clone for Mac continuation.
 
 - **2026-10-26 - Repository attribution.** The owner requested removing Claude/Codex contributor attribution from all published branches. Use only the owner's configured Git author/committer identity. Do not add AI co-author trailers, generated-by signatures or contributor credits to commits, PR descriptions or project documentation. Preserve provider/product names and required third-party license notices. Historical AI co-author trailers were removed through a backed-up metadata-only history rewrite; do not reintroduce the old history from another checkout.
