@@ -12,6 +12,8 @@ A menu-bar and system-tray companion for your AI tools.</p>
 </p>
 
 <p align="center">
+  <a href="https://meterluma.akatsukiplug.chatgpt.site">Website</a> ·
+  <a href="https://meterluma.akatsukiplug.chatgpt.site/dashboard.html">Browser dashboard</a> ·
   <a href="#features">Features</a> ·
   <a href="#supported-providers">Providers</a> ·
   <a href="#availability">Availability</a> ·
@@ -110,6 +112,8 @@ MeterLuma has no analytics, advertising, publisher account service or cloud sync
 Read the full [privacy information](PRIVACY.md) before connecting a provider. Keep tokens and unredacted usage exports out of issues and screenshots.
 
 ## Availability
+
+The [website](https://meterluma.akatsukiplug.chatgpt.site) and [browser dashboard](https://meterluma.akatsukiplug.chatgpt.site/dashboard.html) are online. The dashboard displays sample data or a locally imported MeterLuma JSON usage export; it does not connect to desktop sign-ins.
 
 MeterLuma is in development for macOS and Windows. Public desktop installers are not published yet. Follow this repository for release updates.
 
