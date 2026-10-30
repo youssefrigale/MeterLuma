@@ -29,7 +29,7 @@ cd MeterLuma
 npm ci
 ```
 
-Use Node.js 22.22 or newer, stable Rust, and the Xcode command-line tools. See the [development prerequisites](../README.md#run-locally).
+Use Node.js 22.22 or newer, stable Rust, and the Xcode command-line tools. See the [development prerequisites](development.md).
 
 ## Build and check locally
 
