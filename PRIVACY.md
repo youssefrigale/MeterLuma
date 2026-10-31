@@ -1,8 +1,8 @@
 # MeterLuma privacy information
 
-Updated 2026-10-31, provider-connection revision 7, for the current desktop implementation. Publisher: Youssef Rigale, Morocco. Proposed support/privacy contact: support@meterluma.com. Verify ownership of meterluma.com and operation of this mailbox before public release.
+Updated 2026-10-31, provider-connection revision 7, for the current desktop implementation. Publisher: Youssef Rigale, Morocco. Support and privacy contact: support@meterluma.com.
 
-MeterLuma has no publisher account service, analytics, advertising, cloud sync, or automatic crash-report upload. It does not send your usage history or exports to the publisher. This describes the app; a future download website, mail host, or hosting provider may process separate access logs and messages and needs its own disclosures.
+MeterLuma has no publisher account service, analytics, advertising, cloud sync, or automatic crash-report upload. It does not send your usage history or exports to the publisher. This describes the app. The meterluma.com website, downloads and support email are served through Cloudflare, which processes access logs and forwarded messages under its own privacy policy.
 
 What changed in revision 7: Claude session and weekly limits are available through an explicit **Connections → Enable live Claude usage** choice. Existing revision-6 installations keep their history-only access until that choice is confirmed. The confirmation saves the `claudeLive` preference and revision 7 acknowledgement locally; turning it off returns Claude to history only. New installations still require the personal-use license acknowledgement before provider discovery. Automatic discovery, explicit disconnects, hidden providers and paused custom profiles retain their existing behavior.
 
@@ -57,7 +57,7 @@ Cursor (Unofficial): With an account-token connection, MeterLuma uses only the t
 
 Requests follow your proxy settings (the HTTP_PROXY, HTTPS_PROXY, ALL_PROXY and NO_PROXY environment variables, otherwise the manual proxy configured in Windows or macOS), so a configured proxy also sees them. Your network provider and each contacted service may receive ordinary connection information such as an IP address.
 
-Updates: a build without an updater configuration never checks for updates. If the publisher enables updates in a release, that build contacts the publisher's update address about 30 seconds after start, then about once a day (after a failed check, it retries every 15 minutes until one succeeds), and when you choose "Check for updates". The request reveals your IP address and may include the app version, operating system and processor type. It sends nothing about your providers or usage, and an update installs only after you confirm.
+Updates: a build without an updater configuration never checks for updates. If the publisher enables updates in a release, that build contacts the publisher's update address about 30 seconds after start, then about once a day (after a failed check, it retries every 15 minutes until one succeeds), and when you choose "Check for updates". The request reveals your IP address and may include the app version, operating system and processor type. It sends nothing about your providers or usage, and an update installs only after you confirm. Published release builds use `https://downloads.meterluma.com/latest.json`, a static file on the publisher's Cloudflare account; Cloudflare receives the connection details of each check, including your IP address, under its own privacy policy. The publisher does not run an update server or receive per-check logs beyond Cloudflare's aggregate statistics.
 
 Official status and usage pages open in your default browser only when you choose them.
 

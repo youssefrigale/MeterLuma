@@ -51,9 +51,10 @@ test('release removes demo controls and distinguishes local history from live qu
   await expect(page.getByRole('checkbox', { name: 'Use sample data' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Connections', exact: true }).click();
   await expect(page.locator('.quick-connection').filter({ hasText: 'Codex' })).toContainText('Connected');
+  await page.getByText('About connections', { exact: true }).click();
   await expect(page.getByText(NOT_AFFILIATED)).toBeVisible();
   await expect(page.locator('body')).not.toContainText(/prototype|Internal beta|development build|Desktop preview|Sample data/i);
-  await expect(page.getByText('Live', { exact: true })).toBeVisible();
+  await expect(page.locator('.quick-connection').filter({ hasText: 'Claude' })).toContainText('Connected · local history');
   // The migrated live mode is what the next saved change writes back.
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await page.getByRole('button', { name: '15 min', exact: true }).click();

@@ -1,8 +1,8 @@
 # Changelog
 
-## 0.1.2 (unreleased; changes since internal beta snapshot 0a41dfb)
+## 0.1.2 (2026-10-31; changes since internal beta snapshot 0a41dfb)
 
-Prepared for version 0.1.2; no release has been published.
+First public release. The Windows installer is unsigned, and the macOS app is unsigned and not notarized. Release builds check `downloads.meterluma.com` for signed updates and ask before installing one.
 
 ### Added
 
