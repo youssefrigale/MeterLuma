@@ -8,7 +8,7 @@
 A menu-bar and system-tray companion for your AI tools.</p>
 
 <p align="center">
-  macOS & Windows · Version 0.1.2 pre-release · Free for personal use
+  macOS & Windows · Version 0.1.2 · Free for personal use
 </p>
 
 <p align="center">
@@ -22,7 +22,7 @@ A menu-bar and system-tray companion for your AI tools.</p>
 
 MeterLuma brings usage limits, reset times and recorded token activity into a compact desktop popup. Use your existing local provider connections, check your allowance, and get back to work.
 
-**Project status:** this is a pre-release source repository. No public installer release is published yet. Local builds are available for development and testing; signing, installer validation and platform QA remain release work.
+**Project status:** version 0.1.2 is the first public release. [Download it](#availability) for macOS or Windows. Both installers are **unsigned**, so your system asks you to confirm the first launch.
 
 <p align="center">
   <img src="docs/assets/overview-dark.png" width="360" alt="MeterLuma development Overview with its yellow ring logo and sample Claude, Codex and OpenCode allowances">
@@ -41,9 +41,9 @@ MeterLuma brings usage limits, reset times and recorded token activity into a co
 
 ## Supported providers
 
-The three connections in the published source are **Claude Code** (local history), **Codex** (subscription limits and local history), and **Cursor** (monthly allowance through an unofficial endpoint).
+The core connections are **Claude Code** (local history, with optional live session/weekly limits), **Codex** (subscription limits and local history), and **Cursor** (monthly allowance through an unofficial endpoint).
 
-The current desktop development build also includes opt-in live Claude session/weekly limits and the integrations below. These additional integrations are local development work; they are not included in the published `main` source or a public installer yet. Availability depends on the provider and selected connection.
+Version 0.1.2 also includes the additional integrations below. Each one is opt-in, and the data available depends on the provider and the selected connection.
 
 | Provider | Data available in the development build | Connection |
 | --- | --- | --- |
@@ -114,7 +114,21 @@ Read the full [privacy information](PRIVACY.md) before connecting a provider. Ke
 
 The [website](https://meterluma.com) introduces the desktop app, its providers and an interactive preview using sample data.
 
-MeterLuma is in development for macOS and Windows. Public desktop installers are not published yet. Follow this repository for release updates.
+MeterLuma 0.1.2 is free for personal use on macOS and Windows.
+
+| Platform | Requirements | Download |
+| --- | --- | --- |
+| macOS | macOS 13 Ventura or later, Apple silicon or Intel | [MeterLuma_0.1.2_universal.dmg](https://downloads.meterluma.com/0.1.2/MeterLuma_0.1.2_universal.dmg) |
+| Windows | Windows 10 or 11, x64 | [MeterLuma_0.1.2_x64-setup.exe](https://downloads.meterluma.com/0.1.2/MeterLuma_0.1.2_x64-setup.exe) |
+
+Verify downloads with [SHA256SUMS.txt](https://downloads.meterluma.com/0.1.2/SHA256SUMS.txt). The same files are attached to the [GitHub release](https://github.com/youssefrigale/MeterLuma/releases/latest).
+
+Both installers are **unsigned**:
+
+- **macOS:** open the disk image and drag MeterLuma to Applications. The first time you open it, macOS says it cannot verify the developer. Open **System Settings → Privacy & Security**, then choose **Open Anyway** next to the MeterLuma message.
+- **Windows:** if SmartScreen shows "Windows protected your PC", choose **More info → Run anyway**. The installer is per-user and downloads Microsoft WebView2 if it is missing.
+
+MeterLuma checks for updates signed with the project's update key and asks before installing one. Use is limited to personal, noncommercial purposes; selling, commercial use and redistribution are not permitted.
 
 Working on the app? See the [developer guide](docs/development.md) for source setup, builds and checks.
 

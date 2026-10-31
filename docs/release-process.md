@@ -82,6 +82,10 @@ To rotate the key:
 
 ### 2. Apple Developer ID signing and notarization
 
+Without these secrets the app is ad-hoc signed (`bundle.macOS.signingIdentity` is `-`), which seals the bundle
+so macOS offers Open Anyway in Privacy & Security instead of reporting a damaged download. `APPLE_SIGNING_IDENTITY`
+replaces the ad-hoc identity when it is configured.
+
 1. Join the Apple Developer Program. The account holder can create **Developer ID Application**
    certificates.
 2. Create a Developer ID Application certificate (Xcode → Settings → Accounts → Manage Certificates,
@@ -163,8 +167,21 @@ installer and `meterluma.exe` whenever signing is configured.
 
 ### 4. Hosting on your own domain
 
-The repository is private, so its GitHub releases are not a public download location. They are the
-build record. Host the downloads on your domain, served over HTTPS:
+Current hosting (since 0.1.2): the R2 bucket `meterluma-downloads` on the owner's Cloudflare account, served at
+`https://downloads.meterluma.com`. The repository is public, so the published GitHub release carries the same
+files as a second download location. Upload with Wrangler (`--remote` is required) and set a long cache for
+versioned files and a short one for the manifest:
+
+```sh
+npx wrangler r2 object put meterluma-downloads/0.2.0/MeterLuma_0.2.0_universal.dmg --file MeterLuma_0.2.0_universal.dmg \
+  --content-type application/x-apple-diskimage --cache-control 'public, max-age=31536000, immutable' --remote
+npx wrangler r2 object put meterluma-downloads/latest.json --file latest.json \
+  --content-type application/json --cache-control 'public, max-age=300' --remote   # last
+```
+
+Do not request a download URL before its upload has finished: Cloudflare caches the 404 for a few minutes.
+
+Host the downloads on your domain, served over HTTPS:
 
 ```
 https://downloads.example.com/meterluma/latest.json                      ← METERLUMA_UPDATER_ENDPOINT
