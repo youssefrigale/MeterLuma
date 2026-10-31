@@ -223,6 +223,8 @@ test('alerts stay visible through a 30-minute refresh interval', async ({ page }
 });
 
 test('alert dismissals survive reloads', async ({ page }) => {
+  // Reset times derive from the clock, so a reload across a minute boundary would otherwise change the alert key.
+  await page.clock.setFixedTime(new Date('2026-10-15T10:00:30Z'));
   await nativeBridge(page, { settings: { legalVersion: LEGAL, demo: false, liveProviders: ['codex'], enabled: ['codex'], alerts: [{ key: 'rule', providerId: 'codex', threshold: 35, enabled: true }] }, quotas: { codex: codexQuota }, histories: { codex: history() } });
   await page.goto('/');
   const alerts = page.getByRole('region', { name: 'Usage alerts' });

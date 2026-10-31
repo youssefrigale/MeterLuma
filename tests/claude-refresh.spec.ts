@@ -91,6 +91,8 @@ test('reopening Claude after its faster refresh deadline catches up without wait
   await nativeBridge(page, { settings, quotas: { claude: { metrics: [{ label: 'Session', usedPercent: 77, resetIn: 2 * 3_600_000 }] } }, histories: { claude: history() }, rising: true });
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'Refresh usage' })).toBeEnabled();
+  // Count only after both startup lookups (StrictMode runs effects twice in the dev server) have rendered.
+  await expect(page.getByRole('progressbar', { name: 'Claude Session remaining' })).toHaveAttribute('aria-valuenow', '18');
   const before = await countCalls(page, 'refresh_provider');
   await page.clock.setSystemTime(new Date(start.getTime() + 36_000));
   await page.evaluate(() => { window.dispatchEvent(new Event('focus')); document.dispatchEvent(new Event('visibilitychange')); });
