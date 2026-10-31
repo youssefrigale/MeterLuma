@@ -1,8 +1,20 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { LEGAL, countCalls, history, nativeBridge, nativeCalls, holdNative, releaseNative } from './fixtures';
 
 const start = new Date('2026-10-26T23:45:00Z');
 const settings = { legalVersion: LEGAL, claudeLive: true, liveProviders: ['claude'], enabled: ['claude'], refreshMinutes: 60 };
+
+// With rising quotas each lookup adds 5% use. Waits until the meter shows the newest lookup, so startup
+// lookups (StrictMode runs effects twice in the dev server) cannot land after a call-count baseline.
+async function settledCalls(page: Page, used: number) {
+  const meter = page.getByRole('progressbar', { name: 'Claude Session remaining' });
+  let calls = 0;
+  await expect.poll(async () => {
+    calls = await countCalls(page, 'refresh_provider');
+    return calls > 0 && await meter.getAttribute('aria-valuenow') === String(Math.max(0, 100 - used - (calls - 1) * 5));
+  }).toBe(true);
+  return calls;
+}
 
 test.beforeEach(async ({ page }) => {
   await page.clock.install({ time: start });
@@ -47,9 +59,8 @@ for (const [used, seconds] of [[20, 60], [90, 30]]) test(`Claude at ${used}% use
   await page.getByRole('button', { name: 'Claude details', exact: true }).click();
   const meter = page.getByRole('progressbar', { name: 'Claude Session remaining' });
   await expect(page.getByRole('button', { name: 'Refresh usage' })).toBeEnabled();
-  const before = await countCalls(page, 'refresh_provider');
+  const before = await settledCalls(page, used);
   const remaining = Math.max(0, 100 - used - (before - 1) * 5);
-  await expect(meter).toHaveAttribute('aria-valuenow', String(remaining));
   await expect(page.getByText(/^Last checked/)).toBeVisible();
   await page.clock.runFor(seconds * 1000 - 1);
   expect(await countCalls(page, 'refresh_provider')).toBe(before);
@@ -77,7 +88,7 @@ test('a slow Claude lookup is not restarted by the faster refresh timer', async 
   await nativeBridge(page, { settings, quotas: { claude: { metrics: [{ label: 'Session', usedPercent: 77, resetIn: 2 * 3_600_000 }] } }, histories: { claude: history() }, rising: true });
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'Refresh usage' })).toBeEnabled();
-  const before = await countCalls(page, 'refresh_provider');
+  const before = await settledCalls(page, 77);
   await holdNative(page);
   await page.getByRole('button', { name: 'Refresh usage' }).click();
   await expect(page.getByRole('button', { name: 'Refresh usage' })).toBeDisabled();
@@ -91,9 +102,7 @@ test('reopening Claude after its faster refresh deadline catches up without wait
   await nativeBridge(page, { settings, quotas: { claude: { metrics: [{ label: 'Session', usedPercent: 77, resetIn: 2 * 3_600_000 }] } }, histories: { claude: history() }, rising: true });
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'Refresh usage' })).toBeEnabled();
-  // Count only after both startup lookups (StrictMode runs effects twice in the dev server) have rendered.
-  await expect(page.getByRole('progressbar', { name: 'Claude Session remaining' })).toHaveAttribute('aria-valuenow', '18');
-  const before = await countCalls(page, 'refresh_provider');
+  const before = await settledCalls(page, 77);
   await page.clock.setSystemTime(new Date(start.getTime() + 36_000));
   await page.evaluate(() => { window.dispatchEvent(new Event('focus')); document.dispatchEvent(new Event('visibilitychange')); });
   await expect(page.getByRole('progressbar', { name: 'Claude Session remaining' })).toHaveAttribute('aria-valuenow', String(23 - before * 5));

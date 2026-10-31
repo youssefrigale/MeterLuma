@@ -32,6 +32,8 @@ test('the footer countdown refreshes usage without changing provider connections
   await page.goto('/');
   const refresh = page.getByRole('button', { name: 'Refresh now', exact: true });
   await expect(refresh).toBeEnabled();
+  // Take the baseline after the startup lookups have rendered, so none of them can land after it.
+  await expect(page.getByRole('article').filter({ hasText: 'DeepSeek' })).toContainText('8.76');
   const before = await countCalls(page, 'refresh_additional_provider');
   await refresh.click();
   await expect.poll(() => countCalls(page, 'refresh_additional_provider')).toBe(before + 1);
