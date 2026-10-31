@@ -26,7 +26,7 @@
     "shortDescription": "All your AI usage, one glance.",
     "longDescription": "MeterLuma is a tray and menu bar app that shows your AI coding-tool usage at a glance. It reads recorded Claude Code and Codex CLI token history from local logs, shows Codex quotas through the installed Codex CLI, and shows unofficial Cursor quotas. MeterLuma is not affiliated with or endorsed by Anthropic, OpenAI or Anysphere (Cursor).",
     "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
-    "macOS": { "minimumSystemVersion": "13.0", "hardenedRuntime": true },
+    "macOS": { "minimumSystemVersion": "13.0", "hardenedRuntime": true, "signingIdentity": "-" },
     "windows": {
       "nsis": { "installMode": "currentUser", "installerIcon": "icons/icon.ico", "languages": ["English"], "displayLanguageSelector": false, "compression": "lzma" }
     }
