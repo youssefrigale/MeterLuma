@@ -6,6 +6,17 @@ test.use({ viewport: { width: 360, height: 440 }, userAgent: 'Mozilla/5.0 (Macin
 const quota = { plan: 'Team', metrics: [{ label: 'Session', usedPercent: 18, resetIn: 5 * 3_600_000 }, { label: 'Weekly', usedPercent: 11, resetIn: 4 * 86_400_000 }] };
 const quotaCalls = async (page: Parameters<typeof nativeCalls>[0]) => (await nativeCalls(page)).filter(call => call.command === 'refresh_provider' && call.args.providerId === 'claude');
 
+test('an unused Claude session says it starts on first use, matching claude.ai, in both usage modes', async ({ page }) => {
+  const unused = { plan: 'Team', metrics: [{ label: 'Session', usedPercent: 0, resetIn: null }, { label: 'Weekly', usedPercent: 3, resetIn: 6 * 86_400_000 }] };
+  await nativeBridge(page, { settings: { legalVersion: LEGAL, claudeLive: true, liveProviders: ['claude'], enabled: ['claude'], remaining: false }, quotas: { claude: unused }, histories: { claude: history() } });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Claude details', exact: true }).click();
+  const session = page.locator('.quick-metric').filter({ has: page.getByRole('heading', { name: 'Session', exact: true }) });
+  await expect(session.locator('.quick-metric-caption')).toHaveText('0% usedStarts on first use');
+  await expect(page.locator('.quick-metric').filter({ has: page.getByRole('heading', { name: 'Weekly', exact: true }) }).locator('.quick-metric-caption')).toContainText('3% used');
+  await expect(page.getByText('Reset time unavailable', { exact: true })).toHaveCount(0);
+});
+
 test('existing history-only consent needs explicit opt-in before Claude quotas, and can return to history only', async ({ page }, testInfo) => {
   await nativeBridge(page, { settings: { legalVersion: '1.1-providers-6', claudeLive: true, theme: 'dark', liveProviders: ['claude'], enabled: ['claude'] }, quotas: { claude: quota }, histories: { claude: history({ tokens: 2000 }) } });
   await page.goto('/');

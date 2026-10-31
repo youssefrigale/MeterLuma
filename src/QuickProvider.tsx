@@ -23,12 +23,13 @@ export const colors = neutralColors;
 const sampleModels = { claude: [['Opus', 62], ['Sonnet', 35], ['Haiku', 3]], codex: [['Codex', 78], ['Codex Mini', 22]], cursor: [['Auto', 72], ['Selected model', 28]] } as const;
 export const thirtyDaySpend = (id: ProviderId) => [...dailySpend[id], ...dailySpend[id], ...dailySpend[id]].slice(-30).reduce((sum, value) => sum + value, 0);
 
-export function QuotaMetric({ provider, metric, settings, now }: { provider: Pick<Provider, 'name' | 'cached'>; metric: Metric; settings: Settings; now: number }) {
+export function QuotaMetric({ provider, metric, settings, now }: { provider: Pick<Provider, 'name' | 'cached'> & { id?: string }; metric: Metric; settings: Settings; now: number }) {
   const remaining = Math.max(0, 100 - Math.min(100, metric.usedPercent));
   const value = settings.remaining ? remaining : 100 - remaining;
   const projection = settings.pacing && !provider.cached ? usageProjection(metric, now) : undefined;
   const resetHint = metric.resetAt === null ? undefined : settings.resetStyle === 'absolute' ? countdown(metric.resetAt, now) : formatDateTime(metric.resetAt, settings.timeFormat);
-  const reset = resetText(metric, now, settings);
+  // Claude starts a window with its first request, so an unused window has no reset time yet (claude.ai says the same).
+  const reset = provider.id === 'claude' && metric.resetAt === null && metric.usedPercent === 0 ? 'Starts on first use' : resetText(metric, now, settings);
   const description = `${quotaPercent(value)}% ${settings.remaining ? 'left' : 'used'}. ${reset}${resetHint ? `. ${resetHint}` : ''}${projection ? `. At current pace: ${short(projection.projected)}% used by reset` : ''}`;
   return <div className="quick-metric">
     <div className="quick-metric-title"><h3 title={metric.label}>{metric.label}</h3><i role="img" className={remaining <= 10 ? 'critical' : remaining <= LOW_ALLOWANCE_REMAINING ? 'low' : ''} aria-label={remaining <= 10 ? 'Very little allowance left' : remaining <= LOW_ALLOWANCE_REMAINING ? 'Low allowance' : 'Allowance available'}/></div>
