@@ -1,0 +1,804 @@
+[
+  {
+    "id": "deepseek",
+    "name": "DeepSeek",
+    "description": "API credit balance, including USD and CNY balances.",
+    "dashboard": "https://platform.deepseek.com/usage",
+    "docs": "https://api-docs.deepseek.com/api/get-user-balance/",
+    "authHeader": "Authorization",
+    "requests": [
+      {
+        "key": "balance",
+        "url": "https://api.deepseek.com/user/balance"
+      }
+    ],
+    "state": "ready",
+    "credentialLabel": "API key",
+    "source": "api"
+  },
+  {
+    "id": "openrouter",
+    "name": "OpenRouter",
+    "description": "Reported key spending and account credit balance when your key permits it.",
+    "dashboard": "https://openrouter.ai/activity",
+    "docs": "https://openrouter.ai/docs/api/api-reference/api-keys/get-current-key",
+    "authHeader": "Authorization",
+    "requests": [
+      {
+        "key": "key",
+        "url": "https://openrouter.ai/api/v1/key"
+      },
+      {
+        "key": "credits",
+        "url": "https://openrouter.ai/api/v1/credits"
+      }
+    ],
+    "state": "ready",
+    "credentialLabel": "API key",
+    "source": "api"
+  },
+  {
+    "id": "elevenlabs",
+    "name": "ElevenLabs",
+    "description": "Monthly character allowance and reported subscription tier.",
+    "dashboard": "https://elevenlabs.io/app/settings/subscription",
+    "docs": "https://elevenlabs.io/docs/api-reference/user/subscription/get",
+    "authHeader": "xi-api-key",
+    "requests": [
+      {
+        "key": "subscription",
+        "url": "https://api.elevenlabs.io/v1/user/subscription"
+      }
+    ],
+    "state": "ready",
+    "credentialLabel": "API key",
+    "source": "api"
+  },
+  {
+    "id": "synthetic",
+    "name": "Synthetic",
+    "description": "Current subscription request allowance and renewal time.",
+    "dashboard": "https://synthetic.new/usage",
+    "docs": "https://dev.synthetic.new/docs/synthetic/quotas",
+    "authHeader": "Authorization",
+    "requests": [
+      {
+        "key": "quota",
+        "url": "https://api.synthetic.new/v2/quotas"
+      }
+    ],
+    "state": "ready",
+    "credentialLabel": "API key",
+    "source": "api"
+  },
+  {
+    "id": "venice",
+    "name": "Venice",
+    "description": "Reported USD and DIEM balances. DIEM is not treated as dollars.",
+    "dashboard": "https://venice.ai/settings/api",
+    "docs": "https://docs.venice.ai/api-reference/endpoint/api_keys/rate_limits",
+    "authHeader": "Authorization",
+    "requests": [
+      {
+        "key": "limits",
+        "url": "https://api.venice.ai/api/v1/api_keys/rate_limits"
+      }
+    ],
+    "state": "ready",
+    "credentialLabel": "API key",
+    "source": "api"
+  },
+  {
+    "id": "crofai",
+    "name": "CrofAI",
+    "description": "Available requests and credits reported by the usage API.",
+    "dashboard": "https://crof.ai",
+    "docs": "https://crof.ai/docs",
+    "authHeader": "Authorization",
+    "requests": [
+      {
+        "key": "usage",
+        "url": "https://crof.ai/usage_api/"
+      }
+    ],
+    "state": "ready",
+    "credentialLabel": "API key",
+    "source": "api"
+  },
+  {
+    "id": "nous",
+    "name": "Nous Portal",
+    "description": "Reported balance, monthly cap and subscription credits.",
+    "dashboard": "https://portal.nousresearch.com",
+    "docs": "https://github.com/robinebers/openusage/issues/1161",
+    "authHeader": "Authorization",
+    "requests": [
+      {
+        "key": "billing",
+        "url": "https://portal.nousresearch.com/api/billing/state"
+      },
+      {
+        "key": "subscription",
+        "url": "https://portal.nousresearch.com/api/billing/subscription"
+      }
+    ],
+    "state": "ready",
+    "credentialLabel": "API key or account access token",
+    "source": "api"
+  },
+  {
+    "id": "pioneer",
+    "name": "Pioneer",
+    "description": "Reported billing usage and remaining free credits.",
+    "dashboard": "https://agent.pioneer.ai/credits",
+    "docs": "https://docs.pioneer.ai",
+    "authHeader": "X-API-Key",
+    "requests": [
+      {
+        "key": "billing",
+        "url": "https://api.pioneer.ai/billing/billing-status"
+      }
+    ],
+    "state": "ready",
+    "credentialLabel": "API key",
+    "source": "api"
+  },
+  {
+    "id": "antigravity",
+    "name": "Antigravity",
+    "description": "Production Cloud Code quota summary using a supplied Google OAuth access token. Shared and Argon pools stay separate. No local port discovery or token renewal.",
+    "dashboard": "https://antigravity.google",
+    "docs": "https://antigravity.google",
+    "state": "ready",
+    "credentialLabel": "Antigravity OAuth access token",
+    "authHeader": "Authorization",
+    "requests": [
+      {
+        "key": "summary",
+        "url": "https://cloudcode-pa.googleapis.com/v1internal:retrieveUserQuotaSummary",
+        "body": {}
+      }
+    ],
+    "source": "api"
+  },
+  {
+    "id": "gemini",
+    "name": "Gemini CLI",
+    "description": "Gemini Code Assist model quotas for a supplied OAuth access token and Cloud project. No project onboarding or credential renewal.",
+    "dashboard": "https://geminicli.com",
+    "docs": "https://github.com/google-gemini/gemini-cli/blob/main/packages/core/src/code_assist/types.ts",
+    "state": "ready",
+    "credentialLabel": "Gemini OAuth access token",
+    "authHeader": "Authorization",
+    "requests": [
+      {
+        "key": "quota",
+        "url": "https://cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota",
+        "body": {
+          "project": null
+        }
+      }
+    ],
+    "source": "api",
+    "credentialScope": {
+      "field": "projectId",
+      "label": "Cloud project ID"
+    }
+  },
+  {
+    "id": "copilot",
+    "name": "GitHub Copilot",
+    "description": "Personal AI Credits quota when the account exposes it. Organization billing is excluded.",
+    "dashboard": "https://github.com/settings/copilot/features",
+    "docs": "https://github.com/robinebers/openusage/blob/main/docs/providers/copilot.md",
+    "state": "ready",
+    "credentialLabel": "GitHub OAuth access token",
+    "authHeader": "Authorization",
+    "requests": [
+      {
+        "key": "quota",
+        "url": "https://api.github.com/copilot_internal/user"
+      }
+    ],
+    "authPrefix": "token ",
+    "headers": {
+      "X-Github-Api-Version": "2025-04-01"
+    },
+    "source": "api"
+  },
+  {
+    "id": "windsurf",
+    "name": "Windsurf",
+    "description": "Reported daily/weekly remaining quotas and extra balance. No credential renewal.",
+    "dashboard": "https://windsurf.com",
+    "docs": "https://github.com/robinebers/openusage/blob/main/docs/providers/devin.md",
+    "state": "ready",
+    "credentialLabel": "Existing companion app API key",
+    "authHeader": "",
+    "requests": [
+      {
+        "key": "status",
+        "url": "https://server.codeium.com/exa.seat_management_pb.SeatManagementService/GetUserStatus",
+        "body": {
+          "metadata": {
+            "apiKey": null,
+            "ideName": "meterluma",
+            "ideVersion": "0.1.2",
+            "extensionName": "meterluma",
+            "extensionVersion": "0.1.2",
+            "locale": "en"
+          }
+        },
+        "credentialPointer": "/metadata/apiKey"
+      }
+    ],
+    "source": "api",
+    "headers": {
+      "Connect-Protocol-Version": "1"
+    }
+  },
+  {
+    "id": "devin",
+    "name": "Devin",
+    "description": "Reported daily/weekly remaining quotas and extra balance. No credential renewal.",
+    "dashboard": "https://devin.ai",
+    "docs": "https://github.com/robinebers/openusage/blob/main/docs/providers/devin.md",
+    "state": "ready",
+    "credentialLabel": "Existing companion app API key",
+    "authHeader": "",
+    "requests": [
+      {
+        "key": "status",
+        "url": "https://server.codeium.com/exa.seat_management_pb.SeatManagementService/GetUserStatus",
+        "body": {
+          "metadata": {
+            "apiKey": null,
+            "ideName": "meterluma",
+            "ideVersion": "0.1.2",
+            "extensionName": "meterluma",
+            "extensionVersion": "0.1.2",
+            "locale": "en"
+          }
+        },
+        "credentialPointer": "/metadata/apiKey"
+      }
+    ],
+    "source": "api",
+    "headers": {
+      "Connect-Protocol-Version": "1"
+    }
+  },
+  {
+    "id": "factory",
+    "name": "Factory Droid",
+    "description": "Default-organization Standard and Droid Core windows plus extra balance. Explicit short-lived access token; no credential renewal or encrypted login discovery.",
+    "dashboard": "https://factory.ai",
+    "docs": "https://factory.ai",
+    "state": "ready",
+    "credentialLabel": "Factory access token",
+    "authHeader": "Authorization",
+    "requests": [
+      {
+        "key": "limits",
+        "url": "https://api.factory.ai/api/billing/limits"
+      },
+      {
+        "key": "settings",
+        "url": "https://api.factory.ai/api/organization/managed-settings"
+      }
+    ],
+    "source": "api"
+  },
+  {
+    "id": "factory-eu",
+    "name": "Factory Droid Europe",
+    "description": "Default-organization Standard and Droid Core windows plus extra balance. Explicit short-lived access token; no credential renewal or encrypted login discovery. EU endpoint only.",
+    "dashboard": "https://factory.ai",
+    "docs": "https://factory.ai",
+    "state": "ready",
+    "credentialLabel": "Factory access token",
+    "authHeader": "Authorization",
+    "requests": [
+      {
+        "key": "limits",
+        "url": "https://api.eu.factory.ai/api/billing/limits"
+      },
+      {
+        "key": "settings",
+        "url": "https://api.eu.factory.ai/api/organization/managed-settings"
+      }
+    ],
+    "source": "api"
+  },
+  {
+    "id": "grok",
+    "name": "Grok",
+    "description": "Grok CLI shared weekly pool. No OAuth refresh or credential writes.",
+    "dashboard": "https://grok.com",
+    "docs": "https://github.com/robinebers/openusage/blob/main/docs/providers/grok.md",
+    "state": "ready",
+    "credentialLabel": "Grok CLI account access token",
+    "authHeader": "Authorization",
+    "requests": [
+      {
+        "key": "billing",
+        "url": "https://cli-chat-proxy.grok.com/v1/billing?format=credits"
+      },
+      {
+        "key": "settings",
+        "url": "https://cli-chat-proxy.grok.com/v1/settings"
+      }
+    ],
+    "headers": {
+      "X-XAI-Token-Auth": "xai-grok-cli"
+    },
+    "source": "api"
+  },
+  {
+    "id": "kimi",
+    "name": "Kimi Code",
+    "description": "Counter-based session and weekly usage. No credential refresh.",
+    "dashboard": "https://www.kimi.com/code/console",
+    "docs": "https://github.com/MoonshotAI/kimi-code/issues/3951",
+    "state": "ready",
+    "credentialLabel": "API key or account access token",
+    "authHeader": "Authorization",
+    "requests": [
+      {
+        "key": "quota",
+        "url": "https://api.kimi.com/coding/v1/usages"
+      }
+    ],
+    "source": "api"
+  },
+  {
+    "id": "minimax",
+    "name": "MiniMax",
+    "description": "Reported session and weekly Token Plan quota percentages.",
+    "dashboard": "https://platform.minimax.io/subscribe/token-plan",
+    "docs": "https://platform.minimax.io/docs/m-plan/intro",
+    "state": "ready",
+    "credentialLabel": "API key",
+    "authHeader": "Authorization",
+    "requests": [
+      {
+        "key": "quota",
+        "url": "https://www.minimax.io/v1/token_plan/remains"
+      }
+    ],
+    "source": "api"
+  },
+  {
+    "id": "minimax-cn",
+    "name": "MiniMax China",
+    "description": "Mainland China Token Plan quota. Uses a separate regional key.",
+    "dashboard": "https://platform.minimaxi.com",
+    "docs": "https://platform.minimaxi.com",
+    "state": "ready",
+    "credentialLabel": "API key",
+    "authHeader": "Authorization",
+    "requests": [
+      {
+        "key": "quota",
+        "url": "https://api.minimaxi.com/v1/token_plan/remains"
+      }
+    ],
+    "source": "api"
+  },
+  {
+    "id": "zai",
+    "name": "Z.ai",
+    "description": "GLM Coding Plan session, weekly and web-search quotas.",
+    "dashboard": "https://z.ai/manage-apikey/coding-plan/personal/my-plan",
+    "docs": "https://docs.z.ai/devpack/overview",
+    "state": "ready",
+    "credentialLabel": "API key",
+    "authHeader": "Authorization",
+    "requests": [
+      {
+        "key": "quota",
+        "url": "https://api.z.ai/api/monitor/usage/quota/limit"
+      },
+      {
+        "key": "subscription",
+        "url": "https://api.z.ai/api/biz/subscription/list"
+      }
+    ],
+    "source": "api"
+  },
+  {
+    "id": "zai-cn",
+    "name": "Z.ai China (BigModel)",
+    "description": "China-region GLM Coding Plan quotas. Its key is never tried against the international endpoint.",
+    "dashboard": "https://open.bigmodel.cn",
+    "docs": "https://github.com/robinebers/openusage/issues/1334",
+    "state": "ready",
+    "credentialLabel": "BigModel API key",
+    "authHeader": "Authorization",
+    "requests": [
+      {
+        "key": "quota",
+        "url": "https://open.bigmodel.cn/api/monitor/usage/quota/limit"
+      },
+      {
+        "key": "subscription",
+        "url": "https://open.bigmodel.cn/api/biz/subscription/list"
+      }
+    ],
+    "source": "api"
+  },
+  {
+    "id": "ollama",
+    "name": "Ollama Cloud",
+    "description": "Ollama Cloud monthly included and purchased credits, or legacy session/weekly limits. Uses your Cloud API key; local models are excluded.",
+    "dashboard": "https://ollama.com",
+    "docs": "https://docs.ollama.com/api/balance",
+    "state": "ready",
+    "credentialLabel": "Ollama Cloud API key",
+    "authHeader": "Authorization",
+    "requests": [
+      {
+        "key": "balance",
+        "url": "https://ollama.com/api/balance"
+      }
+    ],
+    "source": "api"
+  },
+  {
+    "id": "opencode",
+    "name": "OpenCode Go / Go Plus",
+    "description": "Session, weekly and monthly subscription quotas for OpenCode Go and Go Plus. Connect with your Go API key or Console OAuth access token. Zen pay-as-you-go balance and local request history are excluded.",
+    "dashboard": "https://opencode.ai/console/go",
+    "docs": "https://opencode.ai/docs/go/",
+    "state": "ready",
+    "credentialLabel": "Go API key or Console OAuth access token",
+    "authHeader": "Authorization",
+    "requests": [
+      {
+        "key": "quota",
+        "url": "https://opencode.ai/zen/go/v1/usage"
+      }
+    ],
+    "source": "api"
+  },
+  {
+    "id": "kiro",
+    "name": "Kiro",
+    "description": "Saved Kiro IDE credit quota. Cached at its own timestamp for at most 15 minutes; refresh Kiro account dashboard to update it. No live request or credential refresh.",
+    "dashboard": "https://kiro.dev",
+    "docs": "https://kiro.dev",
+    "state": "ready",
+    "credentialLabel": "No key required",
+    "authHeader": "Authorization",
+    "requests": [],
+    "source": "local"
+  },
+  {
+    "id": "qoder",
+    "name": "Qoder",
+    "description": "Account quotas from the installed Qoder CLI control protocol. No prompt is sent. Qoder manages its own login; install and sign in through Qoder first.",
+    "dashboard": "https://qoder.com",
+    "docs": "https://docs.qoder.com/cli/sdk/cost-usage",
+    "state": "ready",
+    "credentialLabel": "Uses installed Qoder CLI",
+    "authHeader": "Authorization",
+    "requests": [],
+    "source": "cli"
+  },
+  {
+    "id": "muse",
+    "name": "Meta Muse",
+    "description": "Muse Code local session token records. Cache and reasoning fields are not added twice. Subscription quotas, billing and active account ownership are not inferred.",
+    "dashboard": "https://dev.meta.ai",
+    "docs": "https://dev.meta.ai/docs/cookbook/audit-agent-sessions",
+    "state": "ready",
+    "credentialLabel": "No key required",
+    "authHeader": "Authorization",
+    "requests": [],
+    "source": "local"
+  },
+  {
+    "id": "commandcode",
+    "name": "Command Code",
+    "description": "Reported session/weekly caps and remaining credit-value units. No inferred monthly allowance.",
+    "dashboard": "https://commandcode.ai",
+    "docs": "https://commandcode.ai/docs/resources/usage-limits",
+    "state": "ready",
+    "credentialLabel": "Command Code API key",
+    "authHeader": "Authorization",
+    "requests": [
+      {
+        "key": "credits",
+        "url": "https://api.commandcode.ai/alpha/billing/credits"
+      },
+      {
+        "key": "subscription",
+        "url": "https://api.commandcode.ai/alpha/billing/subscriptions"
+      }
+    ],
+    "source": "api"
+  },
+  {
+    "id": "zcode",
+    "name": "Zcode",
+    "description": "Token counts from the local Zcode SQLite databases. No account limits or network requests.",
+    "dashboard": "https://zcode.z.ai",
+    "docs": "https://github.com/robinebers/openusage/issues/1240",
+    "state": "ready",
+    "credentialLabel": "No key required",
+    "authHeader": "Authorization",
+    "requests": [],
+    "source": "local"
+  },
+  {
+    "id": "cline",
+    "name": "Cline",
+    "description": "Request-level local history from Cline VS Code and legacy CLI. Deleted aggregates and current SDK-only sessions are excluded; no quota or billing inference.",
+    "dashboard": "https://cline.bot",
+    "docs": "https://github.com/cline/cline/blob/main/apps/vscode/src/shared/getApiMetrics.ts",
+    "state": "ready",
+    "credentialLabel": "No key required",
+    "authHeader": "Authorization",
+    "requests": [],
+    "source": "local"
+  },
+  {
+    "id": "amp",
+    "name": "Amp",
+    "description": "Reported Agent/Orb allowance, free balance and individual credits. Renewal days are not exact reset times.",
+    "dashboard": "https://ampcode.com",
+    "docs": "https://ampcode.com",
+    "state": "ready",
+    "credentialLabel": "Amp API key",
+    "authHeader": "Authorization",
+    "requests": [
+      {
+        "key": "balance",
+        "url": "https://ampcode.com/api/internal",
+        "body": {
+          "jsonrpc": "2.0",
+          "method": "userDisplayBalanceInfo",
+          "params": {},
+          "id": 1
+        }
+      }
+    ],
+    "source": "api"
+  },
+  {
+    "id": "zed",
+    "name": "Zed",
+    "description": "Personal Zed edit-prediction usage from its account API. This does not measure Agent tokens, model budgets or billing.",
+    "dashboard": "https://zed.dev/account",
+    "docs": "https://github.com/zed-industries/zed/blob/main/crates/cloud_api_client/src/cloud_api_client.rs",
+    "state": "ready",
+    "credentialLabel": "Zed access token",
+    "authHeader": "Authorization",
+    "requests": [
+      {
+        "key": "account",
+        "url": "https://cloud.zed.dev/client/users/me"
+      }
+    ],
+    "source": "api",
+    "authPrefix": "{scope} ",
+    "credentialScope": {
+      "field": "userId",
+      "label": "Zed user ID"
+    }
+  },
+  {
+    "id": "perplexity",
+    "name": "Perplexity",
+    "description": "Experimental consumer query/research counts using a supplied account access token. No app/browser credential extraction or challenge bypass. API billing balance is excluded.",
+    "dashboard": "https://www.perplexity.ai",
+    "docs": "https://www.perplexity.ai",
+    "state": "ready",
+    "credentialLabel": "Perplexity account access token",
+    "authHeader": "Authorization",
+    "requests": [
+      {
+        "key": "limits",
+        "url": "https://www.perplexity.ai/rest/rate-limit/all"
+      }
+    ],
+    "source": "api"
+  },
+  {
+    "id": "microsoft-copilot",
+    "name": "Microsoft Copilot",
+    "description": "Consumer Copilot tracking is unavailable. Microsoft 365 organization reports use different accounts and permissions; they are not a consumer quota.",
+    "dashboard": "https://copilot.microsoft.com",
+    "docs": "https://copilot.microsoft.com",
+    "state": "research",
+    "credentialLabel": "Not available yet",
+    "authHeader": "Authorization",
+    "requests": [],
+    "source": "api"
+  },
+  {
+    "id": "duckai",
+    "name": "Duck.ai",
+    "description": "Duck.ai tracking is unavailable. Its settings show daily/weekly usage, but no authenticated quota contract has been verified.",
+    "dashboard": "https://duck.ai",
+    "docs": "https://duck.ai",
+    "state": "research",
+    "credentialLabel": "Not available yet",
+    "authHeader": "Authorization",
+    "requests": [],
+    "source": "api"
+  },
+  {
+    "id": "vercel",
+    "name": "Vercel AI Gateway",
+    "description": "Team USD credit balance and lifetime spend. No inferred percentage.",
+    "dashboard": "https://vercel.com/dashboard",
+    "docs": "https://vercel.com/docs/ai-gateway/observability-and-spend/usage",
+    "state": "ready",
+    "credentialLabel": "AI Gateway API key",
+    "authHeader": "Authorization",
+    "requests": [
+      {
+        "key": "credits",
+        "url": "https://ai-gateway.vercel.sh/v1/credits"
+      }
+    ],
+    "source": "api"
+  },
+  {
+    "id": "fireworks",
+    "name": "Fireworks",
+    "description": "Rated billing costs for the last 30 UTC dates using a Fireworks API key and account ID. Not a credit balance or Fire Pass allowance.",
+    "dashboard": "https://fireworks.ai",
+    "docs": "https://docs.fireworks.ai/api-reference/get-billing-summary",
+    "state": "ready",
+    "credentialLabel": "Fireworks API key",
+    "authHeader": "Authorization",
+    "requests": [
+      {
+        "key": "summary",
+        "url": "https://api.fireworks.ai/v1/accounts/{account_id}/billing/summary"
+      }
+    ],
+    "source": "api",
+    "credentialScope": {
+      "field": "accountId",
+      "label": "Fireworks account ID"
+    }
+  },
+  {
+    "id": "neuralwatt",
+    "name": "Neuralwatt",
+    "description": "USD credit balance and billing-period energy allowance.",
+    "dashboard": "https://portal.neuralwatt.com",
+    "docs": "https://docs.neuralwatt.com/api/quota",
+    "state": "ready",
+    "credentialLabel": "API key",
+    "authHeader": "Authorization",
+    "requests": [
+      {
+        "key": "quota",
+        "url": "https://api.neuralwatt.com/v1/quota"
+      }
+    ],
+    "source": "api"
+  },
+  {
+    "id": "alibaba",
+    "name": "Alibaba Cloud Coding Plan",
+    "description": "Coding Plan request quotas using a supplied Model Studio console access token. Inference/API keys are not console sign-ins. No token renewal or browser credential reading.",
+    "dashboard": "https://modelstudio.console.alibabacloud.com/",
+    "docs": "https://github.com/modelstudioai/cli/blob/main/packages/commands/src/commands/usage/coding-plan.ts",
+    "state": "ready",
+    "credentialLabel": "Model Studio console access token",
+    "authHeader": "Authorization",
+    "requests": [
+      {
+        "key": "quota",
+        "url": "https://bailian-singapore-cs.alibabacloud.com/cli/api.json?action=IntlBroadScopeAspnGateway&product=sfm_bailian&api=zeldaEasy.broadscope-bailian.codingPlan.queryCodingPlanInstanceInfoV2",
+        "bodyEncoding": "form",
+        "body": {
+          "region": "ap-southeast-1",
+          "params": "{\"Api\":\"zeldaEasy.broadscope-bailian.codingPlan.queryCodingPlanInstanceInfoV2\",\"V\":\"1.0\",\"Data\":{\"queryCodingPlanInstanceInfoRequest\":{\"commodityCode\":\"sfm_codingplan_public_intl\",\"onlyLatestOne\":true},\"cornerstoneParam\":{\"protocol\":\"V2\",\"console\":\"ONE_CONSOLE\",\"productCode\":\"p_efm\",\"switchUserType\":3,\"consoleSite\":\"BAILIAN_ALIYUN\"}}}"
+        }
+      }
+    ],
+    "source": "api"
+  },
+  {
+    "id": "alibaba-cn",
+    "name": "Alibaba Coding Plan China",
+    "description": "Coding Plan request quotas using a supplied Model Studio console access token. Inference/API keys are not console sign-ins. No token renewal or browser credential reading.",
+    "dashboard": "https://bailian.console.aliyun.com/",
+    "docs": "https://github.com/modelstudioai/cli/blob/main/packages/commands/src/commands/usage/coding-plan.ts",
+    "state": "ready",
+    "credentialLabel": "Model Studio console access token",
+    "authHeader": "Authorization",
+    "requests": [
+      {
+        "key": "quota",
+        "url": "https://bailian-cs.console.aliyun.com/cli/api.json?action=BroadScopeAspnGateway&product=sfm_bailian&api=zeldaEasy.broadscope-bailian.codingPlan.queryCodingPlanInstanceInfoV2",
+        "bodyEncoding": "form",
+        "body": {
+          "region": "cn-beijing",
+          "params": "{\"Api\":\"zeldaEasy.broadscope-bailian.codingPlan.queryCodingPlanInstanceInfoV2\",\"V\":\"1.0\",\"Data\":{\"queryCodingPlanInstanceInfoRequest\":{\"commodityCode\":\"sfm_codingplan_public_cn\",\"onlyLatestOne\":true},\"cornerstoneParam\":{\"protocol\":\"V2\",\"console\":\"ONE_CONSOLE\",\"productCode\":\"p_efm\",\"switchUserType\":3,\"consoleSite\":\"BAILIAN_ALIYUN\"}}}"
+        }
+      }
+    ],
+    "source": "api"
+  },
+  {
+    "id": "byteplus",
+    "name": "BytePlus Coding Plan",
+    "description": "Personal and bound team-seat Coding Plan quotas from the installed BytePlus Ark CLI. The CLI manages its existing sign-in. No profile changes, login flow or inference.",
+    "dashboard": "https://www.byteplus.com",
+    "docs": "https://github.com/byteplus-sdk/ark-cli/blob/main/skills/arkcli-usage/references/arkcli-usage-plan.md",
+    "state": "ready",
+    "credentialLabel": "Uses installed BytePlus Ark CLI",
+    "authHeader": "Authorization",
+    "requests": [],
+    "source": "cli"
+  },
+  {
+    "id": "warp",
+    "name": "Warp",
+    "description": "Legacy Warp credit-account quota and user bonus credits. Dollar-billed accounts may not expose these fields. No dollar conversion.",
+    "dashboard": "https://www.warp.dev",
+    "docs": "https://www.warp.dev",
+    "state": "ready",
+    "credentialLabel": "Warp access token",
+    "authHeader": "Authorization",
+    "requests": [
+      {
+        "key": "quota",
+        "url": "https://app.warp.dev/graphql/v2?op=GetRequestLimitInfo",
+        "body": {
+          "query": "query GetRequestLimitInfo($requestContext: RequestContext!) { user(requestContext: $requestContext) { __typename ... on UserOutput { user { requestLimitInfo { isUnlimited nextRefreshTime requestLimit requestsUsedSinceLastRefresh } bonusGrants { requestCreditsGranted requestCreditsRemaining expiration } } } } }",
+          "variables": {
+            "requestContext": {
+              "clientContext": {}
+            }
+          },
+          "operationName": "GetRequestLimitInfo"
+        }
+      }
+    ],
+    "source": "api"
+  },
+  {
+    "id": "jetbrains",
+    "name": "JetBrains AI",
+    "description": "Saved AI Assistant quota from the most recently updated IDE. Cached values expire after 24 hours; separate IDE accounts are not combined.",
+    "dashboard": "https://www.jetbrains.com/ai",
+    "docs": "https://www.jetbrains.com/ai",
+    "state": "ready",
+    "credentialLabel": "No key required",
+    "authHeader": "Authorization",
+    "requests": [],
+    "source": "local"
+  },
+  {
+    "id": "pi",
+    "name": "pi",
+    "description": "Local Pi session token records, including cache warming and compaction. No account quota or billing inference.",
+    "dashboard": "https://pi.dev",
+    "docs": "https://pi.dev/docs/latest/session-format",
+    "state": "ready",
+    "credentialLabel": "No key required",
+    "authHeader": "Authorization",
+    "requests": [],
+    "source": "local"
+  },
+  {
+    "id": "xal",
+    "name": "Xal",
+    "description": "Token counts from the local Xal usage ledger. No account limits or network requests.",
+    "dashboard": "https://xal.sh",
+    "docs": "https://xal.sh/docs/integrations",
+    "state": "ready",
+    "credentialLabel": "No key required",
+    "authHeader": "Authorization",
+    "requests": [],
+    "source": "local"
+  }
+]

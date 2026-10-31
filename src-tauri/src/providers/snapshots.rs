@@ -26,27 +26,30 @@ impl Snapshots {
         if store.prune(chrono::Utc::now().timestamp_millis()) { super::persist(&store.path, &store); }
         store
     }
-    // Expired windows, entries older than a day and Claude entries (live quotas were removed) never stay on disk.
+    // Expired windows and entries older than a day never stay on disk.
     fn prune(&mut self, now: i64) -> bool {
         let before = size(&self.entries);
         self.entries.retain(|_, saved| {
             let Some(age) = now.checked_sub(saved.snapshot.fetched_at).filter(|age| (0..=MAX_AGE).contains(age)) else { return false; };
             saved.snapshot.metrics.retain(|metric| current(age, metric.reset_at, now));
-            !matches!(saved.snapshot.id, ProviderId::Claude) && !saved.snapshot.metrics.is_empty()
+            !saved.snapshot.metrics.is_empty()
         });
         if self.entries.len() > 16 { self.entries.clear(); }
         size(&self.entries) != before
     }
     pub fn get(&self, key: &str, fingerprint: [u8; 32], id: ProviderId, now: i64) -> Option<Snapshot> {
         let saved = self.entries.get(key)?;
-        if saved.fingerprint != fingerprint || std::mem::discriminant(&saved.snapshot.id) != std::mem::discriminant(&id) || matches!(id, ProviderId::Claude) { return None; }
+        if saved.fingerprint != fingerprint || std::mem::discriminant(&saved.snapshot.id) != std::mem::discriminant(&id) { return None; }
         let mut snapshot = saved.snapshot.clone();
         let age = now.checked_sub(snapshot.fetched_at)?;
         if !(0..=MAX_AGE).contains(&age) || snapshot.plan.len() > 120 || snapshot.metrics.len() > 16 { return None; }
         snapshot.metrics.retain(|metric| metric.label.len() < 100 && metric.used_percent.is_finite() && metric.used_percent >= 0.0 && current(age, metric.reset_at, now));
         (!snapshot.metrics.is_empty()).then_some(snapshot)
     }
-    pub fn put(&mut self, key: String, fingerprint: [u8; 32], snapshot: Snapshot) {
+    pub fn put(&mut self, key: String, fingerprint: [u8; 32], mut snapshot: Snapshot) {
+        // Monetary extra usage has no reset timestamp; do not persist it with day-long quota fallbacks.
+        snapshot.claude_extra_usage = None;
+        if snapshot.metrics.is_empty() { self.remove(&key); return; }
         self.prune(chrono::Utc::now().timestamp_millis());
         if self.entries.len() >= 16 && !self.entries.contains_key(&key) {
             if let Some(oldest) = self.entries.iter().min_by_key(|(_, saved)| saved.snapshot.fetched_at).map(|(key, _)| key.clone()) { self.entries.remove(&oldest); }
@@ -61,8 +64,8 @@ mod tests {
     use super::*;
     use super::super::Metric;
     fn snapshot(id: ProviderId, fetched_at: i64, resets: &[Option<i64>]) -> Snapshot {
-        let metrics = resets.iter().enumerate().map(|(index, reset_at)| Metric { label: format!("Window {index}"), used_percent: 20.0 + index as f64, reset_at: *reset_at }).collect();
-        Snapshot { id, name: "Provider".into(), plan: "Subscription".into(), color: "#000000".into(), initials: "P".into(), spend_today: None, metrics, fetched_at, codex_account: None }
+        let metrics = resets.iter().enumerate().map(|(index, reset_at)| Metric { label: format!("Window {index}"), used_percent: 20.0 + index as f64, reset_at: *reset_at, period_minutes:None }).collect();
+        Snapshot { id, name: "Provider".into(), plan: "Subscription".into(), color: "#000000".into(), initials: "P".into(), spend_today: None, metrics, fetched_at, codex_account: None, claude_extra_usage: None }
     }
     fn temporary(name: &str) -> PathBuf { std::env::temp_dir().join(format!("meterluma-{name}-{}-{}.json", std::process::id(), chrono::Utc::now().timestamp_nanos_opt().unwrap())) }
     #[test]
@@ -75,6 +78,18 @@ mod tests {
         with_account.codex_account=Some(super::super::CodexAccount { credits:None,available_resets:Some(0),included_usage_allowed:Some(false) });
         let restored:Snapshot=serde_json::from_value(serde_json::to_value(with_account).unwrap()).unwrap();
         assert_eq!(restored.codex_account.unwrap().included_usage_allowed,Some(false));
+    }
+    #[test]
+    fn monetary_claude_extra_usage_is_not_kept_in_quota_fallback_storage() {
+        let path = temporary("extra-usage");
+        let now = chrono::Utc::now().timestamp_millis();
+        let mut current = snapshot(ProviderId::Claude, now, &[Some(now + 600_000)]);
+        current.claude_extra_usage = Some(super::super::ClaudeExtraUsage { spent:Some(12.34),monthly_limit:Some(100.0),currency:Some("EUR".into()),decimal_places:Some(2) });
+        let mut store = Snapshots::load(Some(path.clone()));
+        store.put("claude".into(),[1;32],current);
+        assert!(store.get("claude",[1;32],ProviderId::Claude,now).unwrap().claude_extra_usage.is_none());
+        assert!(!std::fs::read_to_string(&path).unwrap().contains("claudeExtraUsage"));
+        std::fs::remove_file(path).unwrap();
     }
     #[test]
     fn survives_restart_but_never_crosses_credentials_or_shows_expired_windows() {
@@ -94,7 +109,7 @@ mod tests {
         let _ = std::fs::remove_file(path);
     }
     #[test]
-    fn load_and_save_prune_claude_entries_expired_windows_and_day_old_entries() {
+    fn load_and_save_keep_current_claude_entries_and_prune_expired_or_day_old_entries() {
         let path = temporary("snapshots-prune");
         let now = chrono::Utc::now().timestamp_millis();
         let mut raw = Snapshots::default();
@@ -107,17 +122,17 @@ mod tests {
         ] { raw.entries.insert(key.into(), Saved { fingerprint: [1; 32], snapshot: value }); }
         std::fs::write(&path, serde_json::to_vec(&raw).unwrap()).unwrap();
         let loaded = Snapshots::load(Some(path.clone()));
-        assert_eq!(loaded.entries.keys().collect::<Vec<_>>(), ["live"]);
+        assert_eq!(loaded.entries.keys().collect::<Vec<_>>(), ["claude", "live"]);
         assert_eq!(loaded.entries["live"].snapshot.metrics.len(), 1);
         let saved: Snapshots = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
-        assert_eq!(saved.entries.keys().collect::<Vec<_>>(), ["live"]);
+        assert_eq!(saved.entries.keys().collect::<Vec<_>>(), ["claude", "live"]);
         assert_eq!(saved.entries["live"].snapshot.metrics[0].reset_at, Some(now + 600_000));
         let mut store = saved;
         store.path = Some(path.clone());
         store.entries.get_mut("live").unwrap().snapshot.fetched_at = now - MAX_AGE - 1;
         store.put("fresh".into(), [2; 32], snapshot(ProviderId::Cursor, now, &[Some(now + 600_000)]));
         let saved: Snapshots = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
-        assert_eq!(saved.entries.keys().collect::<Vec<_>>(), ["fresh"]);
+        assert_eq!(saved.entries.keys().collect::<Vec<_>>(), ["claude", "fresh"]);
         let _ = std::fs::remove_file(path);
     }
 }

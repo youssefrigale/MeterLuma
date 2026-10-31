@@ -1,18 +1,25 @@
+const CODEX_USAGE_URL: &str = "https://chatgpt.com/settings/usage?tab=overview";
+
 fn website(provider_id: &str, page: &str) -> Option<&'static str> {
     let url = match (provider_id, page) {
         ("claude", "status") => "https://status.claude.com/",
         ("claude", "usage") => "https://claude.ai/settings/usage",
         ("codex", "status") => "https://status.openai.com/",
-        ("codex", "usage") => "https://chatgpt.com/codex/settings/usage",
+        ("codex", "usage") => CODEX_USAGE_URL,
         ("cursor", "status") => "https://status.cursor.com/",
         ("cursor", "usage") => "https://cursor.com/dashboard",
-        _ => return None,
+        ("meterluma", "repository") => "https://github.com/youssefrigale/MeterLuma",
+        _ => {
+            let provider = crate::providers::additional::catalog::provider(provider_id).ok()?;
+            if page == "usage" { &provider.dashboard } else { return None; }
+        },
     };
     Some(url).filter(|url| plain_https(url))
 }
 
-/// An absolute HTTPS URL made only of characters that no shell, `open` or ShellExecute can read as anything else.
+/// Fixed Codex overview URL or a plain HTTPS URL safe for a single OS-opener argument.
 fn plain_https(url: &str) -> bool {
+    if url == CODEX_USAGE_URL { return true; }
     url.strip_prefix("https://").is_some_and(|rest| {
         let host = rest.split('/').next().unwrap_or_default();
         host.contains('.') && !host.starts_with(['.', '-']) && !host.ends_with(['.', '-'])
@@ -53,7 +60,7 @@ mod tests {
     use super::{plain_https, website};
     #[test]
     fn provider_pages_reject_arbitrary_urls_and_commands() {
-        assert_eq!(website("codex", "usage"), Some("https://chatgpt.com/codex/settings/usage"));
+        assert_eq!(website("codex", "usage"), Some("https://chatgpt.com/settings/usage?tab=overview"));
         for provider in ["claude", "codex", "cursor"] {
             for page in ["status", "usage"] { assert!(website(provider, page).is_some_and(plain_https)); }
             assert!(website(provider, "file:///private").is_none());
@@ -65,13 +72,14 @@ mod tests {
         assert!(website("", "").is_none());
     }
     #[test]
-    fn only_plain_https_urls_pass() {
-        for url in ["https://status.claude.com/", "https://cursor.com/dashboard", "https://chatgpt.com/codex/settings/usage"] { assert!(plain_https(url), "{url}"); }
+    fn only_plain_https_urls_and_the_fixed_codex_overview_pass() {
+        for url in ["https://status.claude.com/", "https://cursor.com/dashboard", "https://chatgpt.com/settings/usage?tab=overview"] { assert!(plain_https(url), "{url}"); }
         for url in [
             "http://cursor.com/dashboard", "file:///C:/Windows/System32/calc.exe", "javascript:alert(1)", "https://", "https:///etc/passwd",
             "https://localhost/", "https://cursor.com/a b", "https://cursor.com/\"&calc", "https://cursor.com/%2e%2e", "https://cursor.com/?q=1",
             "https://user@cursor.com/", "https://cursor.com:8443/", "https://.cursor.com/", "https://Cursor.com/", "-https://cursor.com/",
             " https://cursor.com/", "https://cursor.com/\n", "ms-settings:privacy", "\\\\server\\share",
+            "https://chatgpt.com/settings/usage?tab=overview&next=https://example.com", "https://chatgpt.com/settings/usage?tab=other",
         ] { assert!(!plain_https(url), "{url:?}"); }
     }
 }

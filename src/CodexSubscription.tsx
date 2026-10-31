@@ -21,6 +21,6 @@ export function CodexSubscription({ provider, settings }: { provider: Provider; 
       <div><dt>Plan</dt><dd>{provider.plan === 'Local history' ? 'Unavailable' : planLabel(provider)}</dd></div>
       <div><dt>Connection</dt><dd>{provider.tokenOnly ? 'Account token' : 'Local Codex sign-in'}</dd></div>
       {typeof provider.fetchedAt === 'number' && <div><dt>{provider.cached ? 'Cached at' : 'Updated'}</dt><dd>{formatDateTime(provider.fetchedAt, settings.timeFormat)}</dd></div>}
-    </dl><p>Included usage, credits and resets come from Codex. Billing charges and renewal dates are not provided. Token history below covers this device.</p></details>
+    </dl><p>Included usage, credits and resets come from Codex. Billing charges and renewal dates are not provided. Token history below covers this device. Sessions explicitly marked with another model provider are excluded. Older logs without provider metadata are device usage, not verified subscription billing.</p></details>
   </section>;
 }

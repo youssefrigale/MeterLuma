@@ -1,6 +1,14 @@
 use serde_json::{json, Value};
 use std::{ffi::OsString, io::{BufRead, BufReader, Read, Write}, path::{Path, PathBuf}, process::{Child, Command, Stdio}, sync::mpsc, time::{Duration, Instant}};
 
+pub(super) fn auth_fingerprint(root: &Path) -> Option<[u8; 32]> {
+    use sha2::{Digest, Sha256};
+    let mut bytes = Vec::new();
+    std::fs::File::open(root.join("auth.json")).ok()?.take(65_537).read_to_end(&mut bytes).ok()?;
+    if bytes.is_empty() || bytes.len() > 65_536 { return None; }
+    Some(Sha256::digest(&bytes).into())
+}
+
 // Target triples and npm platform packages, as mapped by the official @openai/codex launcher.
 const WINDOWS: [(&str, &str); 2] = [("x86_64-pc-windows-msvc", "codex-win32-x64"), ("aarch64-pc-windows-msvc", "codex-win32-arm64")];
 const MACOS: [(&str, &str); 2] = [("x86_64-apple-darwin", "codex-darwin-x64"), ("aarch64-apple-darwin", "codex-darwin-arm64")];
@@ -264,6 +272,12 @@ mod tests {
         let home = fixture("macos");
         let brew = home.0.join("opt/homebrew");
         let path = std::env::join_paths([PathBuf::from("/usr/bin"), brew.join("bin")]).unwrap();
+        let fixture_search = || {
+            let mut search = search(Os::Mac, true, &env(&[("PATH", path.clone())]), Some(&home.0));
+            // Keep an installed system Codex from taking precedence over the fixture packages.
+            search.bins.retain(|bin| bin.starts_with(&home.0));
+            search
+        };
         let arm = |prefix: &Path| prefix.join("node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex");
         let cases: Vec<(&str, Option<PathBuf>, PathBuf)> = vec![
             ("Homebrew Node npm prefix", Some(brew.join("bin/codex")), arm(&brew.join("lib"))),
@@ -279,13 +293,12 @@ mod tests {
         for (layout, shim, binary) in cases {
             if let Some(shim) = &shim { file(shim, SCRIPT); }
             file(&binary, NATIVE);
-            let search = search(Os::Mac, true, &env(&[("PATH", path.clone())]), Some(&home.0));
-            assert_eq!(find(&search), Some(binary.clone()), "{layout}");
+            assert_eq!(find(&fixture_search()), Some(binary.clone()), "{layout}");
             std::fs::remove_file(&binary).unwrap();
             if let Some(shim) = shim { let _ = std::fs::remove_file(shim); }
         }
         file(&brew.join("bin/codex"), SCRIPT);
-        assert_eq!(find(&search(Os::Mac, true, &env(&[("PATH", path.clone())]), Some(&home.0))), None, "a Node script is never launched without its native binary");
+        assert_eq!(find(&fixture_search()), None, "a Node script is never launched without its native binary");
         let defaults = search(Os::Mac, true, &env(&[]), Some(&home.0));
         for folder in ["/opt/homebrew/bin", "/usr/local/bin"] { assert!(defaults.bins.contains(&PathBuf::from(folder)), "{folder}"); }
     }

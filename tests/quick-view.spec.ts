@@ -25,7 +25,8 @@ test('tray panel exposes costs, remaining limits, a fixed Options footer and Con
   await expect(page.getByRole('menuitem', { name: 'Open dashboard' })).toHaveCount(0);
   await page.getByRole('menuitem', { name: 'Connections' }).click();
   await expect(page.getByRole('heading', { name: 'Connections', exact: true })).toBeVisible();
-  await expect(page.locator('.quick-connection')).toHaveCount(3);
+  await expect(page.locator('.quick-connection:visible')).toHaveCount(3);
+  await expect(page.getByText('More providers', { exact: true })).toBeVisible();
 });
 
 test('cost tabs recalculate samples and Options supports keyboard navigation to Settings', async ({ page }) => {

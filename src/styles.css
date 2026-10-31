@@ -7,8 +7,8 @@
 /* OpenAI's Blossom file includes its required clear space, so the mark fills only the middle half of the image. */
 .provider-brand[data-provider='codex'] { transform: scale(2); }
 
-:root { font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif; color: var(--text); background: var(--bg); font-synthesis: none; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; color-scheme: dark; --bg: #222225; --sidebar: #1c1c1f; --surface: #28282c; --surface-raised: #303034; --border: #3b3b41; --text: #f2f2f4; --muted: #b0b0b8; --subtle: #a6a6ae; --accent: #f4f4f5; --accent-soft: #ffffff0c; --track: #3e3e44; --green: #87c99d; --mark-ink: #202024; --shadow: 0 8px 30px #00000024; }
-:root[data-theme='light'] { color-scheme: light; --bg: #f5f5f6; --sidebar: #ececef; --surface: #fafafa; --surface-raised: #e9e9ec; --border: #d8d8dd; --text: #19191c; --muted: #626269; --subtle: #626269; --accent: #202024; --accent-soft: #2020240a; --track: #dddde1; --green: #2e7d48; --mark-ink: #fff; --shadow: 0 8px 30px #00000010; }
+:root { --brand-color: #efd85c; --brand-text: var(--brand-color); font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif; color: var(--text); background: var(--bg); font-synthesis: none; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; color-scheme: dark; --bg: #222225; --sidebar: #1c1c1f; --surface: #28282c; --surface-raised: #303034; --border: #3b3b41; --text: #f2f2f4; --muted: #b0b0b8; --subtle: #a6a6ae; --accent: #f4f4f5; --accent-soft: #ffffff0c; --track: #3e3e44; --green: #87c99d; --mark-ink: #202024; --shadow: 0 8px 30px #00000024; }
+:root[data-theme='light'] { --brand-text: #786500; color-scheme: light; --bg: #f5f5f6; --sidebar: #ececef; --surface: #fafafa; --surface-raised: #e9e9ec; --border: #d8d8dd; --text: #19191c; --muted: #626269; --subtle: #626269; --accent: #202024; --accent-soft: #2020240a; --track: #dddde1; --green: #2e7d48; --mark-ink: #fff; --shadow: 0 8px 30px #00000010; }
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 360px; }
 button, select { font: inherit; }

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { Modal } from './Modal';
-import { LEGAL_VERSION } from './legal';
+import { LEGAL_VERSION, hasProviderConsent } from './legal';
 import type { Settings } from './model';
 import licenseText from '../LICENSE?raw';
 import privacyText from '../PRIVACY.md?raw';
@@ -46,7 +46,7 @@ export function LegalMaterials() {
 export function LicenseGate({ settings, update }: { settings: Settings; update: (value: Partial<Settings>) => void }) {
   const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState('');
-  if (!isTauri() || settings.legalVersion === LEGAL_VERSION) return null;
+  if (!isTauri() || hasProviderConsent(settings)) return null;
   return <Modal title="Before you connect" onClose={() => {}} dismissible={false}>
     <p className="modal-intro">MeterLuma is free for personal, noncommercial use only. Selling and redistribution are prohibited. After you continue, MeterLuma automatically finds local Claude Code history and existing Codex and Cursor connections. Read the license and privacy information first.</p>
     <LegalMaterials/>

@@ -1,0 +1,325 @@
+{
+  "alibaba": {
+    "file": "alibabacloud-color.svg",
+    "monochrome": false,
+    "source": "https://unpkg.com/@lobehub/icons-static-svg@1.101.0/icons/alibabacloud-color.svg",
+    "sha256": "73ea97baf919edb3d888a77cd45b21574e190a80124a59e199ea6953a28a959c",
+    "license": "MIT (Lobe Icons); marks remain their owners property"
+  },
+  "alibaba-cn": {
+    "file": "bailian-color.svg",
+    "monochrome": false,
+    "source": "https://unpkg.com/@lobehub/icons-static-svg@1.101.0/icons/bailian-color.svg",
+    "sha256": "5cc26dc961b2ecd0912f4e023c8ce745bcc52ac45b1c4baeadd7201f6b60de25",
+    "license": "MIT (Lobe Icons); marks remain their owners property"
+  },
+  "amp": {
+    "file": "amp-color.svg",
+    "monochrome": false,
+    "source": "https://unpkg.com/@lobehub/icons-static-svg@1.101.0/icons/amp-color.svg",
+    "sha256": "6df4cced9e35703d6263d65968985e8afdff68b61358daf9cc09fa16dd9b2aad",
+    "license": "MIT (Lobe Icons); marks remain their owners property"
+  },
+  "antigravity": {
+    "file": "antigravity.svg",
+    "monochrome": true,
+    "source": "https://unpkg.com/@lobehub/icons-static-svg@1.101.0/icons/antigravity.svg",
+    "sha256": "43f551fd125c17fb54c8c74eb461924fb97f32bb64ac89f73bb73852753a6461",
+    "license": "MIT (Lobe Icons); marks remain their owners property"
+  },
+  "byteplus": {
+    "file": "byteplus.png",
+    "source": "https://sf-bpcms.bytepluscdn.com/obj/byteplus-public-aiso/portal/assets/favicon.png",
+    "bytes": 554,
+    "sha256": "64fc512a00a7e955b1fc678cc72485aaba3af7a7fa5d915aaccd79daa8474b76",
+    "monochrome": false,
+    "license": "Provider trademark; identify the service only"
+  },
+  "cline": {
+    "file": "cline.svg",
+    "monochrome": true,
+    "source": "https://unpkg.com/@lobehub/icons-static-svg@1.101.0/icons/cline.svg",
+    "sha256": "9003d2cdce82b016147b732abb4def60af55c348ba2cea2ba0b69a3c7d159b19",
+    "license": "MIT (Lobe Icons); marks remain their owners property"
+  },
+  "commandcode": {
+    "file": "commandcode.svg",
+    "monochrome": true,
+    "source": "https://unpkg.com/@lobehub/icons-static-svg@1.101.0/icons/commandcode.svg",
+    "sha256": "0b3090f6e9194f32520e5b98ea43c5bc1a0f04644c94d1bade69fab7413e1531",
+    "license": "MIT (Lobe Icons); marks remain their owners property"
+  },
+  "copilot": {
+    "file": "githubcopilot.svg",
+    "monochrome": true,
+    "source": "https://unpkg.com/@lobehub/icons-static-svg@1.101.0/icons/githubcopilot.svg",
+    "sha256": "bbc7fddc13448236e5edea8c399d2072dc40aa5da5bca07f7a2f412405c500a3",
+    "license": "MIT (Lobe Icons); marks remain their owners property"
+  },
+  "crofai": {
+    "file": "crofai.png",
+    "source": "https://avatars.githubusercontent.com/u/196594167?v=4&s=64",
+    "bytes": 582,
+    "sha256": "b175af85acc4144ff8e00f2a6bdc24a86c3eada0ddcd7f75f230f82677daa3e2",
+    "note": "CrofAI owner GitHub avatar; CrofAI website redirects to the owner website.",
+    "monochrome": false,
+    "license": "Provider/owner mark; identify the service only"
+  },
+  "deepseek": {
+    "file": "deepseek-color.svg",
+    "monochrome": false,
+    "source": "https://unpkg.com/@lobehub/icons-static-svg@1.101.0/icons/deepseek-color.svg",
+    "sha256": "deba5f98a5c1796e20fcac3149bcd7eb8a32f0bdd04d048819400b1f28bd1439",
+    "license": "MIT (Lobe Icons); marks remain their owners property"
+  },
+  "devin": {
+    "file": "devin-color.svg",
+    "monochrome": false,
+    "source": "https://unpkg.com/@lobehub/icons-static-svg@1.101.0/icons/devin-color.svg",
+    "sha256": "beb58575f94fda57a6c1f9ed5624e6407bff405f55b6258b53032b674aadd8c8",
+    "license": "MIT (Lobe Icons); marks remain their owners property"
+  },
+  "duckai": {
+    "file": "duckai.png",
+    "source": "https://duck.ai/favicon-96x96.png",
+    "bytes": 8878,
+    "sha256": "3cb95df0e03deff3284d835c4c699727bce82b7769a190a963365cda268d4285",
+    "monochrome": false,
+    "license": "Provider trademark; identify the service only"
+  },
+  "elevenlabs": {
+    "file": "elevenlabs.svg",
+    "monochrome": true,
+    "source": "https://unpkg.com/@lobehub/icons-static-svg@1.101.0/icons/elevenlabs.svg",
+    "sha256": "152a4a89fd5228924b6ccc91a72675966df35e3b69d1cf93a67b6866cf846584",
+    "license": "MIT (Lobe Icons); marks remain their owners property"
+  },
+  "factory": {
+    "file": "factory.ico",
+    "source": "https://factory.com/favicon.ico",
+    "bytes": 3084,
+    "sha256": "599c2730e6eca221b287c3b5d30e7f81bdc0c6800e39dabfff84e2b2ed15f652",
+    "monochrome": false,
+    "license": "Provider/owner mark; identify the service only"
+  },
+  "factory-eu": {
+    "file": "factory.ico",
+    "source": "https://factory.com/favicon.ico",
+    "bytes": 3084,
+    "sha256": "599c2730e6eca221b287c3b5d30e7f81bdc0c6800e39dabfff84e2b2ed15f652",
+    "monochrome": false,
+    "license": "Provider/owner mark; identify the service only"
+  },
+  "fireworks": {
+    "file": "fireworks-color.svg",
+    "monochrome": false,
+    "source": "https://unpkg.com/@lobehub/icons-static-svg@1.101.0/icons/fireworks-color.svg",
+    "sha256": "f1c4782b86bc03a36323fd68ad6cc376c6b2ebe57b701cc958ebd6b8d37effd6",
+    "license": "MIT (Lobe Icons); marks remain their owners property"
+  },
+  "gemini": {
+    "file": "geminicli-color.svg",
+    "monochrome": false,
+    "source": "https://unpkg.com/@lobehub/icons-static-svg@1.101.0/icons/geminicli-color.svg",
+    "sha256": "c2f54ebaa4c3b9191c6a07f7b0c66bc78e4abe486003dc564469cf650672663e",
+    "license": "MIT (Lobe Icons); marks remain their owners property"
+  },
+  "grok": {
+    "file": "grok.svg",
+    "monochrome": true,
+    "source": "https://unpkg.com/@lobehub/icons-static-svg@1.101.0/icons/grok.svg",
+    "sha256": "9175fc90c22655160231976c849f25a03b888d7cc0e04c5f1b987b659bb07c95",
+    "license": "MIT (Lobe Icons); marks remain their owners property"
+  },
+  "jetbrains": {
+    "file": "jetbrains.ico",
+    "source": "https://www.jetbrains.com/favicon.ico?r=1234",
+    "bytes": 21238,
+    "sha256": "f4c6f47172404b2f797a85f0e598fa6948c728dd3f65760f5bee10c1d8767395",
+    "monochrome": false,
+    "license": "Provider trademark; identify the service only"
+  },
+  "kimi": {
+    "file": "kimi-color.svg",
+    "monochrome": false,
+    "source": "https://unpkg.com/@lobehub/icons-static-svg@1.101.0/icons/kimi-color.svg",
+    "sha256": "0bdb95375d7c6e90a1850e91cd36770da2bc98fa33ec2d783f4a8fed027da85f",
+    "license": "MIT (Lobe Icons); marks remain their owners property"
+  },
+  "kiro": {
+    "file": "kiro-color.svg",
+    "monochrome": false,
+    "source": "https://unpkg.com/@lobehub/icons-static-svg@1.101.0/icons/kiro-color.svg",
+    "sha256": "4eae4d6e818da7342c32c7d443ab7c97b93c544db9af379d5b5bf7f0a3127d66",
+    "license": "MIT (Lobe Icons); marks remain their owners property"
+  },
+  "microsoft-copilot": {
+    "file": "copilot-color.svg",
+    "monochrome": false,
+    "source": "https://unpkg.com/@lobehub/icons-static-svg@1.101.0/icons/copilot-color.svg",
+    "sha256": "50d59ef2ab0930de15d657dbd21628536b0fee1f2c88306cfb9970cc79b45b92",
+    "license": "MIT (Lobe Icons); marks remain their owners property"
+  },
+  "minimax": {
+    "file": "minimax-color.svg",
+    "monochrome": false,
+    "source": "https://unpkg.com/@lobehub/icons-static-svg@1.101.0/icons/minimax-color.svg",
+    "sha256": "7f7187fa6d9b341ac5f22f6c5a970523afb439dc45566d64eb4f4b9b604d6b01",
+    "license": "MIT (Lobe Icons); marks remain their owners property"
+  },
+  "minimax-cn": {
+    "file": "minimax-color.svg",
+    "monochrome": false,
+    "source": "https://unpkg.com/@lobehub/icons-static-svg@1.101.0/icons/minimax-color.svg",
+    "sha256": "7f7187fa6d9b341ac5f22f6c5a970523afb439dc45566d64eb4f4b9b604d6b01",
+    "license": "MIT (Lobe Icons); marks remain their owners property"
+  },
+  "muse": {
+    "file": "metaai-color.svg",
+    "monochrome": false,
+    "source": "https://unpkg.com/@lobehub/icons-static-svg@1.101.0/icons/metaai-color.svg",
+    "sha256": "5a2c8b2c71ddb4d6a44daee712cb6be02a09a29d649d21e0af1454bc331055b5",
+    "license": "MIT (Lobe Icons); marks remain their owners property"
+  },
+  "neuralwatt": {
+    "file": "neuralwatt.ico",
+    "source": "https://portal.neuralwatt.com/static/favicon.ico",
+    "bytes": 15162,
+    "sha256": "c869ab0140c5c32d322e47a81f03853859a97235063fae8ba95f2b71b9ddb741",
+    "monochrome": false,
+    "license": "Provider trademark; identify the service only"
+  },
+  "nous": {
+    "file": "nousresearch.svg",
+    "monochrome": true,
+    "source": "https://unpkg.com/@lobehub/icons-static-svg@1.101.0/icons/nousresearch.svg",
+    "sha256": "4dc3c7cdf13d2f0bdf16b872d76293f048010a00f580df68a85e1f9c4e500e5d",
+    "license": "MIT (Lobe Icons); marks remain their owners property"
+  },
+  "ollama": {
+    "file": "ollama.svg",
+    "monochrome": true,
+    "source": "https://unpkg.com/@lobehub/icons-static-svg@1.101.0/icons/ollama.svg",
+    "sha256": "3a268218fb2e6e81fa31df70f70b51331625047794db81db21d35359428fae7a",
+    "license": "MIT (Lobe Icons); marks remain their owners property"
+  },
+  "opencode": {
+    "file": "opencode.svg",
+    "monochrome": true,
+    "source": "https://unpkg.com/@lobehub/icons-static-svg@1.101.0/icons/opencode.svg",
+    "sha256": "7cfa6e9d6726f7c9fa26c7d9aef0dfec52d20a137380454340f30f12ccbfd302",
+    "license": "MIT (Lobe Icons); marks remain their owners property"
+  },
+  "openrouter": {
+    "file": "openrouter.svg",
+    "monochrome": true,
+    "source": "https://unpkg.com/@lobehub/icons-static-svg@1.101.0/icons/openrouter.svg",
+    "sha256": "ae671cc83de9bd45db97a47ed5e38a4e1bd9f93a12be495ba4b4f8b284026bca",
+    "license": "MIT (Lobe Icons); marks remain their owners property"
+  },
+  "perplexity": {
+    "file": "perplexity-color.svg",
+    "monochrome": false,
+    "source": "https://unpkg.com/@lobehub/icons-static-svg@1.101.0/icons/perplexity-color.svg",
+    "sha256": "8353f3ab20822f1a933224b0ea32cc39f0c32d5740f4af8c254b0f418e0a3a70",
+    "license": "MIT (Lobe Icons); marks remain their owners property"
+  },
+  "pi": {
+    "file": "pi.svg",
+    "source": "https://pi.dev/favicon.svg?v=ce56f151-ae5c-4099-952b-3a34fea01d2c",
+    "bytes": 438,
+    "sha256": "d266b2c1d2c7bf169ca30d438963b176fba16fea6263b9ac30c8302f34ad7ce7",
+    "monochrome": true,
+    "license": "Provider trademark; identify the service only"
+  },
+  "pioneer": {
+    "file": "pioneer.png",
+    "source": "https://agent.fastino.ai/favicon.ico",
+    "bytes": 1189,
+    "sha256": "2e452a5ac8eb48e2fcb0acb2bc7b2b750a08bb76cee26c6260eb0feac87ae875",
+    "monochrome": true,
+    "license": "Provider/owner mark; identify the service only"
+  },
+  "qoder": {
+    "file": "qoder-color.svg",
+    "monochrome": false,
+    "source": "https://unpkg.com/@lobehub/icons-static-svg@1.101.0/icons/qoder-color.svg",
+    "sha256": "396596d247477e2a036c141a16ec266df7b14c0130b777a68fd04bc89af50bc8",
+    "license": "MIT (Lobe Icons); marks remain their owners property"
+  },
+  "synthetic": {
+    "file": "synthetic.png",
+    "source": "https://synthetic.new/favicon-96x96.png",
+    "bytes": 2683,
+    "sha256": "596af3a7e8978b28b5f8db98a3e35bd4c8b529b5e5d73408b625c2c9cba806eb",
+    "monochrome": false,
+    "license": "Provider trademark; identify the service only"
+  },
+  "venice": {
+    "file": "venice-color.svg",
+    "monochrome": false,
+    "source": "https://unpkg.com/@lobehub/icons-static-svg@1.101.0/icons/venice-color.svg",
+    "sha256": "a4a909b289b05d3b4cc716452d0c744619b23e110d2853bafd81bfba7c8c165f",
+    "license": "MIT (Lobe Icons); marks remain their owners property"
+  },
+  "vercel": {
+    "file": "vercel.svg",
+    "monochrome": true,
+    "source": "https://unpkg.com/@lobehub/icons-static-svg@1.101.0/icons/vercel.svg",
+    "sha256": "4874d52d8b2ce7c309cbd10c424fee123b2c9483e76d76ad0dca41794483eb24",
+    "license": "MIT (Lobe Icons); marks remain their owners property"
+  },
+  "warp": {
+    "file": "warp.png",
+    "source": "https://www.warp.dev/favicon-196x196.png",
+    "bytes": 2739,
+    "sha256": "052f0aa0c1b45740c49072743708a53c7a0e317582385fb61dd8b6c67f74d9e2",
+    "monochrome": false,
+    "license": "Provider trademark; identify the service only"
+  },
+  "windsurf": {
+    "file": "windsurf.svg",
+    "monochrome": true,
+    "source": "https://unpkg.com/@lobehub/icons-static-svg@1.101.0/icons/windsurf.svg",
+    "sha256": "e3c836aae05a3741e33d5c5a38d4167aacfbb69e480d098b8b94cad8c90e0d08",
+    "license": "MIT (Lobe Icons); marks remain their owners property"
+  },
+  "xal": {
+    "file": "xal.svg",
+    "source": "https://xal.sh/icon-light-4716v0m1.svg",
+    "bytes": 516,
+    "sha256": "80eeaafeca35e731d4fe9c054533b1d00643bc28f622401cc1ad133883b14822",
+    "monochrome": false,
+    "license": "Provider trademark; identify the service only"
+  },
+  "zai": {
+    "file": "zai.svg",
+    "monochrome": true,
+    "source": "https://unpkg.com/@lobehub/icons-static-svg@1.101.0/icons/zai.svg",
+    "sha256": "e748cb5108ce37b116d7a5ba97d37e0ae97eadf6849b0de11afb248e244a01e1",
+    "license": "MIT (Lobe Icons); marks remain their owners property"
+  },
+  "zai-cn": {
+    "file": "zhipu-color.svg",
+    "monochrome": false,
+    "source": "https://unpkg.com/@lobehub/icons-static-svg@1.101.0/icons/zhipu-color.svg",
+    "sha256": "8174e65ff71647d5c705c920c953a82bd723d9e3e42887bdd4ffc9dfe51207a0",
+    "license": "MIT (Lobe Icons); marks remain their owners property"
+  },
+  "zcode": {
+    "file": "zcode.ico",
+    "source": "https://zcode.z.ai/favicon.ico?v=20260707-transparent",
+    "bytes": 5708,
+    "sha256": "274a3aa8a861f003d3ae70a3a1f91b5c61ae5c4e8ba865045620cdc803ce7501",
+    "monochrome": false,
+    "license": "Provider trademark; identify the service only"
+  },
+  "zed": {
+    "file": "zed.svg",
+    "source": "https://raw.githubusercontent.com/zed-industries/zed/main/assets/icons/zed_agent.svg",
+    "bytes": 4483,
+    "sha256": "7ccba97768621f15e304a7ef91471f207c484773e4d9968de1767b3febfb4685",
+    "monochrome": true,
+    "license": "Provider/owner mark; identify the service only"
+  }
+}

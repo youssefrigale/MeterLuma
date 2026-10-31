@@ -22,10 +22,14 @@ export function coverage(history: UsageHistory, days: UsageDay[] = history.days)
 }
 
 export type CostRange = 'Today' | 'Yesterday' | '30 Days';
+export function costRangeCoverage(history: UsageHistory, range: CostRange) {
+  return coverage(history, range === 'Today' ? history.days.filter(day => day.date === history.today) : range === 'Yesterday' ? history.days.slice(-2, -1) : history.days.slice(-30));
+}
+
 // API-value estimate (priced tokens at standard rates) for one range; undefined when no priced history exists.
 export function estimatedValue(history: UsageHistory | undefined, range: CostRange) {
   if (!history?.available || !coverage(history).priced) return undefined;
-  const value = coverage(history, range === 'Today' ? history.days.filter(day => day.date === history.today) : range === 'Yesterday' ? history.days.slice(-2, -1) : history.days.slice(-30));
+  const value = costRangeCoverage(history, range);
   return value.cost === undefined ? undefined : { cost: value.cost, unpriced: value.unpriced, label: value.label, shorter: value.shorter };
 }
 

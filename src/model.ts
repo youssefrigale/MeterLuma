@@ -1,3 +1,7 @@
+import { notificationPreferences, type NotificationPreferences } from './notificationPreferences';
+import { overviewCardKeys } from './collapsedCards';
+import { additionalProviderOrder } from './providerOrder';
+import { additionalConnections, type AdditionalConnection } from './additional/model';
 export type ProviderId = 'claude' | 'codex' | 'cursor';
 // Sample data is a developer preview; release builds always use real-data mode.
 export const DEMO_AVAILABLE = import.meta.env.DEV;
@@ -22,8 +26,17 @@ export interface Settings {
   profiles: AccountProfile[];
   alerts: AlertRule[];
   legalVersion: string;
+  claudeLive?: boolean;
+  additionalConnections?: AdditionalConnection[];
+  pacing?: boolean;
+  compactOverview?: boolean;
+  trayMetric?: 'session' | 'weekly' | 'lowest';
+  panelShortcut?: string;
+  notifications?: NotificationPreferences;
+  expandedCards?: string[];
+  additionalProviderOrder?: string[];
 }
-export interface Metric { label: string; usedPercent: number; resetAt: number | null }
+export interface Metric { label: string; usedPercent: number; resetAt: number | null; periodMinutes?: number }
 export interface UsageDay { date: string; inputTokens: number; cachedInputTokens: number; cacheWriteTokens: number; outputTokens: number; totalTokens: number; estimatedCostUsd?: number | null; unpricedTokens?: number }
 export interface UsageHistory { periodDays?: number; available: boolean; partial: boolean; recordCount: number; scannedAt: number; today: string; coverageStart?: string | null; days: UsageDay[]; models: { name: string; totalTokens: number }[] }
 export interface Provider {
@@ -31,6 +44,7 @@ export interface Provider {
   name: string;
   plan: string;
   codexAccount?: { credits: { hasCredits: boolean | null; unlimited: boolean | null; balance: number | null } | null; availableResets: number | null; includedUsageAllowed: boolean | null };
+  claudeExtraUsage?: { spent: number | null; monthlyLimit: number | null; currency: string | null; decimalPlaces: number | null };
   color: string;
   initials: string;
   spendToday: number | null;
@@ -43,7 +57,7 @@ export interface Provider {
   quotaState?: import('./providerState').QuotaState;
   retryAt?: number;
   cached?: boolean;
-  // Claude is shown from recorded local history only; it never has live quotas.
+  // History-only connections do not have subscription quota access.
   historyOnly?: boolean;
   tokenOnly?: boolean;
 }
@@ -51,41 +65,54 @@ export const defaults: Settings = { theme: 'system', demo: false, remaining: tru
 export const SETTINGS_KEY = 'meterluma.settings.v2';
 const providerIds: ProviderId[] = ['claude', 'codex', 'cursor'];
 
+export function settingsFromValue(value: unknown): Settings {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return { ...defaults };
+  const parsed = value as Record<string, unknown>;
+  const enabled = parsed.enabled;
+  const liveProviders = parsed.liveProviders;
+  return {
+    theme: ['dark', 'light', 'system'].includes(String(parsed.theme)) ? parsed.theme as Theme : defaults.theme,
+    // Older prototypes opened with fabricated previews. Migration always starts in real-data mode.
+    demo: DEMO_AVAILABLE && typeof parsed.demo === 'boolean' ? parsed.demo : false,
+    remaining: typeof parsed.remaining === 'boolean' ? parsed.remaining : defaults.remaining,
+    refreshMinutes: [1, 5, 15, 30, 60].includes(Number(parsed.refreshMinutes)) ? Number(parsed.refreshMinutes) : defaults.refreshMinutes,
+    enabled: Array.isArray(enabled) ? providerIds.filter(id => enabled.includes(id)) : [...defaults.enabled],
+    liveProviders: Array.isArray(liveProviders) ? providerIds.filter(id => liveProviders.includes(id)) : [],
+    tokenProviders: Array.isArray(parsed.tokenProviders) ? (['codex', 'cursor'] as ProviderId[]).filter(id => (parsed.tokenProviders as unknown[]).includes(id)) : [],
+    ignoredLocalProviders: Array.isArray(parsed.ignoredLocalProviders) ? providerIds.filter(id => (parsed.ignoredLocalProviders as unknown[]).includes(id)) : [],
+    resetStyle: parsed.resetStyle === 'absolute' ? 'absolute' : 'relative',
+    timeFormat: parsed.timeFormat === '12' || parsed.timeFormat === '24' ? parsed.timeFormat : 'auto',
+    historyDays: parsed.historyDays === 90 || parsed.historyDays === 365 ? parsed.historyDays : 30,
+    legalVersion: typeof parsed.legalVersion === 'string' ? parsed.legalVersion : '',
+    claudeLive: parsed.claudeLive === true,
+    additionalConnections: additionalConnections(parsed.additionalConnections),
+    notifications: parsed.notifications === undefined ? undefined : notificationPreferences(parsed.notifications),
+    panelShortcut: typeof parsed.panelShortcut === 'string' && /^CommandOrControl\+(Shift|Alt)\+[A-Z]$/.test(parsed.panelShortcut) ? parsed.panelShortcut : undefined,
+    pacing: parsed.pacing === true,
+    compactOverview: parsed.compactOverview === true,
+    expandedCards: overviewCardKeys(parsed.expandedCards),
+    additionalProviderOrder: additionalProviderOrder(parsed.additionalProviderOrder),
+    trayMetric: parsed.trayMetric === 'weekly' || parsed.trayMetric === 'lowest' ? parsed.trayMetric : 'session',
+    profiles: Array.isArray(parsed.profiles) ? parsed.profiles.filter((row): row is AccountProfile => !!row && typeof row === 'object' && typeof row.key === 'string' && /^[a-zA-Z0-9_-]{1,80}$/.test(row.key) && providerIds.includes(row.providerId) && typeof row.label === 'string' && row.label.trim().length > 0 && row.label.length <= 60 && typeof row.directory === 'string' && row.directory.trim().length > 0 && row.directory.length <= 1024).filter((row, index, rows) => rows.findIndex(other => other.key === row.key) === index).slice(0, 12).map(row => ({ ...row, paused: row.paused === true })) : [],
+    alerts: Array.isArray(parsed.alerts) ? parsed.alerts.filter((row): row is AlertRule => !!row && typeof row === 'object' && typeof row.key === 'string' && /^[a-zA-Z0-9_-]{1,80}$/.test(row.key) && providerIds.includes(row.providerId) && (row.providerId !== 'claude' || parsed.claudeLive === true) && typeof row.threshold === 'number' && Number.isFinite(row.threshold) && row.threshold >= 1 && row.threshold <= 100 && typeof row.enabled === 'boolean').filter((row, index, rows) => rows.findIndex(other => other.key === row.key) === index).slice(0, 12) : [],
+    providerOrder: Array.isArray(parsed.providerOrder) ? [...new Set(parsed.providerOrder.filter((id): id is ProviderId => providerIds.includes(id as ProviderId))), ...providerIds.filter(id => !(parsed.providerOrder as unknown[]).includes(id))] : [...providerIds],
+  };
+}
+
 export function readSettings(): Settings {
   try {
     const current = localStorage.getItem(SETTINGS_KEY);
     const raw = current ?? localStorage.getItem('meterluma.settings.v1');
     if (!raw) return { ...defaults };
-    const value: unknown = JSON.parse(raw);
-    if (!value || typeof value !== 'object') return { ...defaults };
-    const parsed = value as Record<string, unknown>;
-    const enabled = parsed.enabled;
-    const liveProviders = parsed.liveProviders;
-    return {
-      theme: ['dark', 'light', 'system'].includes(String(parsed.theme)) ? parsed.theme as Theme : defaults.theme,
-      // Older prototypes opened with fabricated previews. Migration always starts in real-data mode.
-      demo: DEMO_AVAILABLE && current && typeof parsed.demo === 'boolean' ? parsed.demo : false,
-      remaining: typeof parsed.remaining === 'boolean' ? parsed.remaining : defaults.remaining,
-      refreshMinutes: [1, 5, 15, 30, 60].includes(Number(parsed.refreshMinutes)) ? Number(parsed.refreshMinutes) : defaults.refreshMinutes,
-      enabled: Array.isArray(enabled) ? providerIds.filter(id => enabled.includes(id)) : [...defaults.enabled],
-      liveProviders: Array.isArray(liveProviders) ? providerIds.filter(id => liveProviders.includes(id)) : [],
-      tokenProviders: Array.isArray(parsed.tokenProviders) ? (['codex', 'cursor'] as ProviderId[]).filter(id => (parsed.tokenProviders as unknown[]).includes(id)) : [],
-      ignoredLocalProviders: Array.isArray(parsed.ignoredLocalProviders) ? providerIds.filter(id => (parsed.ignoredLocalProviders as unknown[]).includes(id)) : [],
-      resetStyle: parsed.resetStyle === 'absolute' ? 'absolute' : 'relative',
-      timeFormat: parsed.timeFormat === '12' || parsed.timeFormat === '24' ? parsed.timeFormat : 'auto',
-      historyDays: parsed.historyDays === 90 || parsed.historyDays === 365 ? parsed.historyDays : 30,
-      legalVersion: typeof parsed.legalVersion === 'string' ? parsed.legalVersion : '',
-      profiles: Array.isArray(parsed.profiles) ? parsed.profiles.filter((row): row is AccountProfile => !!row && typeof row === 'object' && typeof row.key === 'string' && /^[a-zA-Z0-9_-]{1,80}$/.test(row.key) && providerIds.includes(row.providerId) && typeof row.label === 'string' && row.label.trim().length > 0 && row.label.length <= 60 && typeof row.directory === 'string' && row.directory.trim().length > 0 && row.directory.length <= 1024).filter((row, index, rows) => rows.findIndex(other => other.key === row.key) === index).slice(0, 12).map(row => ({ ...row, paused: row.paused === true })) : [],
-      // Claude has no quotas, so earlier Claude alert rules could never fire again and are dropped.
-      alerts: Array.isArray(parsed.alerts) ? parsed.alerts.filter((row): row is AlertRule => !!row && typeof row === 'object' && typeof row.key === 'string' && /^[a-zA-Z0-9_-]{1,80}$/.test(row.key) && providerIds.includes(row.providerId) && row.providerId !== 'claude' && typeof row.threshold === 'number' && Number.isFinite(row.threshold) && row.threshold >= 1 && row.threshold <= 100 && typeof row.enabled === 'boolean').filter((row, index, rows) => rows.findIndex(other => other.key === row.key) === index).slice(0, 12) : [],
-      providerOrder: Array.isArray(parsed.providerOrder) ? [...new Set(parsed.providerOrder.filter((id): id is ProviderId => providerIds.includes(id as ProviderId))), ...providerIds.filter(id => !(parsed.providerOrder as unknown[]).includes(id))] : [...providerIds],
-    };
+    const parsed: unknown = JSON.parse(raw);
+    if (!current && parsed && typeof parsed === 'object') return settingsFromValue({ ...parsed, demo: false });
+    return settingsFromValue(parsed);
   } catch { return { ...defaults }; }
 }
 
 // Resets display preferences only. Consent, connections, local accounts and alerts are kept.
 export function resetPreferences(current: Settings): Settings {
-  return { ...defaults, enabled: [...defaults.enabled], providerOrder: [...defaults.providerOrder], legalVersion: current.legalVersion, liveProviders: current.liveProviders, tokenProviders: current.tokenProviders ?? [], ignoredLocalProviders: current.ignoredLocalProviders ?? [], profiles: current.profiles, alerts: current.alerts };
+  return { ...defaults, enabled: [...defaults.enabled], providerOrder: [...defaults.providerOrder], legalVersion: current.legalVersion, claudeLive: current.claudeLive, liveProviders: current.liveProviders, tokenProviders: current.tokenProviders ?? [], ignoredLocalProviders: current.ignoredLocalProviders ?? [], profiles: current.profiles, alerts: current.alerts, additionalConnections: current.additionalConnections, panelShortcut: current.panelShortcut, notifications: current.notifications };
 }
 
 export const localDate = (value: Date) => `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;

@@ -8,6 +8,7 @@ import { isTauri } from '@tauri-apps/api/core';
 
 // Windows supplies the native frame and corner clipping around this WebView.
 if (isTauri() && navigator.userAgent.includes('Windows')) document.documentElement.classList.add('native-windows');
+if (isTauri() && navigator.userAgent.includes('Macintosh')) document.documentElement.classList.add('native-macos');
 
 // Resolve the saved preference before the first render.
 const initialTheme = readSettings().theme;

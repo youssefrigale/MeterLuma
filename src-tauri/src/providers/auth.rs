@@ -14,22 +14,24 @@ impl Credential {
 }
 
 #[cfg(target_os = "macos")]
-fn keychain(service: &str) -> Result<String, String> {
+pub(super) fn keychain(service: &str) -> Result<String, String> {
     use std::{io::Read, process::{Command, Stdio}, time::Duration};
     use wait_timeout::ChildExt;
-    let mut child = Command::new("/usr/bin/security")
+    let child = Command::new("/usr/bin/security")
         .args(["find-generic-password", "-s", service, "-w"])
         .stdout(Stdio::piped()).stderr(Stdio::null()).spawn()
         .map_err(|_| "macOS Keychain could not be accessed.".to_string())?;
-    let stdout = child.stdout.take().ok_or("Keychain returned no result.")?;
+    struct KeychainProcess(std::process::Child);
+    impl Drop for KeychainProcess { fn drop(&mut self) { let _ = self.0.kill(); let _ = self.0.wait(); } }
+    let mut child = KeychainProcess(child);
+    let stdout = child.0.stdout.take().ok_or("Keychain returned no result.")?;
     let reader = std::thread::spawn(move || {
         let mut output = String::new();
         stdout.take(65_537).read_to_string(&mut output).map(|_| output)
     });
-    let status = child.wait_timeout(Duration::from_secs(15))
+    let status = child.0.wait_timeout(Duration::from_secs(15))
         .map_err(|_| "macOS Keychain lookup failed.".to_string())?;
     let Some(status) = status else {
-        let _ = child.kill(); let _ = child.wait();
         return Err("Keychain access timed out. Allow access when macOS asks, then try again.".into());
     };
     if !status.success() { return Err("No accessible Keychain sign-in was found. Sign in to the provider app first.".into()); }
@@ -39,7 +41,7 @@ fn keychain(service: &str) -> Result<String, String> {
     Ok(output.trim().to_string())
 }
 
-// Reads Cursor's own desktop sign-in, read-only. Only Cursor has a live quota sign-in in MeterLuma.
+// Reads Cursor's own desktop sign-in, read-only.
 pub fn cursor(root: &Path, default_profile: bool) -> Result<Credential, String> {
     let path = root.join("User/globalStorage/state.vscdb");
     if path.exists() {
@@ -49,13 +51,13 @@ pub fn cursor(root: &Path, default_profile: bool) -> Result<Credential, String> 
         let raw: Result<String, _> = db.query_row("SELECT substr(value, 1, 65537) FROM ItemTable WHERE key = 'cursorAuth/accessToken'", [], |row| row.get(0));
         if let Ok(raw) = raw {
             let parsed = serde_json::from_str::<String>(&raw).unwrap_or(raw);
-            if !parsed.trim().is_empty() && parsed.len() < 65_536 { return Ok(Credential { token: parsed.trim().to_string() }); }
+            if !parsed.trim().is_empty() && parsed.len() < 65_536 { return super::cursor_storage::token(&parsed).map(|token| Credential { token }); }
         }
     }
     #[cfg(target_os = "macos")]
     {
         let access = if default_profile { keychain("cursor-access-token")? } else { String::new() };
-        if !access.is_empty() { return Ok(Credential { token: access }); }
+        if !access.is_empty() { return super::cursor_storage::token(&access).map(|token| Credential { token }); }
     }
     #[cfg(not(target_os = "macos"))]
     let _ = default_profile;

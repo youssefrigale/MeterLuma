@@ -4,12 +4,85 @@
 
 Prepared for version 0.1.2; no release has been published.
 
+### Added
+
+- Resume missed automatic usage retries at their scheduled deadline after the renderer wakes. Verify cached-to-live recovery without a manual refresh, and make rate-limit notices explicitly describe automatic retries.
+
+- Anchor the Mac popup to its current menu-bar item when opening from the app, menu or keyboard shortcut, and retain that placement through content resizing instead of falling back to the screen’s right edge.
+
+- Start all Overview provider cards collapsed. Remember explicit expansions per connection and collapse cards when restoring the overview layout; full provider detail pages stay unchanged.
+
+- Keep saved-token Keychain reads noninteractive during automatic refresh on macOS. Connections offers an explained Unlock saved connection action when macOS needs approval; saved credentials and their access controls are preserved.
+
+- Prevent a fresh background provider response from triggering a false future-timestamp menu warning while the popup is hidden. Read current time on each render while retaining visibility-based timer suspension and genuine provider warnings.
+
+- Reduce the Codex menu-bar item’s reserved image width while preserving its 13.5-point visible logo and readable percentage.
+
+- Open Codex’s Usage dashboard at the ChatGPT usage overview in the native app and browser preview.
+
+- Use the OpenCode template logo beside its selected menu-bar allowance on macOS.
+
+- Clarified OpenCode Go / Go Plus subscription support in Connections and linked its usage dashboard directly to the subscription console.
+
+- Drag grips and Up/Down keyboard reordering for core and additional providers, with local persistence, drop feedback, edge scrolling, cancellation and failed-save recovery. Apply order to Overview and sidebar without changing credentials or refresh sources; extend layout restore/Undo to additional-provider order. Remove core logo frames, render Codex at its final vector size, and use Antigravity’s crisp monochrome vector variant.
+
+- Compact alphabetical additional-provider rows with bundled logos/owner marks, checkbox-style connection controls and an inline key-management action. Keep descriptions and consent in the setup dialog; preserve failed-replacement behavior and website-only providers. Include icon source hashes and third-party notices.
+
+- Limit the Mac Settings page to 850 logical pixels with internal scrolling and a visible footer, clamped to the display work area. Other Mac pages retain content-based sizing; Windows sizing is unchanged.
+
+- Compact Connections rows with inline connect/disconnect actions; fold multiple-account setup and connection explanations into expandable sections while retaining all controls and notices.
+
+- Per-connection collapsible Overview cards, preserving all quota meters, amounts, cached notices and errors in the compact form. Keep detail pages full-size, expose reset text through accessible meter values/tooltips, and fade cached fills without dimming their labels.
+- Separate Restore overview layout and Undo actions for card collapse, core provider order and default menu allowance. Preserve appearance, density, visibility, refresh, alerts, notifications and connections; account-scoped collapse keys are excluded from display-preference transfers.
+
+- Optional Mac desktop usage notifications through UserNotifications, using actual authorization and completion callbacks. Add grouped low-allowance/custom-threshold/pace/reset events, persisted hashed deduplication/pace state, explicit failure recovery and no replay of uncertain attempts. Windows delivery remains unavailable; existing in-app alerts continue there.
+
+- Optional custom global shortcut with conflict-safe replacement and restart restoration; preference imports cannot register keys. Add a session-only stay-open panel switch. Mac shortcut/stay-open smoke checks passed; Windows and broader multi-display QA remain pending.
+
+- Display-preference backup/import with strict validation, a change preview and undo. Preserve connections, local accounts, alerts, consent and per-computer login settings.
+- Local diagnostic preview/export with a 20-attempt lookup timing ring and status metadata. Exclude raw errors, paths, account labels, credentials and usage values; send nothing automatically.
+- Start at login defaults to enabled on the first launch of an installed build, including upgrades to this default. Later app/system opt-outs are preserved, and preference imports do not change it. Real login/reboot QA remains pending.
+- Zed personal edit-prediction quota, plus separate international/China Alibaba Coding Plan quota queries using supplied console tokens. No browser credential extraction, inference or renewal.
+- Currency/precision-aware Claude extra-usage spending and monthly limits, separate from local token-value Costs and persistent quota fallback storage. Add returned Sonnet/Opus/Fable weekly pools without duplicating legacy/scoped readings.
+
+- Optional known-duration usage projections, persistent Session/Weekly/Lowest-left menu selection, and fresh live Claude threshold alerts. Preserve actual quota values when another window is exhausted and flag the tray for attention.
+
+- 42 additional opt-in integrations, including regional API connections, cached IDE quotas, local token readers and bounded Qoder/BytePlus CLI usage readers. Show provider-reported credits, currencies and quotas separately from local Cost estimates. Keep new connections disabled until individually chosen; preserve the previous key after failed validation, honor credential-scoped Retry-After, and support key replacement and disconnect. Additional integrations have fixture-based verification; live provider verification is pending.
+
+- Reliability safeguards from the OpenUsage issue audit: path-scoped Claude Keychain reads, read-only Cursor safeStorage decoding, streaming compressed Codex history, persistent metadata-only extraction caching, stuck-lookup deadlines and stale/error diagnostics. Isolate Codex caches by current credentials and allow unrelated local profiles to refresh independently. Preserve sub-0.1% usage captions and exact reset-time tooltips.
+
+- Codex API-value estimates at OpenAI Standard model rates, with cached-input discounts and per-request long-context tiers. Include supported Codex usage in Cost totals, provider details and exports; count unknown models separately. Estimates exclude speed-tier multipliers and cache-write fees and do not represent subscription charges.
+
+- Optional read-only Claude session and weekly limits from the existing Claude Code login. Enable live usage in Connections to acknowledge privacy revision 7; existing revision-6 installs keep history-only access. Preserve local history, label cached limits, and keep credentials out of preferences and exports. Claude Code continues renewing its own sign-in.
+
 ### Removed
 
 - **Dashboard window.** MeterLuma is now tray-only. Connections, local accounts, usage alerts, the history window, exports, the license and **Reset preferences** moved into the tray panel (Connections, Settings and Help), and the panel stays open while the export save dialog is showing. The dashboard's sample spending charts and week-over-week comparison are gone.
-- **Claude live quotas.** MeterLuma no longer reads the Claude Code sign-in (`.credentials.json`, the macOS Keychain or Claude Desktop), never renews or writes Claude tokens, and makes no requests to Anthropic. Claude has no quota bars or alerts, saved Claude alert rules and quota snapshots are dropped, and the Claude CLI User-Agent and OAuth client ID are gone.
+- **Earlier Claude credential writer.** The former connector that renewed and rewrote Claude tokens, used a Claude CLI User-Agent and carried an OAuth client ID was removed. The new optional usage reader does none of those things. Claude Desktop credentials remain unsupported; fresh live Claude in-app quota alerts are now available after live-usage consent.
 
 ### Changed
+
+- Apply the owner-selected Ring A logo to the app, frontend branding and generated native icon assets: rounded yellow and white arcs on a graphite tile.
+
+- Show the menu-bar warning triangle only for the displayed provider and allowance window at 25% or less remaining, matching the meter's Low allowance indicator. Keep other connection and data warnings in provider views and tooltip diagnostics.
+
+- Keep Overview cards within the popup width when an additional provider has a long account heading, preserving visible meters and reset labels.
+
+- Tighten the macOS menu-bar item's left and right margins through a temporary setting scoped to MeterLuma's process. Preserve the provider icon-to-text gap and leave system preferences unchanged.
+
+- Restore spacing between the Codex menu-bar icon and percentage. Name warning providers and reasons in the tooltip, including lookup failures and exhausted windows, while keeping the displayed percentage as allowance remaining.
+
+- Write exports completely before replacing a destination file, preserving the previous export when writing/replacing fails.
+
+- Click the footer update countdown to request the same bounded refresh as the header, preserving provider retry cooldowns. Add a fixed GitHub shortcut to Options and optional compact Overview spacing.
+
+- Exclude Codex sessions explicitly marked with a non-OpenAI model provider from local totals; keep old logs without provider metadata as device history. Version the extraction cache so previous mixed-provider results are reparsed.
+
+- Keep Codex and other unpriced connections visible in the Cost breakdown. Show recorded token counts and an explicit missing-price status, exclude unavailable estimates from the subtotal, and preserve zero-dollar values only when a supported estimate exists.
+
+- Publish recorded history independently of quota lookups so Costs stops showing Reading when history finishes or fails. Optimize the app crate in local development builds to avoid slow first scans of large usage logs.
+
+- Fit the Mac popup height to its current content, including asynchronously loaded history and expanded sections. Grow or shrink on navigation, preserve the menu-bar gap, and clamp to the display work area; Windows retains its fixed-height behavior.
 
 - Show Codex included-usage permission, available rate-limit resets and credit balance from the existing official CLI quota response. Format plan labels and add expandable subscription details with connection source and fetch time. Preserve missing values and cached labeling; older snapshot files remain compatible.
 
@@ -48,6 +121,9 @@ Prepared for version 0.1.2; no release has been published.
 - Tray panel: clicking the icon to close the panel no longer reopens it, it docks to the clicked taskbar edge (including auto-hidden taskbars), and on macOS it follows the clicked display and appears over full-screen apps.
 
 ### Fixed
+
+- Exclude explicitly non-OpenAI Codex sessions from local token-value history and invalidate the previous parse-cache schema. Preserve cumulative baselines across provider changes.
+- Separate manual account locks across providers; bound additional lookup concurrency and CLI output/runtime, and stop hidden-panel display intervals.
 
 - Windows no longer draws a second rounded HTML border inside its native panel frame. Sidebar provider icons appear only for selected connections or active local profiles, and disappear when their last connection is removed.
 

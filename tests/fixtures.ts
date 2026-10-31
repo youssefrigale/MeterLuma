@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
 
 // Synthetic data only. Nothing here reads real provider credentials or logs.
-export const LEGAL = '1.1-providers-6';
+export const LEGAL = '1.1-providers-7';
 export const SETTINGS_KEY = 'meterluma.settings.v2';
 
 const iso = (date: Date) => date.toISOString().slice(0, 10);
@@ -19,16 +19,29 @@ export function history({ days = 30, today = '2026-10-15', recordedDays, tokens 
   return { available: true, partial: false, periodDays: days, recordCount: recordedDays, scannedAt: 0, today, coverageStart: recordedDays ? list[days - recordedDays].date : null, days: list, models: models.map(model => ({ name: model.name, totalTokens: Math.round(total * model.share) })) };
 }
 
-export interface QuotaMock { codexAccount?: import('../src/model').Provider['codexAccount']; plan?: string; metrics?: { label: string; usedPercent: number; resetIn: number | null }[]; ageMs?: number; error?: unknown; retryIn?: number; snapshot?: QuotaMock }
+export interface QuotaMock { codexAccount?: import('../src/model').Provider['codexAccount']; claudeExtraUsage?: import('../src/model').Provider['claudeExtraUsage']; plan?: string; metrics?: { label: string; usedPercent: number; periodMinutes?: number; resetIn: number | null }[]; ageMs?: number; error?: unknown; retryIn?: number; snapshot?: QuotaMock }
+export interface AdditionalMock extends Partial<import('../src/additional/model').AdditionalSnapshot> { error?: unknown; retryIn?: number }
 export interface BridgeOptions {
   settings: Record<string, unknown>;
   localProviders?: ('claude' | 'codex' | 'cursor')[];
-  quotas?: Partial<Record<'codex' | 'cursor', QuotaMock>>;
+  quotas?: Partial<Record<'claude' | 'codex' | 'cursor', QuotaMock>>;
   histories?: Partial<Record<'claude' | 'codex', ReturnType<typeof history>>>;
+  additional?: Record<string, AdditionalMock>;
+  additionalTokenError?: string;
   failResizeOnce?: boolean;
   malformedQuota?: boolean;
   tokenError?: string;
   forgetTokenError?: string;
+  preferenceImport?: string | null;
+  supportExport?: 'cancel' | 'fail';
+  startupEnabled?: boolean;
+  startupError?: 'read' | 'write';
+  shortcutConflict?: string;
+  panelError?: boolean;
+  holdShortcut?: boolean;
+  notificationPermission?: import('../src/useUsageNotifications').NotificationPermission;
+  requestedNotificationPermission?: import('../src/useUsageNotifications').NotificationPermission;
+  notificationError?: boolean;
   // Each quota response reports 5 points more usage than the previous one, so responses are distinguishable.
   rising?: boolean;
 }
@@ -39,15 +52,23 @@ export async function nativeBridge(page: Page, options: BridgeOptions) {
     if (!localStorage.getItem('meterluma.settings.v2')) localStorage.setItem('meterluma.settings.v2', JSON.stringify(options.settings));
     const calls: { command: string; args: Record<string, unknown> }[] = [];
     const waiting: (() => void)[] = [];
-    const snapshot = (id: string, quota: QuotaMock, step = 0) => ({ id, name: id === 'codex' ? 'Codex' : 'Cursor', plan: quota.plan ?? 'Subscription', codexAccount: quota.codexAccount, color: '#d97757', initials: '', spendToday: null, fetchedAt: Date.now() - (quota.ageMs ?? 0), metrics: options.malformedQuota ? null : (quota.metrics ?? []).map(metric => ({ label: metric.label, usedPercent: metric.usedPercent + step * 5, resetAt: metric.resetIn === null ? null : Date.now() + metric.resetIn })) });
-    const state = window as unknown as { holdNative?: boolean };
+    const snapshot = (id: string, quota: QuotaMock, step = 0) => ({ id, name: id === 'claude' ? 'Claude' : id === 'codex' ? 'Codex' : 'Cursor', plan: quota.plan ?? 'Subscription', codexAccount: quota.codexAccount, claudeExtraUsage: quota.claudeExtraUsage, color: '#d97757', initials: '', spendToday: null, fetchedAt: Date.now() - (quota.ageMs ?? 0), metrics: options.malformedQuota ? null : (quota.metrics ?? []).map(metric => ({ label: metric.label, usedPercent: metric.usedPercent + step * 5, periodMinutes: metric.periodMinutes, resetAt: metric.resetIn === null ? null : Date.now() + metric.resetIn })) });
+    const state = window as unknown as { holdNative?: boolean; resizeNativePanel?: (height: number) => Promise<void>; preferenceImport?: string | null; startupEnabled?: boolean; panelPinned?: boolean };
     // Tests call holdNative() to keep later data requests pending until releaseNative().
-    Object.assign(window, { isTauri: true, nativeCalls: calls, holdNative: false, releaseNative: (newestFirst = false) => { state.holdNative = false; const pending = waiting.splice(0); (newestFirst ? pending.reverse() : pending).forEach(resolve => resolve()); }, __TAURI_INTERNALS__: { invoke: async (command: string, args: Record<string, unknown> = {}) => {
+    Object.assign(window, { isTauri: true, nativeCalls: calls, preferenceImport: options.preferenceImport ?? null, startupEnabled: options.startupEnabled ?? false, panelPinned: false, holdNative: options.holdShortcut === true, releaseNative: (newestFirst = false) => { state.holdNative = false; const pending = waiting.splice(0); (newestFirst ? pending.reverse() : pending).forEach(resolve => resolve()); }, __TAURI_INTERNALS__: { invoke: async (command: string, args: Record<string, unknown> = {}) => {
       calls.push({ command, args });
       const id = String(args.providerId ?? '');
       if (command === 'discover_local_providers') return options.localProviders ?? [];
       const step = options.rising ? calls.filter(call => call.command === 'refresh_provider' && call.args.providerId === id).length - 1 : 0;
-      if (state.holdNative && (command === 'refresh_provider' || command === 'read_usage_history' || command === 'connect_account_token')) await new Promise<void>(resolve => waiting.push(resolve));
+      if (state.holdNative && ['refresh_provider', 'read_usage_history', 'connect_account_token', 'connect_additional_provider', 'refresh_additional_provider', 'set_panel_shortcut'].includes(command)) await new Promise<void>(resolve => waiting.push(resolve));
+      if (command === 'connect_additional_provider' || command === 'refresh_additional_provider') {
+        if (command === 'connect_additional_provider' && options.additionalTokenError) throw options.additionalTokenError;
+        const provider = options.additional?.[id];
+        if (!provider) throw 'Unexpected additional-provider request';
+        if (provider.error !== undefined) throw typeof provider.error === 'object' ? { ...provider.error as object, ...(provider.retryIn ? { retryAt: Date.now() + provider.retryIn } : {}) } : provider.error;
+        return { id, name: id, plan: null, metrics: [], amounts: [], fetchedAt: Date.now(), cached: false, notice: null, ...provider };
+      }
+      if (command === 'forget_additional_provider' && options.forgetTokenError) throw options.forgetTokenError;
       if (command === 'connect_account_token') {
         if (options.tokenError) throw options.tokenError;
         const quota = (options.quotas as Record<string, QuotaMock | undefined> | undefined)?.[id];
@@ -67,8 +88,31 @@ export async function nativeBridge(page: Page, options: BridgeOptions) {
         return { ...recorded, scannedAt: Date.now() };
       }
       if (command === 'resize_quick' && options.failResizeOnce && calls.filter(call => call.command === 'resize_quick').length === 1) throw 'The panel could not be positioned.';
+      if (command === 'resize_quick' && typeof args.height === 'number' && state.resizeNativePanel) await state.resizeNativePanel(args.height);
       if (command === 'validate_profile') return args.directory;
       if (command === 'save_usage_export') return true;
+      if (command === 'open_preferences_import') return state.preferenceImport;
+      if (command === 'notification_permission') return options.notificationPermission ?? 'not_determined';
+      if (command === 'request_notification_permission') return options.requestedNotificationPermission ?? options.notificationPermission ?? 'not_determined';
+      if (command === 'queue_usage_notification') { if (options.notificationError) throw 'macOS did not accept the usage notification.'; return; }
+      if (command === 'panel_pinned') return state.panelPinned;
+      if (command === 'set_panel_pinned') {
+        if (options.panelError) throw 'Synthetic panel setting error';
+        state.panelPinned = args.pinned === true; return state.panelPinned;
+      }
+      if (command === 'set_panel_shortcut') {
+        if (args.shortcut === options.shortcutConflict) throw 'This shortcut could not be registered. Choose another combination.';
+        return args.shortcut ?? null;
+      }
+      if (command === 'startup_enabled') { if (options.startupError === 'read') throw 'Synthetic login setting denial'; return state.startupEnabled; }
+      if (command === 'set_startup_enabled') {
+        if (options.startupError === 'write') throw 'Synthetic login setting denial';
+        state.startupEnabled = args.enabled === true; return state.startupEnabled;
+      }
+      if (command === 'save_support_export') {
+        if (options.supportExport === 'fail') throw 'Synthetic disk error';
+        return options.supportExport !== 'cancel';
+      }
     } } });
   }, options);
 }

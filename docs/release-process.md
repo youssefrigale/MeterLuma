@@ -117,6 +117,13 @@ notarizes and staples the DMG, and checks four things:
 - both the app and the DMG have a valid stapled ticket
 - `spctl` accepts the app
 
+Keep the bundle identifier and signing identity consistent across macOS updates so
+Keychain can recognize MeterLuma as the same application. Local ad-hoc builds can
+require approval again after rebuilding. MeterLuma reads its saved-token vault
+without authentication UI during automatic refresh; Connections offers an explicit
+Unlock saved connection action when authorization is needed. Signing does not
+remove macOS prompts caused by a locked Keychain or a user-selected access policy.
+
 ### 3. Windows code signing (optional future work)
 
 Owner decision, 2026-10-20: the current Windows release will be unsigned because paid signing is outside the budget. The release workflow sets `WINDOWS_SIGNING_ENABLED` to `false`, ignores Windows signing secrets, and records `signed: false`. Windows Authenticode signing is not a release gate. State "Unsigned Windows installer" in download/release information. The options below are retained only for a possible future signed release; enabling them requires an explicit policy change and setting `WINDOWS_SIGNING_ENABLED` to `true`.

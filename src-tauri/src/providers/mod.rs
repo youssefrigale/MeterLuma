@@ -1,16 +1,19 @@
 mod codex;
+mod claude;
 mod auth;
+mod cursor_storage;
 mod map;
 mod cooldowns;
 mod snapshots;
 mod tokens;
 pub mod manual;
+pub(crate) mod additional;
 
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 use std::{collections::HashMap, path::{Path, PathBuf}, sync::Arc, time::{Duration, Instant}};
 
-pub const CLAUDE_UNAVAILABLE: &str = "Claude live quotas are not available in MeterLuma. Recorded Claude Code history is read from local logs.";
+pub const CLAUDE_UNAVAILABLE: &str = "Enable live Claude usage in Connections to read live limits. Local history remains available.";
 
 #[cfg(any(target_os = "windows", test))]
 pub(crate) fn has_cursor_sign_in(root: &Path) -> bool { auth::cursor(root, false).is_ok() }
@@ -19,7 +22,7 @@ const CURSOR_USAGE: &str = "https://api2.cursor.sh/aiserver.v1.DashboardService/
 // Both always-alive windows poll at least every 5 minutes; a just-under-5-minute window keeps them on one CLI run.
 const CODEX_FRESH: Duration = Duration::from_secs(290);
 // Equals Tauri's app_cache_dir, which the uninstaller's delete-app-data option removes.
-const CACHE_FOLDER: &str = "app.meterluma.desktop";
+pub(crate) const CACHE_FOLDER: &str = "app.meterluma.desktop";
 // On Windows the legacy folder is also the per-user install directory: remove only these two files.
 const LEGACY_CACHES: [&str; 2] = ["MeterLuma/quota-snapshots-v1.json", "MeterLuma/usage-cooldowns-v1.json"];
 
@@ -33,6 +36,8 @@ pub struct Metric {
     pub label: String,
     pub used_percent: f64,
     pub reset_at: Option<i64>,
+    #[serde(default,skip_serializing_if="Option::is_none")]
+    pub period_minutes: Option<u64>,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -53,6 +58,15 @@ pub struct CodexAccount {
 
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ClaudeExtraUsage {
+    pub spent: Option<f64>,
+    pub monthly_limit: Option<f64>,
+    pub currency: Option<String>,
+    pub decimal_places: Option<u32>,
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Snapshot {
     pub id: ProviderId,
     pub name: String,
@@ -64,17 +78,25 @@ pub struct Snapshot {
     pub fetched_at: i64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub codex_account: Option<CodexAccount>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub claude_extra_usage: Option<ClaudeExtraUsage>,
 }
 
-struct Cache { fingerprint: [u8; 32], until: Instant, result: Result<Snapshot, String> }
-struct Lookup { done: Instant, result: Result<Snapshot, String> }
+struct Cache { fingerprint: [u8; 32], checked_at: Instant, until: Instant, result: Result<Snapshot, String> }
+struct Lookup { done: Instant, fingerprint: Option<[u8; 32]>, result: Result<Snapshot, String> }
+
+fn before_reset(snapshot: &Snapshot) -> bool { snapshot.metrics.iter().all(|metric| metric.reset_at.is_none_or(|reset| reset > chrono::Utc::now().timestamp_millis())) }
 
 pub struct ProviderService {
     client: reqwest::Client,
     manual: Mutex<HashMap<String, Cache>>,
-    cursor: Mutex<HashMap<String, Cache>>,
+    local: Mutex<HashMap<String, Cache>>,
+    connection_gates: std::sync::Mutex<HashMap<String, Arc<Mutex<()>>>>,
+    claude_credential: fn(&Path, bool) -> Result<claude::SignIn, String>,
     codex: std::sync::Mutex<HashMap<String, Arc<Mutex<Option<Lookup>>>>>,
     codex_runner: fn(&Path) -> Result<serde_json::Value, String>,
+    codex_token_runner: fn(&tokens::AccountToken) -> Result<serde_json::Value, String>,
+    manual_credential: fn(ProviderId) -> Result<tokens::AccountToken, String>,
     cursor_credential: fn(&Path, bool) -> Result<auth::Credential, String>,
     cooldowns: std::sync::Mutex<cooldowns::Cooldowns>,
     snapshots: std::sync::Mutex<snapshots::Snapshots>,
@@ -106,22 +128,28 @@ impl ProviderService {
         Ok(Self {
             client: client_builder().build().or_else(|_| client_builder().tls_built_in_native_certs(false).build())?,
             manual: Mutex::new(HashMap::new()),
-            cursor: Mutex::new(HashMap::new()), codex: Default::default(), codex_runner: codex::limits, cursor_credential: auth::cursor,
+            local: Mutex::new(HashMap::new()), connection_gates: Default::default(), claude_credential: claude::sign_in, codex: Default::default(), codex_runner: codex::limits, codex_token_runner: codex::limits_with_token, manual_credential: tokens::load, cursor_credential: auth::cursor,
             cooldowns: std::sync::Mutex::new(cooldowns::Cooldowns::load(folder.as_ref().map(|path| path.join("usage-cooldowns-v2.json")))),
             snapshots: std::sync::Mutex::new(snapshots::Snapshots::load(folder.map(|path| path.join("quota-snapshots-v1.json")))),
         })
     }
     pub async fn refresh(&self, id: ProviderId, directory: Option<String>) -> Result<Snapshot, ProviderFailure> {
-        // Claude is history-only: no profile, credential, process or network access happens for it.
+        // Legacy/history-only calls never access Claude credentials or the network.
         if matches!(id, ProviderId::Claude) { return Err(ProviderFailure::new(CLAUDE_UNAVAILABLE.into(), None, None)); }
         let root = crate::profiles::root(id, directory.as_deref()).map_err(|message| ProviderFailure::new(message, None, None))?;
         if matches!(id, ProviderId::Codex) { return self.codex(root).await.map_err(|message| ProviderFailure::new(message, None, None)); }
         self.cursor(root, directory.is_none()).await
     }
 
+    pub async fn refresh_claude(&self, directory: Option<String>, fresh_after: Option<Instant>) -> Result<Snapshot, ProviderFailure> {
+        let root = crate::profiles::root(ProviderId::Claude, directory.as_deref()).map_err(|message| ProviderFailure::new(message, None, None))?;
+        self.local_usage(ProviderId::Claude, root, directory.is_none(), fresh_after).await
+    }
+
     // One CLI process per profile at a time: concurrent requests share the in-flight lookup, and a success stays fresh briefly.
     async fn codex(&self, root: PathBuf) -> Result<Snapshot, String> {
         let asked = Instant::now();
+        let fingerprint = codex::auth_fingerprint(&root);
         let key = cooldowns::key(ProviderId::Codex, &root);
         let slot = {
             let mut slots = self.codex.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
@@ -129,53 +157,68 @@ impl ProviderService {
             slots.entry(key).or_default().clone()
         };
         let mut last = slot.lock().await;
-        if let Some(lookup) = last.as_ref().filter(|lookup| lookup.done >= asked || (lookup.result.is_ok() && lookup.done.elapsed() < CODEX_FRESH)) { return lookup.result.clone(); }
+        if let Some(lookup) = last.as_ref().filter(|lookup| lookup.fingerprint == fingerprint && (lookup.done >= asked || (fingerprint.is_some() && lookup.result.as_ref().is_ok_and(before_reset) && lookup.done.elapsed() < CODEX_FRESH))) { return lookup.result.clone(); }
         let run = self.codex_runner;
-        let result = tauri::async_runtime::spawn_blocking(move || run(&root)).await.map_err(|_| "The Codex quota lookup could not complete.".to_string())
+        let lookup_root = root.clone();
+        let mut result = tauri::async_runtime::spawn_blocking(move || run(&lookup_root)).await.map_err(|_| "The Codex quota lookup could not complete.".to_string())
             .and_then(|value| value).and_then(|value| map::map(ProviderId::Codex, &codex::normalized(&value)));
-        *last = Some(Lookup { done: Instant::now(), result: result.clone() });
+        if codex::auth_fingerprint(&root) != fingerprint { result = Err("Your Codex sign-in changed. Refresh again to read the current account.".into()); }
+        *last = Some(Lookup { done: Instant::now(), fingerprint, result: result.clone() });
         result
     }
 
     async fn cursor(&self, root: PathBuf, default_profile: bool) -> Result<Snapshot, ProviderFailure> {
-        let id = ProviderId::Cursor;
+        self.local_usage(ProviderId::Cursor, root, default_profile, None).await
+    }
+
+    fn connection_gate(&self, key: &str) -> Arc<Mutex<()>> {
+        let mut gates = self.connection_gates.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        gates.retain(|_, gate| Arc::strong_count(gate) > 1);
+        gates.entry(key.into()).or_default().clone()
+    }
+
+    async fn local_usage(&self, id: ProviderId, root: PathBuf, default_profile: bool, fresh_after: Option<Instant>) -> Result<Snapshot, ProviderFailure> {
         let key = cooldowns::key(id, &root);
-        let mut caches = self.cursor.lock().await;
-        let credential = self.cursor_sign_in(&root, default_profile).await.map_err(|message| ProviderFailure::new(message, None, None))?;
+        let gate = self.connection_gate(&key);
+        let _turn = gate.lock().await;
+        let (credential, plan) = self.local_sign_in(id, &root, default_profile).await.map_err(|message| ProviderFailure::new(message, None, None))?;
         let fingerprint = credential.fingerprint();
         // Cooldowns belong to the signed-in account, so signing in again is never blocked by the previous account's limit.
         if let Some(until) = self.cooldowns.lock().ok().and_then(|store| store.until(&key, &fingerprint)) {
             let seconds = (until.saturating_sub(chrono::Utc::now().timestamp_millis()).max(0) + 999) / 1000;
-            return Err(self.cursor_failure(format!("The provider is limiting requests. MeterLuma will retry after {seconds} seconds."), &key, fingerprint));
+            return Err(self.quota_failure(format!("The provider is limiting requests. MeterLuma will retry after {seconds} seconds."), &key, fingerprint, id));
         }
-        if let Some(previous) = caches.get(&key).filter(|row| row.fingerprint == fingerprint && row.until > Instant::now()) {
-            return previous.result.clone().map_err(|message| self.cursor_failure(message, &key, fingerprint));
+        if let Some(previous) = self.local.lock().await.get(&key).filter(|row| row.fingerprint == fingerprint && row.until > Instant::now() && fresh_after.is_none_or(|asked| row.checked_at >= asked) && row.result.as_ref().map(before_reset).unwrap_or(true)) {
+            return previous.result.clone().map(|mut snapshot| { if let Some(plan) = plan { snapshot.plan = plan; } snapshot }).map_err(|message| self.quota_failure(message, &key, fingerprint, id));
         }
-        let (result, retry_in) = response_result(self.usage_request(&credential.token), id).await;
+        let request = self.local_usage_request(id, &credential.token);
+        let (mut result, retry_in) = response_result(request, id).await;
+        if let (Ok(snapshot), Some(plan)) = (&mut result, plan) { snapshot.plan = plan; }
         if result.as_ref().err().is_some_and(|error| error.starts_with("The provider is limiting requests.")) {
             if let Ok(mut store) = self.cooldowns.lock() { store.set(key.clone(), &fingerprint, retry_in); }
         }
-        let current = self.cursor_sign_in(&root, default_profile).await.map_err(|message| ProviderFailure::new(message, None, None))?.fingerprint();
+        let current = self.local_sign_in(id, &root, default_profile).await.map_err(|message| ProviderFailure::new(message, None, None))?.0.fingerprint();
         if current != fingerprint {
-            caches.remove(&key);
-            return Err(self.cursor_failure("Your provider sign-in changed. Refresh again to read the current account.".into(), &key, current));
+            self.local.lock().await.remove(&key);
+            return Err(self.quota_failure("Your provider sign-in changed. Refresh again to read the current account.".into(), &key, current, id));
         }
         if let Ok(snapshot) = &result {
             if let Ok(mut store) = self.snapshots.lock() { store.put(key.clone(), fingerprint, snapshot.clone()); }
         }
+        let mut caches = self.local.lock().await;
         caches.retain(|_, row| row.until > Instant::now());
         if caches.len() >= 16 { caches.clear(); }
-        caches.insert(key.clone(), Cache { fingerprint, until: Instant::now() + Duration::from_secs(retry_in.min(300)), result: result.clone() });
-        result.map_err(|message| self.cursor_failure(message, &key, fingerprint))
+        let lifetime = result.as_ref().ok().filter(|_| matches!(id, ProviderId::Claude)).map(claude_cache_seconds).unwrap_or(retry_in.min(300));
+        caches.insert(key.clone(), Cache { fingerprint, checked_at: Instant::now(), until: Instant::now() + Duration::from_secs(lifetime), result: result.clone() });
+        result.map_err(|message| self.quota_failure(message, &key, fingerprint, id))
     }
 
-    async fn cursor_sign_in(&self, root: &Path, default_profile: bool) -> Result<auth::Credential, String> {
-        let (load, root) = (self.cursor_credential, root.to_path_buf());
-        tauri::async_runtime::spawn_blocking(move || load(&root, default_profile)).await.map_err(|_| "Your local sign-in could not be read.".to_string())?
-    }
-
-    fn cursor_failure(&self, message: String, key: &str, fingerprint: [u8; 32]) -> ProviderFailure {
-        self.quota_failure(message, key, fingerprint, ProviderId::Cursor)
+    async fn local_sign_in(&self, id: ProviderId, root: &Path, default_profile: bool) -> Result<(auth::Credential, Option<String>), String> {
+        let (cursor, claude, root) = (self.cursor_credential, self.claude_credential, root.to_path_buf());
+        tauri::async_runtime::spawn_blocking(move || match id {
+            ProviderId::Claude => claude(&root, default_profile).map(|login| (login.credential, Some(login.plan))),
+            _ => cursor(&root, default_profile).map(|credential| (credential, None)),
+        }).await.map_err(|_| "Your local sign-in could not be read.".to_string())?
     }
 
     fn quota_failure(&self, message: String, key: &str, fingerprint: [u8; 32], id: ProviderId) -> ProviderFailure {
@@ -188,6 +231,18 @@ impl ProviderService {
         self.client.post(CURSOR_USAGE).header("Connect-Protocol-Version", "1").json(&serde_json::json!({}))
             .bearer_auth(token).header("Accept", "application/json")
     }
+
+    fn local_usage_request(&self, id: ProviderId, token: &str) -> reqwest::RequestBuilder {
+        match id {
+            ProviderId::Claude => self.client.get("https://api.anthropic.com/api/oauth/usage").bearer_auth(token).header("anthropic-beta", "oauth-2025-04-20").header("Accept", "application/json"),
+            _ => self.usage_request(token),
+        }
+    }
+}
+
+fn claude_cache_seconds(snapshot: &Snapshot) -> u64 {
+    // Expire just before the renderer's 30/60-second poll, including across windows.
+    if snapshot.metrics.iter().any(|metric| metric.label == "Session" && (75.0..100.0).contains(&metric.used_percent)) { 29 } else { 59 }
 }
 
 fn transport_error(error: &reqwest::Error) -> String {
@@ -242,8 +297,9 @@ async fn response_result(request: reqwest::RequestBuilder, id: ProviderId) -> (R
 }
 
 #[tauri::command]
-pub async fn refresh_provider(service: tauri::State<'_, ProviderService>, provider_id: ProviderId, config_directory: Option<String>, token_mode: Option<bool>) -> Result<Snapshot, ProviderFailure> {
+pub async fn refresh_provider(service: tauri::State<'_, ProviderService>, provider_id: ProviderId, config_directory: Option<String>, token_mode: Option<bool>, claude_live: Option<bool>, force_refresh: Option<bool>) -> Result<Snapshot, ProviderFailure> {
     if token_mode == Some(true) { return service.refresh_token(provider_id).await; }
+    if matches!(provider_id, ProviderId::Claude) && claude_live == Some(true) { return service.refresh_claude(config_directory, force_refresh.filter(|force| *force).map(|_| Instant::now())).await; }
     service.refresh(provider_id, config_directory).await
 }
 
@@ -281,6 +337,48 @@ mod tests {
     }
 
     fn fake_sign_in(_: &Path, _: bool) -> Result<auth::Credential, String> { Ok(auth::Credential { token: "fake-cursor-token".into() }) }
+    static ACTIVE_READS: AtomicUsize = AtomicUsize::new(0);
+    static PEAK_READS: AtomicUsize = AtomicUsize::new(0);
+    fn slow_sign_in(_: &Path, _: bool) -> Result<auth::Credential, String> {
+        let active = ACTIVE_READS.fetch_add(1, Ordering::SeqCst) + 1;
+        PEAK_READS.fetch_max(active, Ordering::SeqCst);
+        std::thread::sleep(Duration::from_millis(100));
+        ACTIVE_READS.fetch_sub(1, Ordering::SeqCst);
+        Ok(auth::Credential { token: "synthetic-independent-profile-token".into() })
+    }
+
+    #[test]
+    fn slow_local_profiles_do_not_serialize_unrelated_accounts() {
+        let proxy = std::net::TcpListener::bind("127.0.0.1:0").unwrap(); let address = proxy.local_addr().unwrap(); drop(proxy);
+        let mut service = ProviderService::with_cache(None).unwrap(); service.cursor_credential = slow_sign_in;
+        service.client = client_builder().proxy(reqwest::Proxy::all(format!("http://{address}")).unwrap()).build().unwrap();
+        let service = Arc::new(service);
+        let tasks: Vec<_> = ["synthetic-profile-a", "synthetic-profile-b"].map(|profile| {
+            let service = service.clone();
+            tauri::async_runtime::spawn(async move { service.local_usage(ProviderId::Cursor, PathBuf::from(profile), false, None).await })
+        }).into_iter().collect();
+        for task in tasks { assert!(tauri::async_runtime::block_on(task).unwrap().is_err()); }
+        assert!(PEAK_READS.load(Ordering::SeqCst) >= 2);
+    }
+    static MANUAL_READS: AtomicUsize = AtomicUsize::new(0);
+    static MANUAL_PEAK: AtomicUsize = AtomicUsize::new(0);
+    fn slow_manual_token(_: ProviderId) -> Result<tokens::AccountToken,String> {
+        let active=MANUAL_READS.fetch_add(1,Ordering::SeqCst)+1; MANUAL_PEAK.fetch_max(active,Ordering::SeqCst);
+        std::thread::sleep(Duration::from_millis(100)); MANUAL_READS.fetch_sub(1,Ordering::SeqCst);
+        Ok(tokens::AccountToken{access_token:"synthetic-only-token".into(),account_id:None})
+    }
+    #[test]
+    fn manually_supplied_accounts_refresh_independently_without_reading_real_secure_storage() {
+        let port=TcpListener::bind("127.0.0.1:0").unwrap();let address=port.local_addr().unwrap();drop(port);
+        let mut service=ProviderService::with_cache(None).unwrap();service.manual_credential=slow_manual_token;
+        service.codex_token_runner=|_|Ok(serde_json::json!({"rateLimits":{"primary":{"usedPercent":25,"windowDurationMins":300}}}));
+        service.client=client_builder().proxy(reqwest::Proxy::all(format!("http://{address}")).unwrap()).build().unwrap();
+        let service=Arc::new(service);
+        let jobs:Vec<_>=[ProviderId::Codex,ProviderId::Cursor].map(|id|{let service=service.clone();tauri::async_runtime::spawn(async move{service.refresh_token(id).await})}).into_iter().collect();
+        let mut outcomes=jobs.into_iter().map(|job|tauri::async_runtime::block_on(job).unwrap());
+        assert!(outcomes.next().unwrap().is_ok()); assert!(outcomes.next().unwrap().is_err());
+        assert!(MANUAL_PEAK.load(Ordering::SeqCst)>=2);
+    }
     fn offline(proxy: &TcpListener) -> ProviderService {
         let mut service = ProviderService::with_cache(None).unwrap();
         service.client = client_builder().proxy(reqwest::Proxy::all(format!("http://{}", proxy.local_addr().unwrap())).unwrap()).timeout(Duration::from_secs(1)).build().unwrap();
@@ -325,6 +423,39 @@ mod tests {
         assert!(proxy.accept().is_ok(), "a different sign-in must reach the network");
     }
 
+    #[test]
+    fn claude_manual_refresh_bypasses_success_cache_but_never_a_rate_limit_cooldown() {
+        let proxy = listener();
+        let mut service = offline(&proxy);
+        service.claude_credential = |_, _| Ok(claude::SignIn { credential: auth::Credential { token: "synthetic-claude-token".into() }, plan: "Team".into() });
+        let root = std::env::temp_dir().join("meterluma-claude-manual-refresh-fixture");
+        let key = cooldowns::key(ProviderId::Claude, &root);
+        let fingerprint = (service.claude_credential)(&root, false).unwrap().credential.fingerprint();
+        let snapshot = map::map(ProviderId::Claude, &serde_json::json!({"five_hour":{"utilization":77,"resets_at":"2099-01-01T00:00:00Z"}})).unwrap();
+        tauri::async_runtime::block_on(async {
+            service.local.lock().await.insert(key.clone(), Cache { fingerprint, checked_at: Instant::now(), until: Instant::now() + Duration::from_secs(29), result: Ok(snapshot) });
+            assert_eq!(service.local_usage(ProviderId::Claude, root.clone(), false, None).await.ok().unwrap().metrics[0].used_percent, 77.0);
+            assert_eq!(proxy.accept().err().unwrap().kind(), std::io::ErrorKind::WouldBlock);
+            service.cooldowns.lock().unwrap().set(key.clone(), &fingerprint, 3600);
+            let failure = service.local_usage(ProviderId::Claude, root.clone(), false, Some(Instant::now())).await.err().unwrap();
+            assert_eq!(failure.code, "rate_limited");
+            assert_eq!(proxy.accept().err().unwrap().kind(), std::io::ErrorKind::WouldBlock);
+            service.cooldowns.lock().unwrap().remove(&key);
+            let failure = service.local_usage(ProviderId::Claude, root, false, Some(Instant::now())).await.err().unwrap();
+            assert_ne!(failure.code, "rate_limited");
+            assert!(proxy.accept().is_ok(), "manual refresh must reach the network instead of returning the old 23% remaining");
+        });
+    }
+
+    #[test]
+    fn claude_success_cache_expires_before_each_adaptive_poll() {
+        // Boundaries: healthy / exactly 25% left / almost exhausted / exhausted; weekly alone stays at one minute.
+        for (session, seconds) in [(0.0, 59), (74.9, 59), (75.0, 29), (99.9, 29), (100.0, 59)] {
+            let snapshot = map::map(ProviderId::Claude, &serde_json::json!({"five_hour":{"utilization":session},"seven_day":{"utilization":99}})).unwrap();
+            assert_eq!(claude_cache_seconds(&snapshot), seconds);
+        }
+    }
+
     static CODEX_RUNS: AtomicUsize = AtomicUsize::new(0);
     fn fake_codex(_: &Path) -> Result<serde_json::Value, String> {
         CODEX_RUNS.fetch_add(1, Ordering::SeqCst);
@@ -347,17 +478,24 @@ mod tests {
         let mut service = ProviderService::with_cache(None).unwrap();
         service.codex_runner = fake_codex;
         let service = Arc::new(service);
-        let (first, second) = (std::env::temp_dir().join("meterluma-codex-profile-a"), std::env::temp_dir().join("meterluma-codex-profile-b"));
+        let fixture = std::env::temp_dir().join(format!("meterluma-codex-cache-{}-{}", std::process::id(), chrono::Utc::now().timestamp_nanos_opt().unwrap()));
+        let (first, second) = (fixture.join("a"), fixture.join("b"));
+        for root in [&first, &second] { std::fs::create_dir_all(root).unwrap(); std::fs::write(root.join("auth.json"), b"synthetic-account-one").unwrap(); }
         for result in concurrently(&service, &first, 3) { assert_eq!(result.ok().unwrap().metrics[0].used_percent, 25.0); }
         assert_eq!(CODEX_RUNS.load(Ordering::SeqCst), 1);
         assert!(tauri::async_runtime::block_on(service.codex(first.clone())).is_ok());
         assert_eq!(CODEX_RUNS.load(Ordering::SeqCst), 1);
-        assert!(tauri::async_runtime::block_on(service.codex(second)).is_ok());
+        // A different account in the same home must bypass the five-minute cache.
+        std::fs::write(first.join("auth.json"), b"synthetic-account-two").unwrap();
+        assert!(tauri::async_runtime::block_on(service.codex(first.clone())).is_ok());
         assert_eq!(CODEX_RUNS.load(Ordering::SeqCst), 2);
+        assert!(tauri::async_runtime::block_on(service.codex(second)).is_ok());
+        assert_eq!(CODEX_RUNS.load(Ordering::SeqCst), 3);
         let slot = service.codex.lock().unwrap()[&cooldowns::key(ProviderId::Codex, &first)].clone();
         if let Some(earlier) = Instant::now().checked_sub(CODEX_FRESH + Duration::from_secs(1)) { slot.try_lock().unwrap().as_mut().unwrap().done = earlier; }
         assert!(tauri::async_runtime::block_on(service.codex(first)).is_ok());
-        assert_eq!(CODEX_RUNS.load(Ordering::SeqCst), 3);
+        assert_eq!(CODEX_RUNS.load(Ordering::SeqCst), 4);
+        std::fs::remove_dir_all(fixture).unwrap();
     }
 
     #[test]
@@ -378,6 +516,12 @@ mod tests {
         let request = service.usage_request("test-token").build().unwrap();
         assert_eq!(request.url().scheme(), "https"); assert_eq!(request.url().host_str(), Some("api2.cursor.sh")); assert_eq!(request.url().path(), "/aiserver.v1.DashboardService/GetCurrentPeriodUsage");
         assert_eq!(request.headers()["authorization"], "Bearer test-token");
+        let claude = service.local_usage_request(ProviderId::Claude, "test-claude-token").build().unwrap();
+        assert_eq!(claude.method(), reqwest::Method::GET);
+        assert_eq!(claude.url().as_str(), "https://api.anthropic.com/api/oauth/usage");
+        assert_eq!(claude.headers()["authorization"], "Bearer test-claude-token");
+        assert_eq!(claude.headers()["anthropic-beta"], "oauth-2025-04-20");
+        assert!(claude.body().is_none());
         assert_eq!(USER_AGENT, format!("MeterLuma/{}", env!("CARGO_PKG_VERSION")));
         let (result, _, sent) = response("302 Found", "Location: http://127.0.0.1:9/never-follow\r\n", String::new());
         assert!(result.err().unwrap().contains("HTTP 302"));
@@ -444,10 +588,14 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Requires a signed-in local provider; opt in with METERLUMA_LIVE_PROVIDER=cursor or codex."]
+    #[ignore = "Requires a signed-in local provider; opt in with METERLUMA_LIVE_PROVIDER=claude, cursor or codex."]
     fn live_provider_smoke() {
-        let id = match std::env::var("METERLUMA_LIVE_PROVIDER").as_deref() { Ok("cursor") => ProviderId::Cursor, Ok("codex") => ProviderId::Codex, _ => panic!("Set METERLUMA_LIVE_PROVIDER to cursor or codex. Claude has no live quotas.") };
+        let id = match std::env::var("METERLUMA_LIVE_PROVIDER").as_deref() { Ok("claude") => ProviderId::Claude, Ok("cursor") => ProviderId::Cursor, Ok("codex") => ProviderId::Codex, _ => panic!("Set METERLUMA_LIVE_PROVIDER to claude, cursor or codex.") };
         let service = ProviderService::new().unwrap();
-        match tauri::async_runtime::block_on(service.refresh(id, None)) { Ok(snapshot) => assert!(!snapshot.metrics.is_empty()), Err(failure) => panic!("Live connection unavailable: {}", failure.message) }
+        let lookup = async { if matches!(id, ProviderId::Claude) { service.refresh_claude(None, None).await } else { service.refresh(id, None).await } };
+        match tauri::async_runtime::block_on(lookup) {
+            Ok(snapshot) => { assert!(!snapshot.metrics.is_empty()); for metric in snapshot.metrics { println!("{} {}: {}% remaining", snapshot.name, metric.label, 100.0 - metric.used_percent); } },
+            Err(failure) => panic!("Live connection unavailable: {}", failure.message),
+        }
     }
 }

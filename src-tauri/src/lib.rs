@@ -3,9 +3,13 @@ mod history;
 mod pricing;
 mod profiles;
 mod exports;
+mod desktop_preferences;
+mod panel_shortcut;
+mod notifications;
 mod quick;
 mod websites;
 mod placement;
+mod tray_status;
 
 use std::time::{Duration, SystemTime};
 use tauri::{
@@ -28,11 +32,14 @@ fn tooltip(summary: &str) -> String {
 }
 
 #[tauri::command]
-fn set_tray_summary(app: tauri::AppHandle, summary: String) -> Result<(), String> {
+fn set_tray_summary(app: tauri::AppHandle, summary: String, status: Option<tray_status::TrayStatus>) -> Result<(), String> {
     if summary.chars().count() > 160 {
         return Err("Tray summary is too long".into());
     }
+    if let Some(status) = &status { status.title()?; }
     let tray = app.tray_by_id("meterluma").ok_or("Tray is unavailable")?;
+    #[cfg(target_os = "macos")]
+    tray_status::update(&app, &tray, status.as_ref())?;
     tray.set_tooltip(Some(tooltip(&summary)))
         .map_err(|_| "The tray tooltip could not be updated".into())
 }
@@ -122,6 +129,8 @@ mod updates {
 }
 
 pub fn run() {
+    #[cfg(target_os = "macos")]
+    tray_status::configure_spacing();
     let context = tauri::generate_context!();
     #[cfg(feature = "updater")]
     let updates = updates::accepts(context.config().plugins.0.get("updater"));
@@ -130,19 +139,28 @@ pub fn run() {
     let builder = tauri::Builder::default()
         // First, so a second launch hands over to the running app before any other plugin starts.
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| quick::open(app, None)))
-        .plugin(tauri_plugin_dialog::init());
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().with_handler(|app, _, event| {
+            if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed { quick::open(app, None); }
+        }).build())
+        .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None::<Vec<&str>>));
     #[cfg(feature = "updater")]
     let builder = if updates { builder.plugin(tauri_plugin_updater::Builder::new().build()) } else { builder };
     builder
         .manage(quick::QuickState::default())
-        .manage(history::HistoryService::default())
-        .invoke_handler(tauri::generate_handler![set_tray_summary, providers::refresh_provider, providers::manual::connect_account_token, providers::manual::forget_account_token, history::read_usage_history, profiles::validate_profile, profiles::discover_local_providers, exports::save_usage_export, quick::resize_quick, websites::open_provider_page, quit_app])
+        .manage(panel_shortcut::PanelShortcut::default())
+        .manage(history::HistoryService::new())
+        .invoke_handler(tauri::generate_handler![set_tray_summary, providers::refresh_provider, providers::manual::connect_account_token, providers::manual::unlock_saved_connection, providers::manual::forget_account_token, providers::additional::refresh_additional_provider, providers::additional::connect_additional_provider, providers::additional::forget_additional_provider, history::read_usage_history, profiles::validate_profile, profiles::discover_local_providers, exports::save_usage_export, exports::save_support_export, exports::open_preferences_import, notifications::open_notification_settings, notifications::notification_permission, notifications::request_notification_permission, notifications::queue_usage_notification, panel_shortcut::set_panel_shortcut, desktop_preferences::startup_enabled, desktop_preferences::set_startup_enabled, quick::resize_quick, quick::panel_pinned, quick::set_panel_pinned, websites::open_provider_page, quit_app])
         .setup(move |app| {
             // Created here rather than on the builder so a second instance exits before touching the provider caches.
             app.manage(providers::ProviderService::new().map_err(|error| format!("Provider networking could not be initialized: {error}"))?);
+            app.manage(providers::additional::AdditionalService::new().map_err(|error| format!("Additional provider networking could not be initialized: {error}"))?);
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
             quick::create(app)?;
+            if let Err(error) = desktop_preferences::initialize(app.handle()) {
+                eprintln!("Could not initialize Start at login: {error}");
+            }
             let version = MenuItem::with_id(app, "version", format!("MeterLuma {}", env!("CARGO_PKG_VERSION")), false, None::<&str>)?;
             let separator = PredefinedMenuItem::separator(app)?;
             let show = MenuItem::with_id(app, "show", "Open MeterLuma", true, None::<&str>)?;
@@ -186,8 +204,14 @@ pub fn run() {
             }
             _ => {}
         })
-        .run(context)
-        .expect("MeterLuma failed to start");
+        .build(context)
+        .expect("MeterLuma failed to start")
+        .run(|app, event| {
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Reopen { .. } = event { quick::open(app, None); }
+            #[cfg(not(target_os = "macos"))]
+            let _ = (app, event);
+        });
 }
 
 #[cfg(test)]

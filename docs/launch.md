@@ -1,5 +1,9 @@
 # Worldwide launch requirements
 
+October 27 source follow-up: the [OpenUsage issue review](openusage-issue-audit.md) covers all 587 saved issues with explicit outcomes. Additional provider readers, optional known-window pacing, menu-window selection and fresh Claude in-app thresholds are implemented in source. New provider live QA, two unavailable quota contracts and the pending product/platform features in that ledger remain separate from release readiness. No release is published.
+
+October 26 Mac continuation: the local build has optional read-only Claude session/weekly usage from the existing Claude Code login. It requires the separate revision-7 connection notice and preserves history-only access for older consent. The Windows installation/checkpoints below have not been replaced, and this Mac follow-up does not publish a release or establish provider approval.
+
 Latest October 26 installed follow-up: richer Codex subscription details from the existing official CLI quota lookup. Chromium coverage 154 after a focused layout correction, WebKit 77, production UI 3, Rust 82 (2 opt-in ignored) and native checks 6 passed. No billing charges or renewal dates are inferred. The checkpoint below records the scope and remaining platform/release limitations.
 
 October 26 installed follow-up: Claude explicitly marks subscription status unavailable; automatic paused-status detection remains unimplemented. All 29 targeted browser, production and native checks passed. Details are in the checkpoint below.
@@ -8,7 +12,7 @@ Latest checkpoint: [Windows QA, 2026-10-25](windows-qa-2026-10-25.md), including
 
 MeterLuma is an active project. Passing interface and native checks makes it a working pre-release, not a product ready for a worldwide launch. This page lists what is done in the code as of 2026-10-15 (`release-readiness` at `1b4c9c1`) and what remains. The release mechanics are in [release-process.md](release-process.md).
 
-Windows QA update, 2026-10-20: the current NSIS installer, same-version replacement, a 0.1.0 to 0.1.1 upgrade preserving settings/data, uninstall preserving data, exports, and real Claude/Codex/Cursor connections were exercised on Windows 11 x64. Cursor passed using a custom profile for the Codex package's redirected app-data folder. The uninstall data-deletion checkbox is still blocked by the UI automation tool, and Windows 10, missing-WebView2 installation and additional hardware/account scenarios remain untested. A simulated long-gap resume regression is fixed; physical sleep/wake remains untested. See the [Windows QA checkpoint](../README.md#windows-qa-checkpoint--2026-10-20) for the exact scope and evidence.
+Windows QA update, 2026-10-20: the current NSIS installer, same-version replacement, a 0.1.0 to 0.1.1 upgrade preserving settings/data, uninstall preserving data, exports, and real Claude/Codex/Cursor connections were exercised on Windows 11 x64. Cursor passed using a custom profile for the Codex package's redirected app-data folder. The uninstall data-deletion checkbox is still blocked by the UI automation tool, and Windows 10, missing-WebView2 installation and additional hardware/account scenarios remain untested. A simulated long-gap resume regression is fixed; physical sleep/wake remains untested. See the [Windows QA checkpoint](windows-qa-2026-10-25.md) for the exact scope and evidence.
 
 ## Product decisions established
 
@@ -67,7 +71,7 @@ The patched 0.1.2 installer upgraded the owner's Windows installation from 0.1.1
 1. Real-account QA on both platforms: Windows live Codex and Cursor lookups now pass for one signed-in account each (2026-10-20; Cursor uses an explicit redirected profile). the new manual-token flow, macOS, stale tokens, real account changes, live rate limiting, unavailable plans and provider schema changes still need coverage. Missing data must stay missing, never become a fabricated zero.
 2. Replace the screenshots in `artifacts/`, which still show the removed Claude quotas and older logo files.
 3. Check OpenAI's and Cursor's brand guidelines again just before launch.
-4. Decide whether startup at login, a global shortcut, encrypted settings, safe diagnostics, and an in-app way to clear a rate-limit cooldown are needed for launch. Check sleep/wake, keyboard navigation and screen-reader labels.
+4. Verify the default-enabled Start at login setting through a real login cycle and confirm an opt-out survives restart. Review the global shortcut, encrypted settings, safe diagnostics, and an in-app way to clear a rate-limit cooldown for launch. Check sleep/wake, keyboard navigation and screen-reader labels.
 5. Decide Windows on Arm support explicitly.
 6. Ensure amounts, dates, reset windows, time zones, daylight saving transitions and language rendering work worldwide. Plan translated UI after the English copy is stable, with a fallback locale.
 7. Prepare the launch website, owner-hosted downloads with `SHA256SUMS.txt`, installation help, the platform floor, and accurate privacy, support and license information based on the implemented behavior. Clearly state personal use only, no commercial use, no selling and no redistribution. Include the full license with distributions. Share official download links rather than third-party mirrors.

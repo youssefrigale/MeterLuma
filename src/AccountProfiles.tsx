@@ -9,8 +9,8 @@ export function AccountProfiles({ settings, update }: { settings: Settings; upda
   const [directory, setDirectory] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-  return <section className="panel feature-panel"><h2>Multiple local accounts</h2><p>Connect separate, existing local profiles for your own accounts. Each profile needs its own directory under your home folder. No tokens are copied. Labels do not prove which account created a log; history includes all sign-ins recorded in that directory.</p>
-    <p>Codex: the CODEX_HOME folder containing auth.json or sessions. Claude: the CLAUDE_CONFIG_DIR folder containing projects; MeterLuma reads only the recorded token counts there, never the Claude sign-in. Cursor: the app-data folder containing User/globalStorage/state.vscdb.</p>
+  return <section className="panel feature-panel profile-accounts"><details><summary>Multiple local accounts{settings.profiles.length > 0 && <span>{settings.profiles.length} added</span>}</summary><p>Connect separate, existing local profiles for your own accounts. Each profile needs its own directory under your home folder. No tokens are copied. Labels do not prove which account created a log; history includes all sign-ins recorded in that directory.</p>
+    <p>Codex: the CODEX_HOME folder containing auth.json or sessions. Claude: the CLAUDE_CONFIG_DIR folder containing projects; enabling live Claude usage also reads that profile’s .credentials.json. Cursor: the app-data folder containing User/globalStorage/state.vscdb.</p>
     <form className="feature-form" onSubmit={async event => {
       event.preventDefault(); setError('');
       if (!isTauri()) { setError('Add local accounts in the desktop app. Browser preview cannot read local profiles.'); return; }
@@ -33,5 +33,5 @@ export function AccountProfiles({ settings, update }: { settings: Settings; upda
     </form>
     {error && <p role="status">{error}</p>}
     <ul className="feature-rows">{settings.profiles.map(profile => <li key={profile.key}><span>{profile.label} · {providerNames[profile.providerId]}{profile.paused ? ' (paused)' : settings.tokenProviders?.includes(profile.providerId) ? ' (paused for token connection)' : ''}</span><button className="text-button" aria-label={`Remove ${profile.label}`} onClick={() => update({ profiles: settings.profiles.filter(row => row.key !== profile.key) })}>Remove</button></li>)}</ul>
-  </section>;
+  </details></section>;
 }

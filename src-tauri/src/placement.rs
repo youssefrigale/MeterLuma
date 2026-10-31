@@ -5,6 +5,19 @@ pub struct Bounds { pub left: i32, pub top: i32, pub right: i32, pub bottom: i32
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct DesktopArea { pub screen: Bounds, pub work: Bounds }
 
+/// Convert an AppKit status-item frame to the shared top-left-origin point space.
+#[cfg(any(target_os = "macos", test))]
+pub fn menu_status_anchor(origin: (f64, f64), size: (f64, f64), desktop_top: f64) -> (f64, f64) {
+    (origin.0 + size.0 / 2.0, desktop_top - origin.1 - size.1 / 2.0)
+}
+
+/// Reserve the menu-bar gap before clamping the panel height so short screens keep the footer on-screen.
+#[cfg(any(target_os = "macos", test))]
+pub fn menu_panel_area(mut area: DesktopArea) -> DesktopArea {
+    area.work.top = (area.work.top + 6).min(area.work.bottom - 1);
+    area
+}
+
 /// The screen edge that holds the tray: the Windows taskbar or the macOS menu bar.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Edge { Bottom, Top, Left, Right }
@@ -165,6 +178,31 @@ mod windows {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn menu_panel_uses_status_item_geometry_without_a_click_and_tracks_its_current_width() {
+        let area = menu_panel_area(DesktopArea { screen: bounds(0, 0, 1512, 982), work: bounds(0, 37, 1512, 912) });
+        for (origin, size, expected_left) in [
+            ((780.0, 958.0), (56.0, 24.0), 628),
+            ((860.0, 958.0), (72.0, 24.0), 716),
+        ] {
+            let anchor = menu_status_anchor(origin, size, 982.0);
+            for height in [300, 600, 800] {
+                assert_eq!(dock(area, 360, height, Some(anchor)), (expected_left, 43));
+            }
+        }
+    }
+    #[test]
+    fn menu_panel_on_an_elevated_secondary_screen_keeps_shared_point_coordinates() {
+        let areas = [
+            DesktopArea { screen: bounds(0, 0, 1512, 982), work: bounds(0, 37, 1512, 912) },
+            DesktopArea { screen: bounds(-1920, -200, 0, 880), work: bounds(-1920, -174, 0, 880) },
+        ];
+        let anchor = menu_status_anchor((-1000.0, 1158.0), (56.0, 24.0), 982.0);
+        assert_eq!(anchor, (-972.0, -188.0));
+        let selected = nearest(&areas, anchor).unwrap();
+        assert_eq!(selected, 1);
+        assert_eq!(dock(menu_panel_area(areas[selected]), 360, 600, Some(anchor)), (-1152, -168));
+    }
     fn bounds(left: i32, top: i32, right: i32, bottom: i32) -> Bounds { Bounds { left, top, right, bottom } }
     fn area() -> DesktopArea { DesktopArea { screen: bounds(0, 0, 1920, 1080), work: bounds(0, 0, 1920, 1040) } }
     fn inside(area: DesktopArea, (x, y): (i32, i32), width: i32, height: i32) -> bool {
@@ -289,6 +327,21 @@ mod tests {
         assert_eq!(dock(right_dock, 360, 600, Some((1435.0, 30.0))), (1080, 37));
         let hidden_menu_bar = DesktopArea { screen: bounds(0, 0, 1512, 982), work: bounds(0, 0, 1512, 912) };
         assert_eq!(dock(hidden_menu_bar, 360, 600, Some((1512.0, 0.0))), (1152, 0));
+    }
+    #[test]
+    fn macos_panel_gap_survives_hidden_bars_and_short_secondary_displays() {
+        for (area, expected_top) in [
+            (DesktopArea { screen: bounds(0, 0, 1512, 982), work: bounds(0, 37, 1512, 912) }, 43),
+            (DesktopArea { screen: bounds(0, 0, 1512, 982), work: bounds(0, 0, 1512, 912) }, 6),
+            (DesktopArea { screen: bounds(-800, -200, 0, 240), work: bounds(-800, -175, 0, 200) }, -169),
+            (DesktopArea { screen: bounds(0, 0, 800, 40), work: bounds(0, 37, 800, 40) }, 39),
+        ] {
+            let detached = menu_panel_area(area);
+            let height = 440.min(detached.work.bottom - detached.work.top);
+            let origin = dock(detached, 360, height, Some((area.work.right as f64, area.screen.top as f64)));
+            assert_eq!(origin.1, expected_top);
+            assert!(inside(area, origin, 360, height));
+        }
     }
     #[test]
     fn mixed_scale_displays_convert_to_one_point_space() {

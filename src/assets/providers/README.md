@@ -18,3 +18,7 @@ Rules for these files:
 - **OpenAI.** The owner accepted OpenAI's Marks usage terms on 2026-10-16 to download the logos. Use the Blossom in black or white only, never as primary branding, and with open space around it. OpenAI may require changes or end the permission at any time.
 - **Anthropic.** Anthropic's [trademark guidelines](https://www.anthropic.com/legal/trademark-guidelines) allow its marks only as specifically permitted, in materials it approves beforehand.
 - **Cursor.** Refer to it as "Cursor", not "Cursor AI" or "Cursor Code".
+
+Connection rows render the Codex SVG at 56 CSS pixels without a scale transform, centered in a 30-pixel slot. The original artwork’s clear space leaves an approximately 28-pixel mark. Other surfaces retain their existing sizing rules; source SVG files remain unchanged.
+
+The native menu uses a separate [Codex raster](../../../src-tauri/icons/providers/README.md) with a compact canvas and a 13.5-point visible mark. The rules above preserve these original SVG files; the compact menu derivative does not change their contents.

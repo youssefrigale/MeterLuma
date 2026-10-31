@@ -79,6 +79,7 @@ test('token mode pauses saved local profiles and disconnect never falls back to 
   await expect(page.getByRole('progressbar')).toBeVisible();
   expect(await countCalls(page, 'read_usage_history')).toBe(0);
   await page.getByRole('button', { name: 'Connections', exact: true }).click();
+  await page.locator('.profile-accounts summary').click();
   await expect(page.getByText(/Previous local account.*paused/)).toBeVisible();
   await page.getByRole('button', { name: 'Disconnect Codex', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Connect Codex', exact: true })).toBeVisible();

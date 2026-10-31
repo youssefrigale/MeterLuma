@@ -41,7 +41,7 @@ test('live mode never presents sample data as connected accounts', async ({ page
   await page.getByRole('button', { name: 'Overview', exact: true }).click();
   await expect(page.getByText('Keep your allowances in view.')).toBeVisible();
   await expect(page.getByRole('article')).toHaveCount(0);
-  await expect(page.getByText('Live', { exact: true })).toBeVisible();
+  await expect(page.getByText('Live', { exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Choose providers' }).click();
   await expect(page.getByRole('heading', { name: 'Connections', exact: true })).toBeVisible();
   // The browser preview cannot read local profiles, so connecting offers the labeled samples instead.

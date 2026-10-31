@@ -2,16 +2,18 @@
 import type { Metric, Provider, ProviderId, Settings } from './model';
 
 export const APP_VERSION = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'dev';
+export const LOW_ALLOWANCE_REMAINING = 25;
 export const providerNames: Record<ProviderId, string> = { claude: 'Claude', codex: 'Codex', cursor: 'Cursor' };
 // Neutral grays only; provider brand colors are never shown.
 export const neutralColors: Record<ProviderId, string> = { claude: '#515157', codex: '#85858c', cursor: '#b8b8bf' };
 export const NOT_AFFILIATED = 'MeterLuma is not affiliated with or endorsed by Anthropic, OpenAI or Anysphere (Cursor).';
 export const CURSOR_UNOFFICIAL = 'Uses an undocumented Cursor endpoint that is not endorsed by Cursor and may change or stop working without notice.';
 export const CLAUDE_LOCAL = "MeterLuma reads token counts from Claude Code's local logs. It does not read the Claude sign-in or contact Anthropic.";
+export const CLAUDE_LIVE = 'MeterLuma reads the access token from Claude Code’s macOS Keychain entry or the selected profile’s credential file and sends it only to api.anthropic.com. Tokens stay out of settings, logs and exports. On macOS, MeterLuma starts Claude Code automatically when access expires so it can renew your sign-in. No prompt is sent; Claude Code manages token rotation and storage.';
 
 export function planLabel(provider: Pick<Provider, 'id' | 'plan'>): string {
   if (provider.id !== 'codex') return provider.plan;
-  const labels: Record<string, string> = { free: 'Free', go: 'Go', plus: 'Plus', pro: 'Pro', prolite: 'Pro 5x', promax: 'Pro Max', team: 'Team', business: 'Business', enterprise: 'Enterprise', edu: 'Edu', unknown: 'Subscription' };
+  const labels: Record<string, string> = { free: 'Free', go: 'Go', plus: 'Plus', pro: 'Pro', prolite: 'Pro 5x', promax: 'Pro Max', team: 'Team', business: 'Business', self_serve_business_prolite: 'Business Premium', enterprise: 'Enterprise', edu: 'Edu', unknown: 'Subscription' };
   return labels[provider.plan.toLowerCase()] ?? provider.plan.replaceAll('_', ' ');
 }
 
@@ -24,6 +26,11 @@ export function formatDay(date: string) { const [year, month, day] = date.split(
 export const count = (value: number) => value.toLocaleString();
 export const short = (value: number) => new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 }).format(value);
 export const plural = (value: number, word: string) => `${value} ${word}${value === 1 ? '' : 's'}`;
+export function quotaPercent(value: number) {
+  if (value > 0 && value < 0.1) return '<0.1';
+  if (value > 99.9 && value < 100) return '>99.9';
+  return value.toLocaleString(undefined, { maximumFractionDigits: 1 });
+}
 
 export function countdown(resetAt: number | null, now: number): string {
   if (resetAt === null) return 'Reset time unavailable';

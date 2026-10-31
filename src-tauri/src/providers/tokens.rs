@@ -53,7 +53,71 @@ fn name(id: ProviderId) -> Result<&'static str, String> {
 
 #[cfg(not(target_os = "macos"))]
 fn path(id: ProviderId) -> Result<PathBuf, String> {
-    Ok(dirs::data_local_dir().ok_or("Secure token storage is unavailable.")?.join("app.meterluma.desktop").join("account-tokens-v1").join(format!("{}.bin", name(id)?)))
+    named_path(name(id)?)
+}
+
+#[cfg(not(target_os = "macos"))]
+fn named_path(name: &str) -> Result<PathBuf, String> { Ok(dirs::data_local_dir().ok_or("Secure token storage is unavailable.")?.join("app.meterluma.desktop").join("account-tokens-v1").join(format!("{name}.bin"))) }
+
+pub(super) fn external_credential(raw: &str) -> Result<String, String> {
+    let token = raw.trim().strip_prefix("Bearer ").unwrap_or(raw.trim());
+    if token.is_empty() || token.len() > 16_384 || !token.is_ascii() || token.bytes().any(|byte| byte.is_ascii_whitespace() || byte.is_ascii_control()) {
+        return Err("Enter a valid provider API key or access token without whitespace.".into());
+    }
+    Ok(token.into())
+}
+
+fn external_name(id: &str) -> Result<String, String> {
+    if id.is_empty() || id.len() > 48 || !id.bytes().all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-') { return Err("Unknown additional provider".into()); }
+    Ok(format!("external-{id}"))
+}
+
+pub(super) fn external_load(id: &str) -> Result<AccountToken, String> {
+    let name = external_name(id)?;
+    #[cfg(target_os = "macos")]
+    let bytes = macos::read(&name)?;
+    #[cfg(not(target_os = "macos"))]
+    let bytes = read_file(&named_path(&name)?)?;
+    let stored: StoredToken = serde_json::from_slice(&bytes).map_err(|_| "Saved provider credential could not be opened.")?;
+    if stored.provider != name { return Err("Saved credential belongs to another provider.".into()); }
+    Ok(AccountToken { access_token: external_credential(&stored.credential.access_token)?, account_id: None })
+}
+
+pub(super) fn external_save(id: &str, raw: &str) -> Result<(), String> {
+    let name = external_name(id)?;
+    let bytes = serde_json::to_vec(&StoredToken { provider: name.clone(), credential: AccountToken { access_token: external_credential(raw)?, account_id: None } }).map_err(|_| "Provider credential could not be secured.")?;
+    #[cfg(target_os = "macos")]
+    { macos::write(&name, &bytes) }
+    #[cfg(not(target_os = "macos"))]
+    { write_file(&named_path(&name)?, &bytes) }
+}
+
+pub(super) fn external_forget(id: &str) -> Result<(), String> {
+    let name = external_name(id)?;
+    #[cfg(target_os = "macos")]
+    { macos::forget(&name) }
+    #[cfg(not(target_os = "macos"))]
+    { forget_file(&named_path(&name)?) }
+}
+
+fn saved_connection_name(connection_id: &str) -> Result<String, String> {
+    match connection_id {
+        "codex" | "cursor" => Ok(connection_id.into()),
+        _ => {
+            let id = connection_id.strip_prefix("external-").ok_or("Unknown saved connection.")?;
+            let spec = super::additional::catalog::ready(id)?;
+            if spec.source != "api" { return Err("This connection does not use a saved credential.".into()); }
+            external_name(id)
+        }
+    }
+}
+
+pub(super) fn unlock_saved_connection(connection_id: &str) -> Result<(), String> {
+    let account = saved_connection_name(connection_id)?;
+    #[cfg(target_os = "macos")]
+    { macos::authorize(&account).map(|_| ()) }
+    #[cfg(not(target_os = "macos"))]
+    { let _ = account; Err("Keychain access is only available on macOS.".into()) }
 }
 
 pub fn load(id: ProviderId) -> Result<AccountToken, String> {
@@ -134,52 +198,26 @@ fn crypt(data: &[u8], encrypt: bool) -> Result<Vec<u8>, String> {
     }
 }
 #[cfg(target_os = "windows")] fn protect(data: &[u8]) -> Result<Vec<u8>, String> { crypt(data, true) }
-#[cfg(target_os = "windows")] fn unprotect(data: &[u8]) -> Result<Vec<u8>, String> { crypt(data, false) }
+#[cfg(target_os = "windows")] pub(super) fn unprotect(data: &[u8]) -> Result<Vec<u8>, String> { crypt(data, false) }
 #[cfg(not(any(target_os = "windows", target_os = "macos")))]
 fn protect(_: &[u8]) -> Result<Vec<u8>, String> { Err("Secure account tokens are supported on Windows and macOS.".into()) }
 #[cfg(not(any(target_os = "windows", target_os = "macos")))]
 fn unprotect(_: &[u8]) -> Result<Vec<u8>, String> { Err("Secure account tokens are supported on Windows and macOS.".into()) }
 
 #[cfg(target_os = "macos")]
-mod macos {
-    use std::ffi::c_void;
-    const SERVICE: &[u8] = b"app.meterluma.desktop.account-tokens-v1";
-    #[link(name = "Security", kind = "framework")]
-    extern "C" {
-        fn SecKeychainFindGenericPassword(keychain: *const c_void, service_len: u32, service: *const u8, account_len: u32, account: *const u8, len: *mut u32, data: *mut *mut c_void, item: *mut *mut c_void) -> i32;
-        fn SecKeychainAddGenericPassword(keychain: *const c_void, service_len: u32, service: *const u8, account_len: u32, account: *const u8, len: u32, data: *const c_void, item: *mut *mut c_void) -> i32;
-        fn SecKeychainItemModifyAttributesAndData(item: *const c_void, attributes: *const c_void, len: u32, data: *const c_void) -> i32;
-        fn SecKeychainItemFreeContent(attributes: *const c_void, data: *mut c_void) -> i32;
-        fn SecKeychainItemDelete(item: *const c_void) -> i32;
-    }
-    #[link(name = "CoreFoundation", kind = "framework")] extern "C" { fn CFRelease(value: *const c_void); }
-    fn find(account: &str, length: *mut u32, data: *mut *mut c_void, item: *mut *mut c_void) -> i32 {
-        unsafe { SecKeychainFindGenericPassword(std::ptr::null(), SERVICE.len() as u32, SERVICE.as_ptr(), account.len() as u32, account.as_ptr(), length, data, item) }
-    }
-    pub fn read(account: &str) -> Result<Vec<u8>, String> {
-        let mut len = 0; let mut data = std::ptr::null_mut();
-        if find(account, &mut len, &mut data, std::ptr::null_mut()) != 0 { return Err("No accessible saved token. Reconnect in Connections and allow Keychain access if asked.".into()); }
-        unsafe { let result = if len <= 65_536 { Ok(std::slice::from_raw_parts(data.cast::<u8>(), len as usize).to_vec()) } else { Err("The saved token is too large.".into()) }; SecKeychainItemFreeContent(std::ptr::null(), data); result }
-    }
-    pub fn write(account: &str, bytes: &[u8]) -> Result<(), String> {
-        let mut item = std::ptr::null_mut();
-        let found = find(account, std::ptr::null_mut(), std::ptr::null_mut(), &mut item);
-        let status = unsafe { if found == 0 { let status = SecKeychainItemModifyAttributesAndData(item, std::ptr::null(), bytes.len() as u32, bytes.as_ptr().cast()); CFRelease(item); status }
-            else if found == -25300 { SecKeychainAddGenericPassword(std::ptr::null(), SERVICE.len() as u32, SERVICE.as_ptr(), account.len() as u32, account.as_ptr(), bytes.len() as u32, bytes.as_ptr().cast(), std::ptr::null_mut()) }
-            else { found } };
-        if status == 0 { Ok(()) } else { Err("Keychain could not save the token. Allow access if asked, then try again.".into()) }
-    }
-    pub fn forget(account: &str) -> Result<(), String> {
-        let mut item = std::ptr::null_mut(); let found = find(account, std::ptr::null_mut(), std::ptr::null_mut(), &mut item);
-        if found == -25300 { return Ok(()); }
-        if found != 0 { return Err("Keychain could not remove the token. Allow access if asked, then try again.".into()); }
-        let status = unsafe { let status = SecKeychainItemDelete(item); CFRelease(item); status };
-        if status == 0 { Ok(()) } else { Err("The saved token could not be removed from Keychain.".into()) }
-    }
-}
+mod macos;
 
 #[cfg(test)] mod tests {
     use super::*;
+    #[test] fn saved_connection_unlock_cannot_target_provider_owned_credentials() {
+        for connection in ["claude", "Claude Code-credentials", "external-../login", "external-unknown-provider"] {
+            assert!(saved_connection_name(connection).is_err());
+        }
+        for spec in super::super::additional::catalog::catalog().unwrap().iter().filter(|spec| spec.source != "api") {
+            assert!(saved_connection_name(&format!("external-{}", spec.id)).is_err());
+        }
+        assert_eq!(saved_connection_name("external-deepseek").unwrap(), "external-deepseek");
+    }
     #[test] fn supplied_tokens_are_bounded_and_do_not_accept_api_keys_or_claude_credentials() {
         for token in ["", "bad\nheader", "bad header", "sk-api-key"] { assert!(AccountToken::parse(ProviderId::Cursor, token.into(), None).is_err()); }
         assert!(AccountToken::parse(ProviderId::Cursor, "x".repeat(16_385), None).is_err());

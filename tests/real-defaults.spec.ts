@@ -3,7 +3,8 @@ import AxeBuilder from '@axe-core/playwright';
 
 test('fresh startup and saved prototype preferences use real-data mode without invented numbers', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByText('Live', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Overview', exact: true })).toBeVisible();
+  await expect(page.getByText('Live', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('progressbar')).toHaveCount(0);
   await expect(page.getByText('Sample data only', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('article')).toHaveCount(0);
@@ -15,7 +16,7 @@ test('fresh startup and saved prototype preferences use real-data mode without i
     localStorage.removeItem('meterluma.settings.v2');
   });
   await page.reload();
-  await expect(page.getByText('Live', { exact: true })).toBeVisible();
+  await expect(page.getByText('Live', { exact: true })).toHaveCount(0);
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await expect(page.getByRole('button', { name: 'Codex details' })).toHaveCount(0);
   await expect(page.getByRole('progressbar')).toHaveCount(0);

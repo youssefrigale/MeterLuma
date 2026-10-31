@@ -6,8 +6,9 @@ On a fresh checkout use --fetch-upstream to collect notices omitted by archives.
 The inventory includes transitive/build/platform dependencies; an exact binary
 may include only a subset. No third-party license is replaced by LICENSE.
 The provider logos in src/assets/providers are the providers' own trademarks,
-used unmodified from their official brand resources; a closing section names
-their owners and sources.
+used unmodified from their official brand resources; additional assets include
+a licensed Lobe Icons subset and public provider/owner icons. Closing sections
+retain their sources and notices.
 """
 import argparse
 import json
@@ -127,6 +128,8 @@ sections.append(f'\n{"=" * 72}\nProvider logos\n'
     'MeterLuma is not affiliated with or endorsed by Anthropic, OpenAI or Anysphere.\n'
     'Sources: https://www.anthropic.com/press-kit, https://openai.com/brand/, https://cursor.com/brand\n')
 
+sections.append('\n' + '=' * 72 + '\n' + (ROOT / 'src/assets/additional/NOTICE.txt').read_text(encoding='utf-8'))
+
 inventory_path = ROOT / '.tools/license-inventory.json'
 inventory_path.parent.mkdir(parents=True, exist_ok=True)
 inventory_path.write_text(json.dumps(inventory, indent=2), encoding='utf-8')
@@ -135,4 +138,5 @@ print('Unresolved notices: ' + ', '.join(missing))
 if missing:
     print('THIRD_PARTY_NOTICES.txt was not changed because notices are incomplete.')
     raise SystemExit(1)
-(ROOT / 'THIRD_PARTY_NOTICES.txt').write_text('\n\n'.join(sections), encoding='utf-8', newline='\n')
+with (ROOT / 'THIRD_PARTY_NOTICES.txt').open('w', encoding='utf-8', newline='\n') as notice_file:
+    notice_file.write('\n\n'.join(sections))

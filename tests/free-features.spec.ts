@@ -68,6 +68,7 @@ test('separate local accounts remain isolated and can be removed', async ({ page
   await bridge(page);
   await page.goto('/');
   await page.getByRole('button', { name: 'Connections', exact: true }).click();
+  await page.getByText('Multiple local accounts', { exact: true }).click();
   await page.getByLabel('Account label', { exact: true }).fill('Second personal account');
   await page.getByLabel('Local profile directory', { exact: true }).fill('C:/Users/example/.codex-second');
   await page.getByRole('button', { name: 'Add local account' }).click();
@@ -82,6 +83,7 @@ test('separate local accounts remain isolated and can be removed', async ({ page
   await expect(page.locator('.usage-history')).toContainText('second-profile-model');
   await expect(page.locator('.usage-history')).not.toContainText('default-profile-model');
   await page.getByRole('button', { name: 'Connections', exact: true }).click();
+  await page.locator('.profile-accounts summary').click();
   await page.getByRole('button', { name: 'Remove Second personal account' }).click();
   await page.getByRole('button', { name: 'Overview', exact: true }).click();
   await expect(page.getByRole('article')).toHaveCount(1);

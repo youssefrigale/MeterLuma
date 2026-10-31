@@ -1,11 +1,13 @@
 use tauri::{Manager, Size, WebviewUrl, WebviewWindowBuilder};
 use std::{sync::{atomic::{AtomicBool, Ordering}, Mutex}, time::{Duration, Instant}};
 
+const DEFAULT_PANEL_HEIGHT: f64 = if cfg!(target_os = "macos") { 440.0 } else { 660.0 };
+
 pub struct QuickState(Mutex<PanelState>);
 // The anchor uses the platform's placement unit: physical pixels on Windows, points elsewhere.
 struct PanelState { height: f64, anchor: Option<(f64, f64)>, blurred: Option<Instant> }
 impl Default for QuickState {
-    fn default() -> Self { Self(Mutex::new(PanelState { height: 660.0, anchor: None, blurred: None })) }
+    fn default() -> Self { Self(Mutex::new(PanelState { height: DEFAULT_PANEL_HEIGHT, anchor: None, blurred: None })) }
 }
 
 /// Clicking the tray icon to dismiss the panel blurs it on mouse-down (the taskbar takes focus) and only then
@@ -19,37 +21,43 @@ pub fn create(app: &tauri::App) -> tauri::Result<()> {
     #[cfg_attr(not(target_os = "macos"), allow(unused_variables))]
     let window = WebviewWindowBuilder::new(app, "quick", WebviewUrl::App("index.html".into()))
         .title("MeterLuma")
-        .inner_size(360.0, 660.0)
+        .inner_size(360.0, DEFAULT_PANEL_HEIGHT)
         .decorations(false).resizable(false).visible(false).focused(false)
         .always_on_top(true).skip_taskbar(true).visible_on_all_workspaces(true).build()?;
     #[cfg(target_os = "macos")]
-    float_over_full_screen(&window);
+    configure_macos_panel(&window)?;
     Ok(())
 }
 
-/// Join every Space, including those of full-screen apps. tao only sets CanJoinAllSpaces; FullScreenAuxiliary
-/// (1 << 8) lets the floating-level panel of this accessory app appear above a full-screen window.
 #[cfg(target_os = "macos")]
-fn float_over_full_screen(window: &tauri::WebviewWindow) {
-    use std::ffi::{c_char, c_void};
-    #[link(name = "objc", kind = "dylib")]
-    extern "C" {
-        fn sel_registerName(name: *const c_char) -> *const c_void;
-        fn objc_msgSend();
-    }
-    let Ok(ns_window) = window.ns_window() else { return; };
-    // Runs on the main thread during setup. objc_msgSend is cast to the exact signatures of the two NSWindow
-    // methods (NSUInteger getter and setter), as required on arm64.
-    unsafe {
-        let get: unsafe extern "C" fn(*mut c_void, *const c_void) -> usize = std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
-        let set: unsafe extern "C" fn(*mut c_void, *const c_void, usize) = std::mem::transmute(objc_msgSend as unsafe extern "C" fn());
-        let behavior = get(ns_window, sel_registerName(c"collectionBehavior".as_ptr()));
-        set(ns_window, sel_registerName(c"setCollectionBehavior:".as_ptr()), behavior | 1 | 1 << 8);
-    }
+fn configure_macos_panel(window: &tauri::WebviewWindow) -> tauri::Result<()> {
+    use objc2_app_kit::{NSColor, NSWindow, NSWindowCollectionBehavior};
+    // Tauri owns this NSWindow; setup runs on the AppKit main thread and the borrow stays within setup.
+    let native = unsafe { &*window.ns_window()?.cast::<NSWindow>() };
+    let content = native.contentView().ok_or(tauri::Error::InvalidWindowHandle)?;
+    content.setWantsLayer(true);
+    let layer = content.layer().ok_or(tauri::Error::InvalidWindowHandle)?;
+    // Clip the entire WebView hierarchy, including its opaque document background, at the native boundary.
+    layer.setOpaque(false);
+    layer.setCornerRadius(14.0);
+    layer.setMasksToBounds(true);
+    native.setOpaque(false);
+    native.setBackgroundColor(Some(&NSColor::clearColor()));
+    native.setHasShadow(true);
+    native.invalidateShadow();
+    native.setCollectionBehavior(native.collectionBehavior() | NSWindowCollectionBehavior::CanJoinAllSpaces | NSWindowCollectionBehavior::FullScreenAuxiliary);
+    Ok(())
 }
 
 /// Set while a native dialog opened from the panel is showing. The dialog takes focus, but the panel must stay open behind it.
 static DIALOG: AtomicBool = AtomicBool::new(false);
+static PINNED: AtomicBool = AtomicBool::new(false);
+
+#[tauri::command]
+pub fn panel_pinned() -> bool { PINNED.load(Ordering::SeqCst) }
+
+#[tauri::command]
+pub fn set_panel_pinned(pinned: bool) -> bool { PINNED.store(pinned, Ordering::SeqCst); panel_pinned() }
 
 /// Keep the panel open while `show` runs a native dialog owned by it, then give the panel focus back.
 pub fn with_dialog<T>(window: &tauri::WebviewWindow, show: impl FnOnce() -> T) -> T {
@@ -60,9 +68,9 @@ pub fn with_dialog<T>(window: &tauri::WebviewWindow, show: impl FnOnce() -> T) -
     result
 }
 
-/// Hide the panel when it loses focus and remember when, so the tray click that caused the blur does not reopen it.
+/// Unpinned panels hide on blur. Remember when, so the tray click that caused the blur does not reopen them.
 pub fn blurred(window: &tauri::Window) {
-    if DIALOG.load(Ordering::SeqCst) || !window.is_visible().unwrap_or(false) { return; }
+    if DIALOG.load(Ordering::SeqCst) || panel_pinned() || !window.is_visible().unwrap_or(false) { return; }
     let _ = window.hide();
     if let Ok(mut panel) = window.state::<QuickState>().0.lock() { panel.blurred = Some(Instant::now()); }
 }
@@ -80,7 +88,7 @@ pub fn tray_click(app: &tauri::AppHandle, point: (f64, f64)) {
 pub fn open(app: &tauri::AppHandle, point: Option<(f64, f64)>) {
     let Some(window) = app.get_webview_window("quick") else { return; };
     let state = app.state::<QuickState>();
-    let height = state.0.lock().map(|panel| panel.height).unwrap_or(660.0);
+    let height = state.0.lock().map(|panel| panel.height).unwrap_or(DEFAULT_PANEL_HEIGHT);
     let anchor = place(app, &window, point, height);
     if let Ok(mut panel) = state.0.lock() { panel.anchor = anchor; }
     let _ = window.show();
@@ -100,9 +108,14 @@ fn place(_app: &tauri::AppHandle, window: &tauri::WebviewWindow, point: Option<(
 
 #[cfg(not(target_os = "windows"))]
 fn place(app: &tauri::AppHandle, window: &tauri::WebviewWindow, point: Option<(f64, f64)>, height: f64) -> Option<(f64, f64)> {
-    // The tray click position mixes in the scale of the display it came from, so locate the click by the cursor.
+    // Read the current status-item frame even for app, menu and shortcut opens.
+    // The event coordinates mix display scales; the cursor is only a fallback.
     let cursor = cursor_point(app);
-    let anchor = position_points(window, point.and(cursor), cursor, height);
+    #[cfg(target_os = "macos")]
+    let anchor = super::tray_status::anchor(app).or(point.and(cursor));
+    #[cfg(not(target_os = "macos"))]
+    let anchor = point.and(cursor);
+    let anchor = position_points(window, anchor, cursor, height);
     if anchor.is_none() { center(window, height); }
     anchor
 }
@@ -115,7 +128,7 @@ fn cursor_point(app: &tauri::AppHandle) -> Option<(f64, f64)> {
 }
 
 /// Dock the panel in points on the display holding `anchor` (else `hint`). Returns the anchor it used, which is the
-/// tray click or, without one, the top-right corner where macOS keeps its status items.
+/// status item or tray click, with a screen-edge fallback if neither is available.
 #[cfg(not(target_os = "windows"))]
 fn position_points(window: &tauri::WebviewWindow, anchor: Option<(f64, f64)>, hint: Option<(f64, f64)>, logical_height: f64) -> Option<(f64, f64)> {
     let areas: Vec<_> = window.available_monitors().ok()?.iter().map(|monitor| {
@@ -123,6 +136,8 @@ fn position_points(window: &tauri::WebviewWindow, anchor: Option<(f64, f64)>, hi
         super::placement::points((monitor.position().x, monitor.position().y), (monitor.size().width, monitor.size().height), (work.position.x, work.position.y), (work.size.width, work.size.height), monitor.scale_factor())
     }).collect();
     let area = *areas.get(super::placement::nearest(&areas, anchor.or(hint)?)?)?;
+    #[cfg(target_os = "macos")]
+    let area = super::placement::menu_panel_area(area);
     let anchor = anchor.unwrap_or((area.work.right as f64, area.screen.top as f64));
     let width = 360.min(area.work.right - area.work.left).max(1);
     let height = (logical_height.round() as i32).min(area.work.bottom - area.work.top).max(1);
@@ -154,8 +169,10 @@ fn position_windows(window: &tauri::WebviewWindow, point: Option<(f64, f64)>, lo
 }
 
 #[tauri::command]
-pub fn resize_quick(window: tauri::WebviewWindow, app: tauri::AppHandle, height: f64) -> Result<(), String> {
-    if window.label() != "quick" || !height.is_finite() || !(300.0..=660.0).contains(&height) {
+pub fn resize_quick(window: tauri::WebviewWindow, app: tauri::AppHandle, height: Option<f64>) -> Result<(), String> {
+    let height = height.unwrap_or(DEFAULT_PANEL_HEIGHT);
+    let maximum = if cfg!(target_os = "macos") { 4096.0 } else { 660.0 };
+    if window.label() != "quick" || !height.is_finite() || !(300.0..=maximum).contains(&height) {
         return Err("Invalid panel resize request".into());
     }
     let state = app.state::<QuickState>();
@@ -172,6 +189,8 @@ pub fn resize_quick(window: tauri::WebviewWindow, app: tauri::AppHandle, height:
     }
     #[cfg(not(target_os = "windows"))]
     {
+        #[cfg(target_os = "macos")]
+        let anchor = super::tray_status::anchor(&app).or(anchor);
         let current = window.outer_position().ok().zip(window.outer_size().ok()).zip(window.scale_factor().ok()).map(|((origin, size), scale)| {
             ((origin.x as f64 + size.width as f64 / 2.0) / scale, (origin.y as f64 + size.height as f64 / 2.0) / scale)
         });

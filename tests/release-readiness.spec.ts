@@ -98,7 +98,9 @@ test('Claude connects as recorded local history and never requests Claude quotas
   await nativeBridge(page, { settings: { legalVersion: LEGAL, demo: false }, histories: { claude: history({ tokens: 2000, cost: 0.5 }) } });
   await page.goto('/');
   await page.getByRole('button', { name: 'Connections', exact: true }).click();
-  await expect(page.locator('.quick-connection').filter({ hasText: 'Claude' })).toContainText('Recorded token history from local Claude Code logs');
+  await page.getByText('About connections', { exact: true }).click();
+  await expect(page.locator('.quick-connection-descriptions')).toContainText('Recorded token history from local Claude Code logs');
+  await page.getByText('About connections', { exact: true }).click();
   await page.getByRole('button', { name: 'Connect Claude', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Connect Claude', exact: true });
   await expect(dialog).toContainText("MeterLuma reads token counts from Claude Code's local logs. It does not read the Claude sign-in or contact Anthropic.");
@@ -168,7 +170,7 @@ test('dismissable dialogs ignore clicks inside their padding and close from the 
 
 test('reset preferences asks first in the app and keeps consent, connections and alerts', async ({ page }) => {
   await page.addInitScript(() => { window.confirm = () => { throw new Error('window.confirm is not allowed'); }; window.alert = () => { throw new Error('window.alert is not allowed'); }; });
-  await nativeBridge(page, { settings: { legalVersion: LEGAL, demo: false, theme: 'dark', timeFormat: '24', resetStyle: 'absolute', historyDays: 90, liveProviders: ['codex'], enabled: ['codex'], alerts: [{ key: 'keep', providerId: 'codex', threshold: 90, enabled: true }] }, quotas: { codex: codexQuota }, histories: { codex: history({ days: 90 }) } });
+  await nativeBridge(page, { settings: { legalVersion: LEGAL, demo: false, theme: 'dark', timeFormat: '24', resetStyle: 'absolute', historyDays: 90, notifications: { enabled: false, low: false, thresholds: true, pace: false, resetMinutes: 60 }, liveProviders: ['codex'], enabled: ['codex'], alerts: [{ key: 'keep', providerId: 'codex', threshold: 90, enabled: true }] }, quotas: { codex: codexQuota }, histories: { codex: history({ days: 90 }) } });
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('/');
@@ -176,7 +178,7 @@ test('reset preferences asks first in the app and keeps consent, connections and
   const open = page.getByRole('button', { name: 'Reset preferences' });
   await open.click();
   const confirm = page.getByRole('dialog', { name: 'Reset preferences?' });
-  await expect(confirm).toContainText('Your connections, local accounts, usage alerts and license acceptance are kept.');
+  await expect(confirm).toContainText('Your connections, local accounts, usage alerts, notification choices and license acceptance are kept.');
   await confirm.getByRole('button', { name: 'Cancel' }).click();
   await expect(confirm).toBeHidden();
   expect((await saved(page)).theme).toBe('dark');
@@ -187,6 +189,7 @@ test('reset preferences asks first in the app and keeps consent, connections and
   const settings = await saved(page);
   expect(settings).toMatchObject({ legalVersion: LEGAL, liveProviders: ['codex'], theme: 'system', timeFormat: 'auto', resetStyle: 'relative', historyDays: 30 });
   expect(settings.alerts).toHaveLength(1);
+  expect(settings.notifications).toEqual({ enabled: false, low: false, thresholds: true, pace: false, resetMinutes: 60 });
   await page.reload();
   await expect(page.getByRole('dialog', { name: 'Before you connect' })).toHaveCount(0);
   await expect(page.getByRole('article').filter({ hasText: 'Codex' })).toBeVisible();
@@ -280,7 +283,9 @@ test('Cursor is labeled unofficial on its connection option, overview and detail
   await page.getByRole('button', { name: 'Connections', exact: true }).click();
   const row = page.locator('.quick-connection').filter({ hasText: 'Cursor' });
   await expect(row.getByText('Unofficial', { exact: true })).toBeVisible();
-  await expect(row).toContainText('Uses an undocumented Cursor endpoint');
+  await page.getByText('About connections', { exact: true }).click();
+  await expect(page.locator('.quick-connection-descriptions')).toContainText('Uses an undocumented Cursor endpoint');
+  await page.getByText('About connections', { exact: true }).click();
   await expect(page.locator('.quick-connection').filter({ hasText: 'Codex' }).getByText('Unofficial', { exact: true })).toHaveCount(0);
   await row.getByRole('button', { name: 'Connect Cursor' }).click();
   await expect(page.getByRole('dialog', { name: 'Connect Cursor' })).toContainText('Unofficial');
@@ -340,6 +345,7 @@ test('the not-affiliated note and version appear in Connections and Help', async
   await page.addInitScript(() => localStorage.setItem('meterluma.settings.v2', JSON.stringify({ demo: true })));
   await page.goto('/');
   await page.getByRole('button', { name: 'Connections', exact: true }).click();
+  await page.getByText('About connections', { exact: true }).click();
   await expect(page.getByText(NOT_AFFILIATED)).toBeVisible();
   await page.getByRole('button', { name: 'Help', exact: true }).click();
   await expect(page.getByText(NOT_AFFILIATED)).toBeVisible();
@@ -430,7 +436,7 @@ test('cached quotas are never labeled live in details, the tray tooltip or Conne
   await expect(page.locator('.quick-detail')).not.toContainText('Resets in Reset due');
   await page.getByRole('button', { name: 'Connections', exact: true }).click();
   await expect(page.locator('.quick-connection').filter({ hasText: 'Cursor' })).toContainText('Rate limited (cached)');
-  await expect.poll(async () => (await nativeCalls(page)).filter(call => call.command === 'set_tray_summary').at(-1)?.args.summary).toBe('Cursor 60% left (cached)');
+  await expect.poll(async () => (await nativeCalls(page)).filter(call => call.command === 'set_tray_summary').at(-1)?.args.summary).toBe('Cursor: usage lookup failed; Cursor: cached usage; Cursor: Expired window reset is due · Cursor Monthly 60% left (cached)');
 });
 
 test('the time format setting applies to every displayed time', async ({ page }) => {

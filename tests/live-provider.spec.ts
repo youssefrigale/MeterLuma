@@ -35,10 +35,11 @@ test('live connections require selection and never mix sample spending with real
   const providerCalls = () => page.evaluate(() => (window as unknown as { meterlumaTestCalls: string[] }).meterlumaTestCalls.filter(call => call === 'refresh_provider').length);
   expect(await providerCalls()).toBe(0);
   await connectCodex(page);
-  await expect(page.getByText('Live', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Disconnect Codex', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Overview', exact: true }).click();
   await expect(page.getByRole('article')).toHaveCount(1);
   await expect(page.getByRole('progressbar', { name: 'Codex Session used' })).toHaveAttribute('aria-valuenow', '81.4');
+  await page.getByRole('button', { name: 'Expand Codex overview card', exact: true }).click();
   await expect(page.getByText('Reset time unavailable', { exact: true })).toBeVisible();
   await expect(page.getByRole('article')).not.toContainText('$4.26');
   await page.getByRole('button', { name: 'Codex details' }).click();

@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{cmp::Reverse, collections::{hash_map::Entry, BTreeMap, BinaryHeap, HashMap, HashSet}, fs, io::{BufRead, BufReader, Read}, path::{Path, PathBuf}, sync::{Arc, Mutex as SyncMutex, MutexGuard, PoisonError}, time::{Duration, Instant, SystemTime}};
 use tokio::sync::Mutex;
+mod disk_cache;
 
 const LINE_LIMIT: usize = 8 * 1024 * 1024;
 const TAIL: usize = 64 * 1024;
@@ -17,7 +18,7 @@ const CACHE_FILES: usize = 10_000;
 struct Limits { files: usize, candidates: usize, directories: usize, depth: usize, bytes: u64 }
 const LIMITS: Limits = Limits { files: 2000, candidates: 200_000, directories: 5000, depth: 16, bytes: 8 * 1024 * 1024 * 1024 };
 
-#[derive(Clone, Default, Serialize)]
+#[derive(Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Tokens { input_tokens: u64, cached_input_tokens: u64, cache_write_tokens: u64, #[serde(skip)] cache_write_1h_tokens: u64, output_tokens: u64, total_tokens: u64 }
 impl Tokens {
@@ -60,11 +61,11 @@ struct Row { #[serde(rename = "type", default)] kind: Value, #[serde(default)] t
 #[derive(Deserialize)]
 struct Message { #[serde(default)] id: Value, #[serde(default)] model: Value, #[serde(default)] usage: Value }
 #[derive(Deserialize)]
-struct Payload { #[serde(rename = "type", default)] kind: Value, #[serde(default)] model: Value, info: Option<Info> }
+struct Payload { #[serde(rename = "type", default)] kind: Value, #[serde(default)] model: Value, #[serde(default)] model_provider: Value, info: Option<Info> }
 #[derive(Deserialize)]
 struct Info { #[serde(default)] total_token_usage: Value }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 enum Key { Claude(Box<str>), Codex(i64, u64, u64, u64) }
 /// One usage record of one file: a Claude message (key None when it has no id) or a Codex token delta.
 struct Usage { date: NaiveDate, model: Arc<str>, key: Option<Key>, tokens: Tokens, fast: bool }
@@ -76,8 +77,8 @@ fn relevant(id: ProviderId, bytes: &[u8]) -> bool {
     let text = String::from_utf8_lossy(bytes);
     let has_type = |kind: &str| text.contains(&format!("\"type\":\"{kind}\"")) || text.contains(&format!("\"type\": \"{kind}\""));
     match id {
-        ProviderId::Claude => text.contains("\"usage\"") && has_type("assistant"),
-        ProviderId::Codex => has_type("turn_context") || (has_type("event_msg") && has_type("token_count")),
+        ProviderId::Claude => (text.contains("\"usage\"") && has_type("assistant")) || has_type("cost-state"),
+        ProviderId::Codex => has_type("session_meta") || has_type("turn_context") || (has_type("event_msg") && has_type("token_count")),
         ProviderId::Cursor => false,
     }
 }
@@ -89,6 +90,7 @@ fn extract(id: ProviderId, mut reader: impl BufRead) -> Extract {
     let (mut messages, mut events) = (HashMap::<(Box<str>, NaiveDate), usize>::new(), HashSet::<Key>::new());
     let latest = Utc::now().timestamp_millis() + 300_000;
     let mut bytes = Vec::new();
+    let mut openai_provider = true;
     loop {
         bytes.clear();
         // A failed read keeps what was read so far, marks the result partial and is retried next scan.
@@ -112,6 +114,16 @@ fn extract(id: ProviderId, mut reader: impl BufRead) -> Extract {
         }
         if !relevant(id, &bytes) { continue; }
         let Ok(row) = serde_json::from_slice::<Row>(&bytes) else { continue; };
+        // An undated cumulative ledger cannot be assigned to a day from its file's modification time.
+        if claude && row.kind == "cost-state" { out.partial = true; continue; }
+        if !claude && matches!(row.kind.as_str(),Some("session_meta"|"turn_context")) {
+            if let Some(provider)=row.payload.as_ref().and_then(|payload|payload.model_provider.as_str()) {
+                openai_provider=provider=="openai";
+            } else if row.payload.as_ref().is_some_and(|payload|!payload.model_provider.is_null()) {
+                openai_provider=false;out.partial=true;out.cacheable=false;
+            }
+            if row.kind=="session_meta" {continue;}
+        }
         if !claude && row.kind == "turn_context" {
             let name = row.payload.as_ref().and_then(|payload| payload.model.as_str()).filter(|name| name.len() < 200).unwrap_or("Unknown model");
             if *model != *name { model = Arc::from(name); }
@@ -138,6 +150,7 @@ fn extract(id: ProviderId, mut reader: impl BufRead) -> Extract {
             let delta = total.delta(&previous);
             let key = Key::Codex(timestamp.timestamp_millis(), total.input_tokens, total.cached_input_tokens, total.output_tokens);
             previous = total;
+            if !openai_provider {continue;}
             // Totals are cumulative per file; copies of an event across files are removed by the scan.
             if events.insert(key.clone()) { out.records.push(Usage { date, model: model.clone(), key: Some(key), tokens: delta, fast: false }); }
         }
@@ -162,11 +175,12 @@ impl Scanner {
         let Some(day) = self.days.get_mut(&date) else { return; };
         if !day.tokens.total_tokens.checked_add(tokens.total_tokens).is_some_and(|total| total <= SAFE_TOTAL) || !model_total.is_some_and(|total| total <= SAFE_TOTAL) { self.partial = true; return; }
         day.tokens.add(tokens);
-        match crate::pricing::claude_value(model, tokens.input_tokens, tokens.output_tokens, tokens.cached_input_tokens, tokens.cache_write_tokens, tokens.cache_write_1h_tokens, fast) {
+        let estimate = if self.claude {
+            crate::pricing::claude_value(model, tokens.input_tokens, tokens.output_tokens, tokens.cached_input_tokens, tokens.cache_write_tokens, tokens.cache_write_1h_tokens, fast)
+        } else { crate::pricing::codex_value(model, tokens.input_tokens, tokens.output_tokens, tokens.cached_input_tokens) };
+        match estimate {
             Some(value) => day.cost = day.cost.map(|prior| prior + value),
-            // Claude days keep the value of priced tokens and count the rest; a Codex day with any unpriced model has no value.
-            None if self.claude => day.unpriced += tokens.total_tokens,
-            None => day.cost = None,
+            None => day.unpriced += tokens.total_tokens,
         }
         *self.models.entry(model.clone()).or_default() += tokens.total_tokens;
         self.records += 1;
@@ -212,7 +226,7 @@ fn collect(root: &Path, depth: usize, files: &mut Candidates, walk: &mut Walk, p
         let path = entry.path();
         if kind.is_symlink() { continue; }
         if kind.is_dir() { collect(&path, depth + 1, files, walk, partial); continue; }
-        if !kind.is_file() || !path.extension().is_some_and(|extension| extension == "jsonl") { continue; }
+        if !kind.is_file() || !(path.extension().is_some_and(|extension| extension == "jsonl") || path.to_string_lossy().ends_with(".jsonl.zst")) { continue; }
         // Metadata only: every candidate competes, and the newest files are kept when there are too many.
         if walk.candidates >= walk.limits.candidates { *partial = true; return; }
         walk.candidates += 1;
@@ -224,14 +238,17 @@ fn collect(root: &Path, depth: usize, files: &mut Candidates, walk: &mut Walk, p
 }
 
 #[derive(Default)]
-struct FileCache { entries: HashMap<(bool, PathBuf), Cached>, records: usize, tick: u64, zone: Option<i32>, parses: usize }
+struct FileCache { entries: HashMap<(bool, PathBuf), Cached>, records: usize, tick: u64, zone: Option<i32>, parses: usize, disk: Option<disk_cache::DiskCache> }
 struct Cached { len: u64, modified: SystemTime, used: u64, parsed: Arc<Extract> }
 impl FileCache {
     fn zone(&mut self, offset: i32) { if self.zone.replace(offset).is_some_and(|zone| zone != offset) { self.entries.clear(); self.records = 0; } }
     fn get(&mut self, key: &(bool, PathBuf), len: u64, modified: SystemTime) -> Option<Arc<Extract>> {
         self.tick += 1; let tick = self.tick;
         let found = self.entries.get_mut(key).filter(|entry| entry.len == len && entry.modified == modified).map(|entry| { entry.used = tick; entry.parsed.clone() });
-        if found.is_none() { self.parses += 1; }
+        if found.is_none() {
+            if let Some(parsed) = self.disk.as_ref().and_then(|disk| disk.load(key, len, modified)) { self.insert(key.clone(), len, modified, parsed.clone()); return Some(parsed); }
+            self.parses += 1;
+        }
         found
     }
     fn insert(&mut self, key: (bool, PathBuf), len: u64, modified: SystemTime, parsed: Arc<Extract>) {
@@ -251,12 +268,41 @@ impl FileCache {
 }
 fn lock<T>(mutex: &SyncMutex<T>) -> MutexGuard<'_, T> { mutex.lock().unwrap_or_else(PoisonError::into_inner) }
 
-fn extracted(id: ProviderId, file: fs::File, path: &Path, len: u64, modified: SystemTime, cache: &SyncMutex<FileCache>) -> Arc<Extract> {
+struct LogFile<'a> { file: fs::File, path: &'a Path, len: u64, modified: SystemTime }
+struct BudgetRead<'a> { reader: Box<dyn Read>, remaining: &'a mut u64 }
+impl Read for BudgetRead<'_> {
+    fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
+        if buffer.is_empty() { return Ok(0); }
+        if *self.remaining == 0 {
+            return match self.reader.read(&mut [0])? { 0 => Ok(0), _ => Err(std::io::Error::other("Usage scan byte limit reached")) };
+        }
+        let limit = buffer.len().min((*self.remaining).try_into().unwrap_or(usize::MAX));
+        let count = self.reader.read(&mut buffer[..limit])?; *self.remaining -= count as u64; Ok(count)
+    }
+}
+
+fn log_reader(source: LogFile<'_>) -> std::io::Result<Box<dyn Read>> {
+    if source.path.to_string_lossy().ends_with(".jsonl.zst") {
+        let mut decoder = zstd::stream::read::Decoder::new(source.file.take(source.len))?;
+        decoder.window_log_max(27)?;
+        Ok(Box::new(decoder))
+    } else { Ok(Box::new(source.file.take(source.len))) }
+}
+
+fn extracted(id: ProviderId, source: LogFile<'_>, cache: &SyncMutex<FileCache>, remaining: &mut u64) -> Arc<Extract> {
     // Unchanged files (same path, length and modification time) reuse their earlier extraction.
-    let key = (matches!(id, ProviderId::Claude), path.to_path_buf());
+    let key = (matches!(id, ProviderId::Claude), source.path.to_path_buf());
+    let (len, modified) = (source.len, source.modified);
     if let Some(hit) = lock(cache).get(&key, len, modified) { return hit; }
-    let parsed = Arc::new(extract(id, BufReader::with_capacity(64 * 1024, file.take(len))));
-    if parsed.cacheable { lock(cache).insert(key, len, modified, parsed.clone()); }
+    let parsed = Arc::new(match log_reader(source) {
+        Ok(reader) => extract(id, BufReader::with_capacity(64 * 1024, BudgetRead { reader, remaining })),
+        Err(_) => Extract { partial: true, cacheable: false, ..Extract::default() },
+    });
+    if parsed.cacheable {
+        let mut cache = lock(cache);
+        if let Some(disk) = &cache.disk { disk.save(&key, len, modified, &parsed); }
+        cache.insert(key, len, modified, parsed.clone());
+    }
     parsed
 }
 
@@ -268,7 +314,7 @@ fn scan_roots(id: ProviderId, roots: &[PathBuf], today: NaiveDate, period_days: 
     let mut files: Vec<(SystemTime, PathBuf)> = files.into_iter().map(|Reverse(file)| file).collect();
     files.sort_by(|a, b| b.cmp(a));
     lock(cache).zone(Local::now().offset().local_minus_utc());
-    let mut remaining = limits.bytes;
+    let (mut remaining, mut decoded_remaining) = (limits.bytes, limits.bytes);
     for (_, path) in files {
         // An unreadable file only makes the result partial; the other files are still counted.
         let Ok(file) = fs::File::open(&path) else { scanner.partial = true; continue; };
@@ -277,10 +323,12 @@ fn scan_roots(id: ProviderId, roots: &[PathBuf], today: NaiveDate, period_days: 
         // Stop at file boundaries rather than inventing deltas from a truncated cumulative stream.
         if len > remaining { scanner.partial = true; continue; }
         remaining -= len;
-        let parsed = extracted(id, file, &path, len, modified, cache);
+        let parsed = extracted(id, LogFile { file, path: &path, len, modified }, cache, &mut decoded_remaining);
         scanner.partial |= parsed.partial;
         scanner.absorb(&parsed.records);
     }
+    let disk = lock(cache).disk.clone();
+    if let Some(disk) = disk { disk.prune(); }
     scanner.finish(available, today)
 }
 
@@ -296,6 +344,10 @@ fn scan(id: ProviderId, root: Option<PathBuf>, period_days: u32, cache: &SyncMut
 #[derive(Default)]
 pub struct HistoryService { results: SyncMutex<HashMap<String, (Instant, History)>>, profiles: SyncMutex<HashMap<String, Arc<Mutex<()>>>>, files: Arc<SyncMutex<FileCache>> }
 impl HistoryService {
+    pub fn new() -> Self {
+        let disk = dirs::cache_dir().and_then(|path| disk_cache::DiskCache::new(path.join(crate::providers::CACHE_FOLDER).join("history-extract-v1")));
+        Self { files: Arc::new(SyncMutex::new(FileCache { disk, ..FileCache::default() })), ..Self::default() }
+    }
     async fn read(&self, id: ProviderId, root: Option<PathBuf>, days: u32) -> Result<History, String> {
         let profile = format!("{}:{}", match id { ProviderId::Claude => "claude", ProviderId::Codex => "codex", ProviderId::Cursor => "cursor" }, root.as_deref().map(Path::to_string_lossy).unwrap_or_default());
         let key = format!("{profile}:{days}");
@@ -345,6 +397,15 @@ mod tests {
     fn codex_count(timestamp: &str, input: u64, cached: u64, output: u64) -> String {
         format!(r#"{{"timestamp":"{timestamp}","type":"event_msg","payload":{{"type":"token_count","info":{{"total_token_usage":{{"input_tokens":{input},"cached_input_tokens":{cached},"output_tokens":{output},"reasoning_output_tokens":5,"total_tokens":{}}},"last_token_usage":{{"input_tokens":1,"cached_input_tokens":0,"output_tokens":1,"reasoning_output_tokens":0,"total_tokens":2}},"model_context_window":272000}},"rate_limits":{{"primary":{{"used_percent":10.0,"window_minutes":300}}}}}}}}"#, input + output)
     }
+    #[test]
+    fn codex_non_openai_sessions_are_excluded_and_provider_switches_keep_only_their_own_deltas() {
+        let first=ago(5);let second=ago(4);
+        let rows=vec![serde_json::json!({"type":"session_meta","payload":{"model_provider":"ollama"}}).to_string(),codex_count(&first,100,0,10),serde_json::json!({"type":"turn_context","payload":{"model_provider":"openai","model":"gpt-6.1-sol"}}).to_string(),codex_count(&second,150,0,20)];
+        let parsed=extract(ProviderId::Codex,Cursor::new(rows.join("\n")));
+        assert_eq!(parsed.records.len(),1);assert_eq!(parsed.records[0].tokens.total_tokens,60);
+        let unknown=extract(ProviderId::Codex,Cursor::new(codex_count(&first,100,0,10)));assert_eq!(unknown.records.len(),1);
+        let foreign=extract(ProviderId::Codex,Cursor::new(format!("{}\n{}",rows[0],rows[1])));assert!(foreign.records.is_empty());
+    }
 
     #[test]
     fn history_periods_are_bounded_and_include_older_activity() {
@@ -356,6 +417,35 @@ mod tests {
         let history = scan.finish(true, today);
         assert_eq!(history.days.len(), 365);
         assert_eq!(history.models[0].total_tokens, 15);
+    }
+    #[test]
+    fn compressed_codex_rollouts_keep_usage_and_copied_plain_records_count_once() {
+        let temp = Temp::new("compressed-codex"); let timestamp = ago(5);
+        let text = format!("{{\"timestamp\":\"{timestamp}\",\"type\":\"turn_context\",\"payload\":{{\"model\":\"gpt-6.1-sol\"}}}}\n{}\n", codex_count(&timestamp, 100, 80, 10));
+        write(&temp.0.join("sessions/active.jsonl"), &[text.clone()]);
+        std::fs::create_dir_all(temp.0.join("archived_sessions")).unwrap();
+        std::fs::write(temp.0.join("archived_sessions/rollout.jsonl.zst"), zstd::stream::encode_all(text.as_bytes(), 1).unwrap()).unwrap();
+        let history = run(ProviderId::Codex, &temp.0, LIMITS, &SyncMutex::default());
+        assert!(!history.partial); assert_eq!(total(&history), 110);
+        std::fs::remove_file(temp.0.join("sessions/active.jsonl")).unwrap();
+        assert_eq!(total(&run(ProviderId::Codex, &temp.0, LIMITS, &SyncMutex::default())), 110);
+        std::fs::write(temp.0.join("archived_sessions/broken.jsonl.zst"), b"invalid-zstd").unwrap();
+        let partial = run(ProviderId::Codex, &temp.0, LIMITS, &SyncMutex::default());
+        assert!(partial.partial); assert_eq!(total(&partial), 110);
+    }
+    #[test]
+    fn compressed_logs_cannot_expand_past_the_scan_byte_budget() {
+        let temp = Temp::new("compressed-budget");
+        let text = format!("{{\"type\":\"user\",\"message\":\"{}\"}}\n", "x".repeat(10_000));
+        std::fs::write(temp.0.join("bomb.jsonl.zst"), zstd::stream::encode_all(text.as_bytes(), 1).unwrap()).unwrap();
+        let history = run(ProviderId::Codex, &temp.0, Limits { bytes: 500, ..LIMITS }, &SyncMutex::default());
+        assert!(history.partial); assert_eq!(total(&history), 0);
+    }
+    #[test]
+    fn modern_nested_null_models_keep_parent_usage_and_undated_ledgers_are_marked_partial() {
+        let line = claude_line("modern", &ago(5), 6, "x").replace("\"output_tokens\":6", "\"iterations\":[{\"model\":null}],\"output_tokens\":6");
+        let parsed = extract(ProviderId::Claude, Cursor::new(format!("{line}\n{{\"type\":\"cost-state\",\"totalCostUSD\":123}}\n").into_bytes()));
+        assert_eq!(parsed.records.len(), 1); assert_eq!(parsed.records[0].tokens.total_tokens, 21_010); assert!(parsed.partial);
     }
     #[test]
     fn claude_rows_with_type_after_a_large_message_are_counted() {
@@ -380,7 +470,7 @@ mod tests {
     fn codex_counts_cumulative_deltas_once_across_copied_sessions() {
         let temp = Temp::new("codex"); let (first, second) = (ago(20), ago(10));
         let header = [format!(r#"{{"timestamp":"{first}","type":"session_meta","payload":{{"id":"s","cwd":"/work","instructions":"private instructions"}}}}"#),
-            format!(r#"{{"timestamp":"{first}","type":"turn_context","payload":{{"cwd":"/work","approval_policy":"on-request","model":"gpt-5-codex","user_instructions":"private"}}}}"#),
+            format!(r#"{{"timestamp":"{first}","type":"turn_context","payload":{{"cwd":"/work","approval_policy":"on-request","model":"gpt-6.1-sol","user_instructions":"private"}}}}"#),
             format!(r#"{{"timestamp":"{first}","type":"response_item","payload":{{"type":"message","role":"user","content":[{{"type":"input_text","text":"private prompt"}}]}}}}"#)];
         let mut lines = header.to_vec(); lines.extend([codex_count(&first, 100, 80, 10), format!(r#"{{"timestamp":"{first}","type":"event_msg","payload":{{"type":"token_count","info":null}}}}"#), codex_count(&second, 150, 100, 20)]);
         write(&temp.0.join("2026/10/15/rollout-a.jsonl"), &lines);
@@ -389,8 +479,9 @@ mod tests {
         let history = run(ProviderId::Codex, &temp.0, LIMITS, &SyncMutex::default());
         assert_eq!(total(&history), 170);
         assert_eq!(history.days.iter().map(|day| day.tokens.cached_input_tokens).sum::<u64>(), 100);
-        assert_eq!(history.models[0].name, "gpt-5-codex");
-        assert!(history.days.iter().filter(|day| day.tokens.total_tokens > 0).all(|day| day.estimated_cost_usd.is_none() && day.unpriced_tokens == 0));
+        assert_eq!(history.models[0].name, "gpt-6.1-sol");
+        assert!((history.days.iter().filter_map(|day| day.estimated_cost_usd).sum::<f64>() - 0.00031).abs() < 0.00000001);
+        assert!(history.days.iter().all(|day| day.unpriced_tokens == 0));
         let json = serde_json::to_string(&history).unwrap(); assert!(!json.contains("private"));
     }
     #[test]
@@ -460,9 +551,11 @@ mod tests {
         assert_eq!((days[1].estimated_cost_usd, days[1].unpriced_tokens), (Some(0.0), 7));
         assert!((days[0].estimated_cost_usd.unwrap() - 40.0).abs() < 0.000001 && days[0].unpriced_tokens == 0);
         let mut codex = Scanner::new(ProviderId::Codex, today, 30);
-        codex.add(yesterday, &Arc::from("gpt-5-codex"), &Tokens { input_tokens: 10, total_tokens: 10, ..Tokens::default() }, false);
+        codex.add(yesterday, &Arc::from("gpt-6.1-sol"), &Tokens { input_tokens: 200_000, cached_input_tokens: 100_000, output_tokens: 10_000, total_tokens: 210_000, ..Tokens::default() }, false);
+        codex.add(yesterday, &Arc::from("unknown-codex-model"), &Tokens { input_tokens: 10, total_tokens: 10, ..Tokens::default() }, false);
         let history = codex.finish(true, today); let days = &history.days[history.days.len() - 2..];
-        assert_eq!((days[0].estimated_cost_usd, days[0].unpriced_tokens), (None, 0));
+        assert!((days[0].estimated_cost_usd.unwrap() - 0.31).abs() < 0.000001);
+        assert_eq!(days[0].unpriced_tokens, 10);
         assert_eq!((days[1].estimated_cost_usd, days[1].unpriced_tokens), (Some(0.0), 0));
     }
     #[test]
@@ -479,6 +572,27 @@ mod tests {
         assert_eq!(lock(&cache).parses, 3);
         // The same files read as Codex logs are cached separately.
         run(ProviderId::Codex, &temp.0, LIMITS, &cache); assert_eq!(lock(&cache).parses, 5);
+    }
+    #[test]
+    fn persistent_extraction_cache_reuses_logs_after_restart_without_storing_message_content() {
+        let temp = Temp::new("disk-cache"); let path = temp.0.join("projects/session.jsonl");
+        let line = claude_line("msg_1", &ago(5), 5, "private-content-do-not-cache").replace("\"ephemeral_1h_input_tokens\":0", "\"ephemeral_1h_input_tokens\":1000");
+        write(&path, &[line]);
+        let disk = disk_cache::DiskCache::new(temp.0.join("cache")).unwrap();
+        let first = SyncMutex::new(FileCache { disk: Some(disk.clone()), ..FileCache::default() });
+        let initial = run(ProviderId::Claude, &temp.0, LIMITS, &first); assert_eq!(lock(&first).parses, 1);
+        let restarted = SyncMutex::new(FileCache { disk: Some(disk.clone()), ..FileCache::default() });
+        let cached = run(ProviderId::Claude, &temp.0, LIMITS, &restarted);
+        assert_eq!(lock(&restarted).parses, 0); assert_eq!(total(&cached), total(&initial));
+        assert_eq!(cached.days.last().unwrap().estimated_cost_usd, initial.days.last().unwrap().estimated_cost_usd);
+        for file in fs::read_dir(temp.0.join("cache")).unwrap().flatten() {
+            let stored = fs::read_to_string(file.path()).unwrap();
+            assert!(!stored.contains("private-content-do-not-cache") && !stored.contains("/work/app"));
+            fs::write(file.path(), b"invalid-cache").unwrap();
+        }
+        let corrupt = SyncMutex::new(FileCache { disk: Some(disk), ..FileCache::default() });
+        assert_eq!(total(&run(ProviderId::Claude, &temp.0, LIMITS, &corrupt)), total(&initial));
+        assert_eq!(lock(&corrupt).parses, 1);
     }
     #[test]
     fn the_extraction_cache_is_bounded() {
@@ -537,8 +651,9 @@ mod tests {
     #[ignore = "Reads this device's real logs; opt in with METERLUMA_REAL_HISTORY=claude or codex. Prints aggregate totals only."]
     fn real_history_totals() {
         let id = match std::env::var("METERLUMA_REAL_HISTORY").as_deref() { Ok("claude") => ProviderId::Claude, Ok("codex") => ProviderId::Codex, _ => panic!("Set METERLUMA_REAL_HISTORY to claude or codex.") };
-        let history = scan(id, Some(crate::profiles::root(id, None).unwrap()), 30, &SyncMutex::new(FileCache::default()));
+        let service = HistoryService::new(); let started = Instant::now();
+        let history = tauri::async_runtime::block_on(service.read(id, Some(crate::profiles::root(id, None).unwrap()), 30)).unwrap();
         let total: u64 = history.days.iter().map(|day| day.tokens.total_tokens).sum();
-        println!("REAL_HISTORY {{\"available\":{},\"partial\":{},\"records\":{},\"totalTokens\":{},\"coverageStart\":{:?},\"recordedDays\":{}}}", history.available, history.partial, history.record_count, total, history.coverage_start, history.days.iter().filter(|day| day.tokens.total_tokens > 0).count());
+        println!("REAL_HISTORY {}", serde_json::json!({ "available": history.available, "partial": history.partial, "records": history.record_count, "totalTokens": total, "coverageStart": history.coverage_start, "recordedDays": history.days.iter().filter(|day| day.tokens.total_tokens > 0).count(), "estimatedApiValueUsd": history.days.iter().filter_map(|day| day.estimated_cost_usd).sum::<f64>(), "unpricedTokens": history.days.iter().map(|day| day.unpriced_tokens).sum::<u64>(), "todayEstimatedApiValueUsd": history.days.last().and_then(|day| day.estimated_cost_usd), "scanMs": started.elapsed().as_millis(), "parsedFiles": lock(&service.files).parses }));
     }
 }

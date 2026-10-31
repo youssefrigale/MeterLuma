@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { invoke, isTauri } from '@tauri-apps/api/core';
-import { LEGAL_VERSION } from './legal';
+import { hasProviderConsent } from './legal';
 import type { ProviderId, Settings } from './model';
 
 // Discovery returns provider names only. Credentials remain in the native process.
@@ -14,7 +14,7 @@ export function useLocalDiscovery(settings: Settings, update: (value: Partial<Se
     !settings.liveProviders.includes(id) && !settings.ignoredLocalProviders?.includes(id)
     && !settings.profiles.some(profile => profile.providerId === id)));
   useEffect(() => {
-    if (!isTauri() || settings.demo || settings.legalVersion !== LEGAL_VERSION || candidates === '[]') { setChecking(false); return; }
+    if (!isTauri() || settings.demo || !hasProviderConsent(settings) || candidates === '[]') { setChecking(false); return; }
     let active = true;
     setChecking(true); setError('');
     void invoke<ProviderId[]>('discover_local_providers', { providerIds: JSON.parse(candidates) }).then(found => {

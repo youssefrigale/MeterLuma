@@ -1,5 +1,7 @@
 # Try the MeterLuma beta
 
+October 26 Mac continuation: live Claude session and weekly limits are now available through **Connections → Enable live Claude usage**, with separate privacy revision-7 consent. Existing revision-6 settings keep Claude history-only access. The Windows candidates and older test instructions below describe their recorded revision-6 builds.
+
 This is an internal, unsigned pre-release for testing only. It is free for personal, noncommercial use under [LICENSE](../LICENSE); selling and redistribution are prohibited, so share the owner's official link rather than copies. Release builds use real data only and hide demo controls.
 
 This build automatically detects existing local Claude Code history, Codex CLI and Cursor desktop profiles after privacy revision 6 consent. No separate login or pasted token is required. Disconnects, hidden providers and paused custom profiles are respected. Account tokens remain an optional advanced connection; existing explicit token connections never fall back to local sign-ins. Cursor quotas remain Unofficial. See [CHANGELOG.md](../CHANGELOG.md).
@@ -20,7 +22,7 @@ The preceding token candidate is version 0.1.2: `artifacts/local/windows-qa-2026
 
 It is installed on the owner's Windows 11 computer over 0.1.1. The installer preserved all 305 existing app-data files before launch. Six native checks with synthetic invalid credentials passed; successful live account-token checks are still pending token entry inside the app. Never send tokens in chat or bug reports.
 
-It installs for the current user without an administrator prompt and downloads Microsoft WebView2 if it is missing. Windows signing is intentionally out of scope for this release; downloads must be labeled unsigned. Windows may show SmartScreen or unknown-publisher prompts. It does not check for updates. Windows 11 fresh installation, same-version replacement, a genuine 0.1.0 to 0.1.1 upgrade preserving settings and data, and an earlier uninstall preserving data passed. The data-deletion checkbox remains unverified because the automation tool blocked the uninstaller. Windows 10 and installation without an existing WebView2 runtime still need those environments. See the current [Windows QA checkpoint](../README.md#windows-qa-checkpoint--2026-10-20) for exact scope.
+It installs for the current user without an administrator prompt and downloads Microsoft WebView2 if it is missing. Windows signing is intentionally out of scope for this release; downloads must be labeled unsigned. Windows may show SmartScreen or unknown-publisher prompts. It does not check for updates. Windows 11 fresh installation, same-version replacement, a genuine 0.1.0 to 0.1.1 upgrade preserving settings and data, and an earlier uninstall preserving data passed. The data-deletion checkbox remains unverified because the automation tool blocked the uninstaller. Windows 10 and installation without an existing WebView2 runtime still need those environments. See the current [Windows QA checkpoint](windows-qa-2026-10-25.md) for exact scope.
 
 The GNU/LLVM beta in `artifacts/releases/windows-beta-2026-10-15/` and the older Windows files in `artifacts/releases/` are superseded. They still contain the removed Claude quota connection and older logo files, so do not test or share them. Quit and remove an old beta before installing this build. On its first start the new build deletes the old beta's two cache files.
 
@@ -47,9 +49,25 @@ When reporting a problem, include the provider, plan, OS version, display setup 
 
 ## Known limitations
 
-- Builds are unsigned and have no updater, startup at login, global shortcut or push notifications.
+- Builds are unsigned and have no updater. Start at login is enabled by default; turn it off in Settings if unwanted. Global shortcut and notification QA is described below.
 - A rate-limit cooldown cannot be cleared in the app. It lasts at most 6 hours; to clear it sooner, quit and delete `usage-cooldowns-v2.json` from `%LOCALAPPDATA%\app.meterluma.desktop` (macOS: `~/Library/Caches/app.meterluma.desktop`).
 - Proxy auto-configuration (PAC/WPAD) is not supported. Proxy environment variables and the Windows or macOS manual proxy are.
 - Cursor quotas use an undocumented endpoint that may change or stop working without notice.
 - History covers only logs that still exist on this device, so it is not an account-wide record.
 - Real-account QA, minimum OS versions, sleep/wake and installer behavior still need testing before a public release.
+
+## Additional local audit checks
+
+The [OpenUsage issue audit](openusage-issue-audit.md) tracks per-provider scope and pending live QA. In Settings, verify display-preference export, import preview/cancel/apply/undo without changing connections; in Help, inspect the sanitized diagnostics before a local export. Test default-enabled Start at login through a real login cycle and verify an opt-out survives restarting. Test a custom keyboard shortcut from another app (including a conflicting binding and removal), and Keep panel open through a focus change and menu-bar hide. Mac shortcut registration/restart/delivery/removal and a stay-open focus/visibility smoke check passed; real login cycles, Windows and broader multi-display checks remain pending. Zed and Alibaba regional connections need an account owner to supply their credentials inside MeterLuma; fixture/loopback coverage is not positive account verification.
+
+The Mac notification continuation is documented in [notifications.md](notifications.md). Verify that the master starts off, permission is requested only after Enable, denied permission has System Settings recovery, and no provider is contacted just to notify. OS banner appearance after owner authorization, Focus/foreground behavior, sleep/wake delivery and Windows implementation remain separate from synthetic policy/SDK coverage. Never accept an owner OS notification prompt during unattended QA.
+
+For Overview collapse, check independent accounts, reload, keyboard expand/collapse, tiny percentages, long metric names, separate currencies and expired cached readings. Confirm the Mac popup grows/shrinks and keeps the footer reachable. Restore overview layout should reset only cards, core provider order and menu allowance; Undo should retain a theme change made after the reset. Display-preference import must not transfer opaque card IDs. These paths have synthetic UI coverage; native smoke evidence is recorded in the issue audit.
+
+For compact Connections, verify all three provider actions and the footer fit without scrolling on Mac. Expand Multiple local accounts to add/remove profiles and inspect paused state; expand About connections for provider descriptions and notices. Opening and closing either section should resize the Mac popup.
+
+For the Mac Settings-height follow-up, confirm Settings stays at 850 logical pixels (or the available display height), its content scrolls to the last section, and the footer stays visible. Navigating back to Connections or a provider should restore automatic content sizing. Windows panel geometry should remain unchanged.
+
+For additional-provider rows, verify alphabetical order, bundled logos in both themes, compact row height, and checked state only after successful connection. Canceling setup must leave the row unchecked. The gear action must retain key replacement and failed-key preservation; disconnect must clear the saved connection. Website-only providers have dashboard actions instead of connection toggles. Check that the list loads no external image URLs.
+
+For provider reordering, drag only the grip or focus it and use Up/Down. Confirm each list keeps its own order after reload and updates Overview/sidebar without reconnecting or refreshing providers. Escape, pointer cancellation and drops outside the list must cancel; long lists should scroll near the content edges during a drag. Verify failed saves keep the previous order, and layout restore/Undo includes additional-provider order. With many selected providers, Settings stays reachable and non-Settings pages can shrink again.

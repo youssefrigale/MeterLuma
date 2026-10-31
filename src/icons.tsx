@@ -5,7 +5,7 @@ import {
   RiSunLine, RiMoonClearLine, RiComputerLine, RiTimeLine, RiCheckLine,
   RiCloseLine, RiArrowRightSLine, RiSparkling2Line, RiDownload2Line,
   RiInformationLine, RiInformationFill, RiEyeLine, RiExternalLinkLine,
-  RiArrowUpSLine, RiArrowDownSLine, RiLogoutBoxRLine,
+  RiArrowUpSLine, RiArrowDownSLine, RiLogoutBoxRLine, RiDraggable,
 } from '@remixicon/react';
 
 const icons = {
@@ -30,6 +30,7 @@ const icons = {
   up: RiArrowUpSLine,
   down: RiArrowDownSLine,
   quit: RiLogoutBoxRLine,
+  drag: RiDraggable,
 };
 export type IconName = keyof typeof icons;
 const selectedIcons: Partial<typeof icons> = { grid: RiLayoutGridFill, activity: RiBarChart2Fill, link: RiLinksFill, settings: RiSettings3Fill, info: RiInformationFill };
