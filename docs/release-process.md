@@ -198,6 +198,25 @@ https://downloads.example.com/meterluma/0.2.0/SHA256SUMS.txt and BUILD-INFO.json
 - The endpoint URL is compiled into every build. If you move domains, keep the old `latest.json` URL working, by serving it or redirecting, until users have updated.
 - Confirm that you own the domain before the first public build. The `meterluma.com` contact address used in the docs is not verified yet.
 
+## Signed provider list
+
+`https://downloads.meterluma.com/providers/list.json` lets you fix a ready additional API provider without an app
+release. Builds that include this feature (after 0.1.2) apply it only when its signature verifies against the public
+key in `src-tauri/src/providers/additional/provider_list.rs`, whose private half is
+`~/.tauri/meterluma-provider-list.key` (password in the macOS Keychain item "MeterLuma provider list signing key
+password"). Back up both with the updater key. The list can only:
+
+- move a GET request (`requests[].key` and `url`) to another path or query on the same host, keeping placeholders such as `{account_id}`;
+- replace the provider's extra `headers` (not `Authorization`, `Cookie`, `Host`, `Accept` or its credential header).
+
+Hosts, POST bodies, credential placement, response mappers, local and CLI providers and new providers still need an app
+release. An entry that breaks any rule is ignored whole, and the rule tests fail on it before signing.
+
+To publish, edit `src/additional/provider-list.json`, increase `version`, and run `scripts/publish-provider-list.sh`.
+The script refuses a version that is not newer than the published one, runs the rule tests, signs the file and uploads
+`list.json` and `list.json.sig` with a five-minute cache. Apps pick it up within a day, or on their next check after a
+failure. To withdraw a patch, publish a higher version without it.
+
 ## Cutting a release
 
 ### Pre-release checklist

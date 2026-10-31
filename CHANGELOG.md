@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Signed provider list: between app releases, the publisher can move a ready additional API provider's read-only GET request to another path on the same official host or replace its extra headers. MeterLuma checks `downloads.meterluma.com/providers/list.json` at most daily when an additional API provider is connected or refreshed, verifies its minisign signature against a key built into the app, refuses older versions, and falls back to the built-in definitions.
+
 ## 0.1.2 (2026-10-31; changes since internal beta snapshot 0a41dfb)
 
 First public release. The Windows installer is unsigned, and the macOS app is unsigned and not notarized. Release builds check `downloads.meterluma.com` for signed updates and ask before installing one.

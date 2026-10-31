@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "version": 3,
+  "providers": [
+    { "id": "deepseek", "requests": [{ "key": "balance", "url": "https://api.deepseek.com/v2/user/balance" }], "headers": { "X-Client-Version": "2" } },
+    { "id": "openrouter", "requests": [{ "key": "key", "url": "https://openrouter.example.com/api/v1/key" }] },
+    { "id": "warp", "requests": [{ "key": "quota", "url": "https://app.warp.dev/graphql/v2?op=DeleteAccount" }] },
+    { "id": "qoder", "headers": { "X-Test": "1" } },
+    { "id": "not-a-provider", "headers": { "X-Test": "1" } },
+    { "id": "copilot", "headers": { "Authorization": "Bearer replaced" } }
+  ]
+}

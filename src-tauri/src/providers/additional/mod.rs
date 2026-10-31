@@ -3,6 +3,7 @@ pub(crate) mod catalog;
 mod command;
 mod local;
 mod mappers;
+mod provider_list;
 mod qoder;
 
 use super::{cooldowns::Cooldowns, tokens, Metric};
@@ -113,16 +114,20 @@ pub struct AdditionalService {
     gates: Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>,
     requests: tokio::sync::Semaphore,
     local_reads: tokio::sync::Semaphore,
+    provider_list: provider_list::ProviderList,
 }
 impl AdditionalService {
     pub fn new() -> Result<Self, reqwest::Error> {
-        let path = dirs::cache_dir().map(|root| {
-            root.join(super::CACHE_FOLDER)
-                .join("additional-cooldowns-v1.json")
-        });
-        Self::with_cache(path)
+        let folder = dirs::cache_dir().map(|root| root.join(super::CACHE_FOLDER));
+        Self::with_cache(
+            folder.as_ref().map(|folder| folder.join("additional-cooldowns-v1.json")),
+            provider_list::ProviderList::new(folder.map(|folder| folder.join("provider-list-v1.json"))),
+        )
     }
-    fn with_cache(path: Option<std::path::PathBuf>) -> Result<Self, reqwest::Error> {
+    fn with_cache(
+        path: Option<std::path::PathBuf>,
+        provider_list: provider_list::ProviderList,
+    ) -> Result<Self, reqwest::Error> {
         Ok(Self {
             client: super::client_builder().build().or_else(|_| {
                 super::client_builder()
@@ -134,6 +139,7 @@ impl AdditionalService {
             requests: tokio::sync::Semaphore::new(4),
             local_reads: tokio::sync::Semaphore::new(2),
             cooldowns: Mutex::new(Cooldowns::load(path)),
+            provider_list,
         })
     }
     fn gate(&self, id: &str) -> Arc<tokio::sync::Mutex<()>> {
@@ -348,7 +354,8 @@ impl AdditionalService {
         }) {
             return Ok(cached);
         }
-        let snapshot = self.fetch(spec, &credential.access_token).await?;
+        let spec = self.provider_list.spec(&self.client, spec).await;
+        let snapshot = self.fetch(&spec, &credential.access_token).await?;
         if self::credential(id)
             .await
             .map(|current| current.fingerprint() != fingerprint)
@@ -378,7 +385,8 @@ impl AdditionalService {
             return self.local_snapshot(spec).await;
         }
         let credential = tokens::external_credential(raw).map_err(Failure::unavailable)?;
-        let snapshot = self.fetch(spec, &credential).await?;
+        let spec = self.provider_list.spec(&self.client, spec).await;
+        let snapshot = self.fetch(&spec, &credential).await?;
         save_credential(id, &credential)
             .await
             .map_err(Failure::unavailable)?;
@@ -634,7 +642,7 @@ mod tests {
         (url, worker)
     }
     fn service() -> AdditionalService {
-        let mut service = AdditionalService::with_cache(None).unwrap();
+        let mut service = AdditionalService::with_cache(None, provider_list::ProviderList::offline()).unwrap();
         service.client = super::super::client_builder().no_proxy().build().unwrap();
         service
     }

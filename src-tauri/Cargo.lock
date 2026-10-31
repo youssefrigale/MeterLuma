@@ -2231,6 +2231,7 @@ dependencies = [
  "block2",
  "chrono",
  "dirs 6.0.0",
+ "minisign-verify",
  "objc2",
  "objc2-app-kit",
  "objc2-foundation",

@@ -104,6 +104,7 @@ MeterLuma has no analytics, advertising, publisher account service or cloud sync
 
 - Local logs are processed on your device for usage metadata.
 - Provider requests run in the native app. Credentials are sent only to the relevant provider endpoint or handled by its installed CLI.
+- A signed provider list from downloads.meterluma.com can fix an additional provider's request address on its own official host between releases; it never changes where credentials are sent.
 - Optional account tokens use macOS Keychain or Windows account-bound DPAPI storage, rather than WebView preferences.
 - Exports omit credentials, profile directory paths and conversation content.
 - Disconnecting in MeterLuma does not sign you out of the provider or delete its original logs.
