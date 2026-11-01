@@ -5,6 +5,11 @@
 ### Fixed
 
 - **Refresh usage** now reads Codex and Cursor again, including account-token connections, instead of returning a reading up to five minutes old. Using a banked Codex reset on the website now shows on the next manual refresh. Automatic polling still shares the brief cache, and rate-limit cooldowns still apply.
+- Dropdowns no longer render as glossy macOS popup buttons. Every dropdown now matches the text fields beside it in height, border and color, with a theme-aware chevron; its menu is still the native one. Form buttons share the same 36-point height, so labels and controls line up.
+
+### Changed
+
+- **About** has a compact header (logo beside the tagline), evenly ruled sections, and actions that share the text's left edge. Diagnostics export and refresh are equal-width buttons, and the version, license and affiliation notes are grouped with **View license** and **Reset preferences** at the end.
 
 ## 0.1.3 (2026-10-31)
 
