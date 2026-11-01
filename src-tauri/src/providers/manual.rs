@@ -38,7 +38,7 @@ impl ProviderService {
         }
     }
 
-    pub async fn refresh_token(&self, id: ProviderId) -> Result<Snapshot, ProviderFailure> {
+    pub async fn refresh_token(&self, id: ProviderId, fresh_after: Option<Instant>) -> Result<Snapshot, ProviderFailure> {
         let key = key(id).map_err(failure)?.to_string();
         let gate = self.connection_gate(&key); let _turn = gate.lock().await;
         let token = saved_token(self.manual_credential,id).await.map_err(failure)?;
@@ -46,7 +46,7 @@ impl ProviderService {
         if self.cooldowns.lock().ok().and_then(|store| store.until(&key, &fingerprint)).is_some() {
             return Err(self.quota_failure("The provider is limiting requests. Wait for the retry time.".into(), &key, fingerprint, id));
         }
-        if let Some(saved) = self.manual.lock().await.get(&key).filter(|c| c.fingerprint == fingerprint && c.until > Instant::now() && c.result.as_ref().map(super::before_reset).unwrap_or(true)) {
+        if let Some(saved) = self.manual.lock().await.get(&key).filter(|c| c.fingerprint == fingerprint && c.until > Instant::now() && fresh_after.is_none_or(|asked| c.checked_at >= asked) && c.result.as_ref().map(super::before_reset).unwrap_or(true)) {
             return saved.result.clone().map_err(|message| self.quota_failure(message, &key, fingerprint, id));
         }
         let (result, seconds) = self.token_lookup(id, &token).await;

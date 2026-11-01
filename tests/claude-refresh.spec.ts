@@ -108,3 +108,17 @@ test('reopening Claude after its faster refresh deadline catches up without wait
   await expect(page.getByRole('progressbar', { name: 'Claude Session remaining' })).toHaveAttribute('aria-valuenow', String(23 - before * 5));
   expect(await countCalls(page, 'refresh_provider')).toBe(before + 1);
 });
+
+test('Refresh usage asks Codex and Cursor for a new reading while automatic lookups may reuse a brief cache', async ({ page }) => {
+  // A banked Codex reset used on the website must appear on the next manual refresh, not after the native cache expires.
+  const accounts = { legalVersion: LEGAL, liveProviders: ['codex', 'cursor'], enabled: ['codex', 'cursor'], refreshMinutes: 60 };
+  await nativeBridge(page, { settings: accounts, quotas: { codex: { metrics: [{ label: 'Weekly', usedPercent: 99, periodMinutes: 10_080, resetIn: 3 * 86_400_000 }] }, cursor: { metrics: [{ label: 'Monthly', usedPercent: 40, resetIn: 9 * 86_400_000 }] } }, histories: { codex: history() } });
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: 'Refresh usage' })).toBeEnabled();
+  const lookups = async () => (await nativeCalls(page)).filter(call => call.command === 'refresh_provider');
+  const startup = await lookups();
+  expect(startup.map(call => call.args.providerId).sort()).toEqual(expect.arrayContaining(['codex', 'cursor']));
+  expect(startup.every(call => call.args.forceRefresh === false)).toBe(true);
+  await page.getByRole('button', { name: 'Refresh usage' }).click();
+  await expect.poll(async () => (await lookups()).slice(startup.length).map(call => `${call.args.providerId}:${call.args.forceRefresh}`).sort()).toEqual(['codex:true', 'cursor:true']);
+});

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- **Refresh usage** now reads Codex and Cursor again, including account-token connections, instead of returning a reading up to five minutes old. Using a banked Codex reset on the website now shows on the next manual refresh. Automatic polling still shares the brief cache, and rate-limit cooldowns still apply.
+
 ## 0.1.3 (2026-10-31)
 
 ### Added

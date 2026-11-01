@@ -49,7 +49,7 @@ export function useLiveProviders(settings: Settings) {
     void Promise.all(accounts.map(async ({ id, key, directory, label, tokenMode }) => {
       const base = { id, key, label };
       const name = providerNames[id];
-      const quotaRequest = hasQuotas(id, settings) ? nativeLookup<Provider>('refresh_provider', { providerId: id, configDirectory: directory, ...(id === 'claude' ? { claudeLive: true, forceRefresh: fresh } : {}), ...(tokenMode ? { tokenMode: true } : {}) }) : undefined;
+      const quotaRequest = hasQuotas(id, settings) ? nativeLookup<Provider>('refresh_provider', { providerId: id, configDirectory: directory, forceRefresh: fresh, ...(id === 'claude' ? { claudeLive: true } : {}), ...(tokenMode ? { tokenMode: true } : {}) }) : undefined;
       const historyRequest = !tokenMode && hasHistory(id) ? nativeLookup<UsageHistory>('read_usage_history', { providerId: id, configDirectory: directory, days: settings.historyDays }) : undefined;
       // Each lookup publishes independently; a slow quota request must not hide completed history.
       void quotaRequest?.then(provider => { if (active) setResults(current => current.map(row => row.key === key ? { ...row, provider: { ...provider, tokenOnly: tokenMode, name, color: neutralColors[id], history: row.provider?.history, historyLoading: row.historyLoading, quotaState: 'live', connectionKey: key, accountLabel: label } } : row)); }, () => { /* Quota failures are reported by the settled result below. */ });

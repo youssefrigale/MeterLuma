@@ -133,12 +133,13 @@ impl ProviderService {
             snapshots: std::sync::Mutex::new(snapshots::Snapshots::load(folder.map(|path| path.join("quota-snapshots-v1.json")))),
         })
     }
-    pub async fn refresh(&self, id: ProviderId, directory: Option<String>) -> Result<Snapshot, ProviderFailure> {
+    // A manual refresh passes `fresh_after`, so a short-lived success cache never hides a change made on the provider's site.
+    pub async fn refresh(&self, id: ProviderId, directory: Option<String>, fresh_after: Option<Instant>) -> Result<Snapshot, ProviderFailure> {
         // Legacy/history-only calls never access Claude credentials or the network.
         if matches!(id, ProviderId::Claude) { return Err(ProviderFailure::new(CLAUDE_UNAVAILABLE.into(), None, None)); }
         let root = crate::profiles::root(id, directory.as_deref()).map_err(|message| ProviderFailure::new(message, None, None))?;
-        if matches!(id, ProviderId::Codex) { return self.codex(root).await.map_err(|message| ProviderFailure::new(message, None, None)); }
-        self.cursor(root, directory.is_none()).await
+        if matches!(id, ProviderId::Codex) { return self.codex(root, fresh_after).await.map_err(|message| ProviderFailure::new(message, None, None)); }
+        self.cursor(root, directory.is_none(), fresh_after).await
     }
 
     pub async fn refresh_claude(&self, directory: Option<String>, fresh_after: Option<Instant>) -> Result<Snapshot, ProviderFailure> {
@@ -146,8 +147,9 @@ impl ProviderService {
         self.local_usage(ProviderId::Claude, root, directory.is_none(), fresh_after).await
     }
 
-    // One CLI process per profile at a time: concurrent requests share the in-flight lookup, and a success stays fresh briefly.
-    async fn codex(&self, root: PathBuf) -> Result<Snapshot, String> {
+    // One CLI process per profile at a time: concurrent requests share the in-flight lookup, and a success stays fresh
+    // briefly for polling. A manual refresh reuses only a lookup that finished after it was asked for.
+    async fn codex(&self, root: PathBuf, fresh_after: Option<Instant>) -> Result<Snapshot, String> {
         let asked = Instant::now();
         let fingerprint = codex::auth_fingerprint(&root);
         let key = cooldowns::key(ProviderId::Codex, &root);
@@ -157,7 +159,7 @@ impl ProviderService {
             slots.entry(key).or_default().clone()
         };
         let mut last = slot.lock().await;
-        if let Some(lookup) = last.as_ref().filter(|lookup| lookup.fingerprint == fingerprint && (lookup.done >= asked || (fingerprint.is_some() && lookup.result.as_ref().is_ok_and(before_reset) && lookup.done.elapsed() < CODEX_FRESH))) { return lookup.result.clone(); }
+        if let Some(lookup) = last.as_ref().filter(|lookup| lookup.fingerprint == fingerprint && (lookup.done >= asked || (fresh_after.is_none() && fingerprint.is_some() && lookup.result.as_ref().is_ok_and(before_reset) && lookup.done.elapsed() < CODEX_FRESH))) { return lookup.result.clone(); }
         let run = self.codex_runner;
         let lookup_root = root.clone();
         let mut result = tauri::async_runtime::spawn_blocking(move || run(&lookup_root)).await.map_err(|_| "The Codex quota lookup could not complete.".to_string())
@@ -167,8 +169,8 @@ impl ProviderService {
         result
     }
 
-    async fn cursor(&self, root: PathBuf, default_profile: bool) -> Result<Snapshot, ProviderFailure> {
-        self.local_usage(ProviderId::Cursor, root, default_profile, None).await
+    async fn cursor(&self, root: PathBuf, default_profile: bool, fresh_after: Option<Instant>) -> Result<Snapshot, ProviderFailure> {
+        self.local_usage(ProviderId::Cursor, root, default_profile, fresh_after).await
     }
 
     fn connection_gate(&self, key: &str) -> Arc<Mutex<()>> {
@@ -298,9 +300,10 @@ async fn response_result(request: reqwest::RequestBuilder, id: ProviderId) -> (R
 
 #[tauri::command]
 pub async fn refresh_provider(service: tauri::State<'_, ProviderService>, provider_id: ProviderId, config_directory: Option<String>, token_mode: Option<bool>, claude_live: Option<bool>, force_refresh: Option<bool>) -> Result<Snapshot, ProviderFailure> {
-    if token_mode == Some(true) { return service.refresh_token(provider_id).await; }
-    if matches!(provider_id, ProviderId::Claude) && claude_live == Some(true) { return service.refresh_claude(config_directory, force_refresh.filter(|force| *force).map(|_| Instant::now())).await; }
-    service.refresh(provider_id, config_directory).await
+    let fresh_after = force_refresh.filter(|force| *force).map(|_| Instant::now());
+    if token_mode == Some(true) { return service.refresh_token(provider_id, fresh_after).await; }
+    if matches!(provider_id, ProviderId::Claude) && claude_live == Some(true) { return service.refresh_claude(config_directory, fresh_after).await; }
+    service.refresh(provider_id, config_directory, fresh_after).await
 }
 
 #[derive(Serialize)]
@@ -361,6 +364,7 @@ mod tests {
         assert!(PEAK_READS.load(Ordering::SeqCst) >= 2);
     }
     static MANUAL_READS: AtomicUsize = AtomicUsize::new(0);
+    static TOKEN_RUNS: AtomicUsize = AtomicUsize::new(0);
     static MANUAL_PEAK: AtomicUsize = AtomicUsize::new(0);
     fn slow_manual_token(_: ProviderId) -> Result<tokens::AccountToken,String> {
         let active=MANUAL_READS.fetch_add(1,Ordering::SeqCst)+1; MANUAL_PEAK.fetch_max(active,Ordering::SeqCst);
@@ -371,13 +375,17 @@ mod tests {
     fn manually_supplied_accounts_refresh_independently_without_reading_real_secure_storage() {
         let port=TcpListener::bind("127.0.0.1:0").unwrap();let address=port.local_addr().unwrap();drop(port);
         let mut service=ProviderService::with_cache(None).unwrap();service.manual_credential=slow_manual_token;
-        service.codex_token_runner=|_|Ok(serde_json::json!({"rateLimits":{"primary":{"usedPercent":25,"windowDurationMins":300}}}));
+        service.codex_token_runner=|_|{TOKEN_RUNS.fetch_add(1,Ordering::SeqCst);Ok(serde_json::json!({"rateLimits":{"primary":{"usedPercent":25,"windowDurationMins":300}}}))};
         service.client=client_builder().proxy(reqwest::Proxy::all(format!("http://{address}")).unwrap()).build().unwrap();
         let service=Arc::new(service);
-        let jobs:Vec<_>=[ProviderId::Codex,ProviderId::Cursor].map(|id|{let service=service.clone();tauri::async_runtime::spawn(async move{service.refresh_token(id).await})}).into_iter().collect();
+        let jobs:Vec<_>=[ProviderId::Codex,ProviderId::Cursor].map(|id|{let service=service.clone();tauri::async_runtime::spawn(async move{service.refresh_token(id,None).await})}).into_iter().collect();
         let mut outcomes=jobs.into_iter().map(|job|tauri::async_runtime::block_on(job).unwrap());
         assert!(outcomes.next().unwrap().is_ok()); assert!(outcomes.next().unwrap().is_err());
         assert!(MANUAL_PEAK.load(Ordering::SeqCst)>=2);
+        assert!(tauri::async_runtime::block_on(service.refresh_token(ProviderId::Codex,None)).is_ok());
+        assert_eq!(TOKEN_RUNS.load(Ordering::SeqCst),1,"a poll reuses the brief success cache");
+        assert!(tauri::async_runtime::block_on(service.refresh_token(ProviderId::Codex,Some(Instant::now()))).is_ok());
+        assert_eq!(TOKEN_RUNS.load(Ordering::SeqCst),2,"a manual refresh reads the account again");
     }
     fn offline(proxy: &TcpListener) -> ProviderService {
         let mut service = ProviderService::with_cache(None).unwrap();
@@ -394,7 +402,7 @@ mod tests {
         let mut service = offline(&proxy);
         service.cursor_credential = |_, _| panic!("Claude refresh must not read any sign-in.");
         for directory in [None, Some("relative/profile".to_string()), Some(std::env::temp_dir().join("meterluma-missing-claude-profile").to_string_lossy().into_owned())] {
-            let failure = tauri::async_runtime::block_on(service.refresh(ProviderId::Claude, directory)).err().unwrap();
+            let failure = tauri::async_runtime::block_on(service.refresh(ProviderId::Claude, directory, None)).err().unwrap();
             assert_eq!(failure.message, CLAUDE_UNAVAILABLE);
             assert_eq!(failure.code, "unavailable");
             assert!(failure.retry_at.is_none() && failure.last_snapshot.is_none());
@@ -410,14 +418,14 @@ mod tests {
         let key = cooldowns::key(ProviderId::Cursor, &root);
         service.cooldowns.lock().unwrap().set(key, &fake_sign_in(&root, false).unwrap().fingerprint(), 3600);
         for _ in 0..2 {
-            let failure = tauri::async_runtime::block_on(service.cursor(root.clone(), false)).err().unwrap();
+            let failure = tauri::async_runtime::block_on(service.cursor(root.clone(), false, None)).err().unwrap();
             assert!(failure.message.starts_with("The provider is limiting requests."));
             assert_eq!(failure.code, "rate_limited");
             assert!(failure.retry_at.is_some_and(|until| until <= chrono::Utc::now().timestamp_millis() + 3_600_000));
         }
         assert_eq!(proxy.accept().err().unwrap().kind(), std::io::ErrorKind::WouldBlock);
         service.cursor_credential = |_, _| Ok(auth::Credential { token: "another-fake-cursor-token".into() });
-        let failure = tauri::async_runtime::block_on(service.cursor(root, false)).err().unwrap();
+        let failure = tauri::async_runtime::block_on(service.cursor(root, false, None)).err().unwrap();
         assert_ne!(failure.code, "rate_limited");
         assert!(failure.retry_at.is_none());
         assert!(proxy.accept().is_ok(), "a different sign-in must reach the network");
@@ -469,7 +477,7 @@ mod tests {
         Err("Codex quota lookup timed out. Local history is still available.".into())
     }
     fn concurrently(service: &Arc<ProviderService>, root: &Path, count: usize) -> Vec<Result<Snapshot, String>> {
-        let tasks: Vec<_> = (0..count).map(|_| { let (service, root) = (service.clone(), root.to_path_buf()); tauri::async_runtime::spawn(async move { service.codex(root).await }) }).collect();
+        let tasks: Vec<_> = (0..count).map(|_| { let (service, root) = (service.clone(), root.to_path_buf()); tauri::async_runtime::spawn(async move { service.codex(root, None).await }) }).collect();
         tasks.into_iter().map(|task| tauri::async_runtime::block_on(task).unwrap()).collect()
     }
 
@@ -483,18 +491,26 @@ mod tests {
         for root in [&first, &second] { std::fs::create_dir_all(root).unwrap(); std::fs::write(root.join("auth.json"), b"synthetic-account-one").unwrap(); }
         for result in concurrently(&service, &first, 3) { assert_eq!(result.ok().unwrap().metrics[0].used_percent, 25.0); }
         assert_eq!(CODEX_RUNS.load(Ordering::SeqCst), 1);
-        assert!(tauri::async_runtime::block_on(service.codex(first.clone())).is_ok());
+        assert!(tauri::async_runtime::block_on(service.codex(first.clone(), None)).is_ok());
         assert_eq!(CODEX_RUNS.load(Ordering::SeqCst), 1);
+        // A manual refresh, such as after using a banked reset on the website, must not return the cached allowance.
+        assert!(tauri::async_runtime::block_on(service.codex(first.clone(), Some(Instant::now()))).is_ok());
+        assert_eq!(CODEX_RUNS.load(Ordering::SeqCst), 2);
+        // Manual refreshes that overlap an in-flight lookup still share that one CLI run.
+        let asked = Instant::now();
+        let tasks: Vec<_> = (0..3).map(|_| { let (service, root) = (service.clone(), first.clone()); tauri::async_runtime::spawn(async move { service.codex(root, Some(asked)).await }) }).collect();
+        for task in tasks { assert!(tauri::async_runtime::block_on(task).unwrap().is_ok()); }
+        assert_eq!(CODEX_RUNS.load(Ordering::SeqCst), 3);
         // A different account in the same home must bypass the five-minute cache.
         std::fs::write(first.join("auth.json"), b"synthetic-account-two").unwrap();
-        assert!(tauri::async_runtime::block_on(service.codex(first.clone())).is_ok());
-        assert_eq!(CODEX_RUNS.load(Ordering::SeqCst), 2);
-        assert!(tauri::async_runtime::block_on(service.codex(second)).is_ok());
-        assert_eq!(CODEX_RUNS.load(Ordering::SeqCst), 3);
+        assert!(tauri::async_runtime::block_on(service.codex(first.clone(), None)).is_ok());
+        assert_eq!(CODEX_RUNS.load(Ordering::SeqCst), 4);
+        assert!(tauri::async_runtime::block_on(service.codex(second, None)).is_ok());
+        assert_eq!(CODEX_RUNS.load(Ordering::SeqCst), 5);
         let slot = service.codex.lock().unwrap()[&cooldowns::key(ProviderId::Codex, &first)].clone();
         if let Some(earlier) = Instant::now().checked_sub(CODEX_FRESH + Duration::from_secs(1)) { slot.try_lock().unwrap().as_mut().unwrap().done = earlier; }
-        assert!(tauri::async_runtime::block_on(service.codex(first)).is_ok());
-        assert_eq!(CODEX_RUNS.load(Ordering::SeqCst), 4);
+        assert!(tauri::async_runtime::block_on(service.codex(first, None)).is_ok());
+        assert_eq!(CODEX_RUNS.load(Ordering::SeqCst), 6);
         std::fs::remove_dir_all(fixture).unwrap();
     }
 
@@ -506,7 +522,7 @@ mod tests {
         let root = std::env::temp_dir().join("meterluma-codex-profile-failing");
         for result in concurrently(&service, &root, 2) { assert!(result.err().unwrap().contains("timed out")); }
         assert_eq!(FAILED_RUNS.load(Ordering::SeqCst), 1);
-        assert!(tauri::async_runtime::block_on(service.codex(root)).is_err());
+        assert!(tauri::async_runtime::block_on(service.codex(root, None)).is_err());
         assert_eq!(FAILED_RUNS.load(Ordering::SeqCst), 2);
     }
 
@@ -592,7 +608,7 @@ mod tests {
     fn live_provider_smoke() {
         let id = match std::env::var("METERLUMA_LIVE_PROVIDER").as_deref() { Ok("claude") => ProviderId::Claude, Ok("cursor") => ProviderId::Cursor, Ok("codex") => ProviderId::Codex, _ => panic!("Set METERLUMA_LIVE_PROVIDER to claude, cursor or codex.") };
         let service = ProviderService::new().unwrap();
-        let lookup = async { if matches!(id, ProviderId::Claude) { service.refresh_claude(None, None).await } else { service.refresh(id, None).await } };
+        let lookup = async { if matches!(id, ProviderId::Claude) { service.refresh_claude(None, None).await } else { service.refresh(id, None, None).await } };
         match tauri::async_runtime::block_on(lookup) {
             Ok(snapshot) => { assert!(!snapshot.metrics.is_empty()); for metric in snapshot.metrics { println!("{} {}: {}% remaining", snapshot.name, metric.label, 100.0 - metric.used_percent); } },
             Err(failure) => panic!("Live connection unavailable: {}", failure.message),
