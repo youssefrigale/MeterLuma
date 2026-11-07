@@ -4,11 +4,34 @@
 
 ### Fixed
 
+- Claude Code sign-in renewal backs off after each unsuccessful attempt (1, 2, 5, 15, then 60 minutes) instead of starting a new session every poll, stops waiting as soon as the CLI exits, never makes other profiles wait, and is stopped when MeterLuma quits.
+- A renewed Claude, Cursor or Codex token for the same account keeps the provider's rate-limit deadline and cached reading, and is no longer reported as a changed sign-in. A different account is still never blocked by the previous account's limit.
+- **Refresh usage** no longer accepts a reading that started before the click.
+- A provider's Retry-After deadline is kept even when the saved account token cannot be re-read.
+- Sonnet 5.5 cache reads are valued at $0.20 per million tokens (was $0.10).
+- One oversized line in a local JSONL log no longer stops the scan of every later file.
+- Signed provider list: the list shipped with the app is the minimum version, so clearing the cache cannot reopen an older list; method-override, content and framing headers are refused; and the list check no longer holds up provider refreshes while it downloads.
+- Usage alerts appear on Mac while MeterLuma is the active app (for example with the panel open); macOS used to hide them.
+- **Open notification settings** opens the Notifications page directly.
+- Start at login is not registered for a copy opened from the disk image or macOS's temporary quarantine location, and is pointed at the app again after it is moved.
+- Local profile discovery no longer runs on the UI thread, so a locked Cursor database cannot freeze the panel.
+- A failed start shows a message instead of quitting silently.
+- Providers show "Reading limits…" while their limits load instead of "Renew your sign-in"; Retry is disabled during a refresh; a refresh that throws no longer blocks later refreshes.
+- Reset preferences keeps hidden providers hidden.
+- The pace projection waits until 5% of the window has passed and caps its display at >200%.
+- The menu bar never shows 0% left while allowance remains, or 100% once any is used.
+- Settings changes made while another action is in progress are no longer undone.
+- A cached additional-provider window that has reset is no longer reported as exhausted.
+- Activity bars use the brand yellow in every theme, with a darker gold in light theme; light-theme pace warnings meet text contrast.
+- Accessible names of the footer buttons begin with their visible text.
+
 - **Refresh usage** now reads Codex and Cursor again, including account-token connections, instead of returning a reading up to five minutes old. Using a banked Codex reset on the website now shows on the next manual refresh. Automatic polling still shares the brief cache, and rate-limit cooldowns still apply.
 - Dropdowns no longer render as glossy macOS popup buttons. Every dropdown now matches the text fields beside it in height, border and color, with a theme-aware chevron; its menu is still the native one. Form buttons share the same 36-point height, so labels and controls line up.
 
 ### Changed
 
+- Mac Settings sizes to its content like every other page, per the 2026-10-26 owner decision. It is taller than a display, so it opens at the available display height and scrolls.
+- Native tests run on every push to main and every pull request. Release builds compile without secrets, and only the bundling step can use the signing keys. Workflow actions are pinned to commit SHAs.
 - **About** has a compact header (logo beside the tagline), evenly ruled sections, and actions that share the text's left edge. Diagnostics export and refresh are equal-width buttons, and the version, license and affiliation notes are grouped with **View license** and **Reset preferences** at the end.
 
 ## 0.1.3 (2026-10-31)
@@ -49,7 +72,7 @@ First public release. The Windows installer is unsigned, and the macOS app is un
 
 - Compact alphabetical additional-provider rows with bundled logos/owner marks, checkbox-style connection controls and an inline key-management action. Keep descriptions and consent in the setup dialog; preserve failed-replacement behavior and website-only providers. Include icon source hashes and third-party notices.
 
-- Limit the Mac Settings page to 850 logical pixels with internal scrolling and a visible footer, clamped to the display work area. Other Mac pages retain content-based sizing; Windows sizing is unchanged.
+- Limit the Mac Settings page to 850 logical pixels with internal scrolling and a visible footer, clamped to the display work area. Other Mac pages retain content-based sizing; Windows sizing is unchanged. (Superseded on 2026-11-07: Settings sizes to its content like other pages.)
 
 - Compact Connections rows with inline connect/disconnect actions; fold multiple-account setup and connection explanations into expandable sections while retaining all controls and notices.
 

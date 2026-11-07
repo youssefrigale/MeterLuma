@@ -72,6 +72,12 @@ the release build does four things:
 - produces `MeterLuma_<version>_x64-setup.exe.sig` and `MeterLuma_<version>_universal.app.tar.gz` with its `.sig`
 - writes `latest.json` for the `windows-x86_64`, `darwin-aarch64` and `darwin-x86_64` platforms
 
+The build runs in two steps so the keys are never present while third-party code builds. **Compile
+release binaries** runs `tauri build --no-bundle` with no secrets in its environment; the frontend's npm
+scripts and every Cargo build script run there. **Bundle and sign** then runs `tauri bundle`, which
+reuses those binaries and runs no build commands, and is the only step given the updater and Apple
+signing secrets. Workflow actions are pinned to commit SHAs; `.github/dependabot.yml` proposes updates.
+
 The base `tauri.conf.json` never contains updater settings. Windows updates use the signed NSIS `.exe` directly, and macOS updates use `.app.tar.gz`. The updater dependency keeps TLS and system-proxy support, with its optional Windows ZIP extractor disabled; do not publish a ZIP as the Windows update payload.
 
 To rotate the key:

@@ -66,7 +66,7 @@ For Overview collapse, check independent accounts, reload, keyboard expand/colla
 
 For compact Connections, verify all three provider actions and the footer fit without scrolling on Mac. Expand Multiple local accounts to add/remove profiles and inspect paused state; expand About connections for provider descriptions and notices. Opening and closing either section should resize the Mac popup.
 
-For the Mac Settings-height follow-up, confirm Settings stays at 850 logical pixels (or the available display height), its content scrolls to the last section, and the footer stays visible. Navigating back to Connections or a provider should restore automatic content sizing. Windows panel geometry should remain unchanged.
+For Mac Settings, confirm it sizes to its content like every other page (2026-10-26 owner decision): because Settings is taller than a display, it opens at the available display height beneath the menu bar, its content scrolls to the last section, and the footer stays visible. Opening Notification history or adding an alert must not cause repeated resizing. Navigating back to Connections or a provider should restore their content height. Windows panel geometry should remain unchanged.
 
 For additional-provider rows, verify alphabetical order, bundled logos in both themes, compact row height, and checked state only after successful connection. Canceling setup must leave the row unchecked. The gear action must retain key replacement and failed-key preservation; disconnect must clear the saved connection. Website-only providers have dashboard actions instead of connection toggles. Check that the list loads no external image URLs.
 
