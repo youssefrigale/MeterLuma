@@ -11,6 +11,31 @@ impl Credential {
         hash.update(self.token.as_bytes());
         hash.finalize().into()
     }
+    /// Identifies the account rather than the token, so a provider rotating the token for the same
+    /// account keeps its rate-limit deadline and cached reading. Opaque tokens fall back to the token.
+    pub fn account(&self) -> [u8; 32] {
+        jwt_subject(&self.token).map_or_else(|| self.fingerprint(), |subject| identity("jwt-subject", &subject))
+    }
+}
+
+/// A one-way identifier for an account, built from a provider-assigned account id.
+pub fn identity(kind: &str, account: &str) -> [u8; 32] {
+    let mut hash = Sha256::new();
+    hash.update(kind.as_bytes());
+    hash.update([0]);
+    hash.update(account.as_bytes());
+    hash.finalize().into()
+}
+
+/// The `sub` claim of a JWT, read without verification: it only tells local sign-ins apart.
+pub fn jwt_subject(token: &str) -> Option<String> {
+    use base64::Engine;
+    let mut parts = token.split('.');
+    let (_, payload, _) = (parts.next()?, parts.next()?, parts.next()?);
+    if parts.next().is_some() || payload.len() > 16_384 { return None; }
+    let bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(payload.trim_end_matches('=')).ok()?;
+    let claims: serde_json::Value = serde_json::from_slice(&bytes).ok()?;
+    claims["sub"].as_str().filter(|subject| !subject.is_empty() && subject.len() <= 512).map(str::to_string)
 }
 
 #[cfg(target_os = "macos")]
@@ -67,6 +92,20 @@ pub fn cursor(root: &Path, default_profile: bool) -> Result<Credential, String> 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn a_rotated_jwt_for_the_same_account_keeps_its_identity() {
+        use base64::Engine;
+        let jwt = |claims: &str| format!("e30.{}.signature", base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(claims));
+        let first = Credential { token: jwt(r#"{"sub":"auth0|user_1","exp":1}"#) };
+        let rotated = Credential { token: jwt(r#"{"sub":"auth0|user_1","exp":2}"#) };
+        let other = Credential { token: jwt(r#"{"sub":"auth0|user_2","exp":2}"#) };
+        assert_ne!(first.fingerprint(), rotated.fingerprint());
+        assert_eq!(first.account(), rotated.account());
+        assert_ne!(first.account(), other.account());
+        let opaque = Credential { token: "opaque-token".into() };
+        assert_eq!(opaque.account(), opaque.fingerprint());
+        assert_eq!(jwt_subject("not.a.jwt.at-all"), None);
+    }
     #[test]
     fn fingerprint_changes_when_the_sign_in_changes() {
         assert_ne!(Credential { token: "first-test-token".into() }.fingerprint(), Credential { token: "second-test-token".into() }.fingerprint());

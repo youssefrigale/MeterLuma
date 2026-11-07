@@ -56,7 +56,8 @@ pub struct Failure {
     pub code: String,
     pub message: String,
     pub retry_at: Option<i64>,
-    pub last_snapshot: Option<Snapshot>,
+    // Boxed so the error type stays small; it serializes the same way.
+    pub last_snapshot: Option<Box<Snapshot>>,
 }
 impl Failure {
     fn unavailable(message: impl Into<String>) -> Self {
@@ -167,7 +168,7 @@ impl AdditionalService {
                     snapshot
                         .metrics
                         .retain(|metric| metric.reset_at.is_none_or(|reset| reset > now));
-                    snapshot
+                    Box::new(snapshot)
                 })
         });
         failure

@@ -1,4 +1,4 @@
-// Standard global Claude API token prices, USD / million tokens, checked 2026-10-15.
+// Standard global Claude API token prices, USD / million tokens, checked 2026-11-07.
 // https://platform.claude.com/docs/en/about-claude/pricing
 // This is a current-rate token-value estimate, not subscription billing. Unknown models stay
 // unpriced and are reported as unpriced tokens. Tool fees, historical prices, account discounts,
@@ -24,7 +24,7 @@ pub fn claude_value(model: &str, input: u64, output: u64, reads: u64, writes: u6
         "claude-opus-5-5" => (4.0, 20.0, 0.20),
         "claude-opus-5" | "claude-opus-4-8" | "claude-opus-4-7" | "claude-opus-4-6" | "claude-opus-4-5" => (5.0, 25.0, 0.50),
         "claude-opus-4-1" | "claude-opus-4" => (15.0, 75.0, 1.50),
-        "claude-sonnet-5-5" => (2.0, 10.0, 0.10),
+        "claude-sonnet-5-5" => (2.0, 10.0, 0.20),
         "claude-sonnet-5" => (2.0, 10.0, 0.20),
         "claude-sonnet-4-6" | "claude-sonnet-4-5" | "claude-sonnet-4" => (3.0, 15.0, 0.30),
         "claude-haiku-5-5" if input > 100_000 => (0.50, 2.50, 0.05),
@@ -112,7 +112,7 @@ mod tests {
         assert!((claude_value("claude-haiku-5-5", 100_000, 0, 0, 0, 0, false).unwrap() - 0.01).abs() < 0.000001);
         assert!((claude_value("claude-haiku-5-5", 100_001, 0, 0, 0, 0, false).unwrap() - 0.0500005).abs() < 0.000001);
         assert!((claude_value("claude-opus-5-5", 1_000_000, 0, 1_000_000, 0, 0, false).unwrap() - 0.2).abs() < 0.000001);
-        assert!((claude_value("claude-sonnet-5-5", 1_000_000, 0, 1_000_000, 0, 0, false).unwrap() - 0.1).abs() < 0.000001);
+        assert!((claude_value("claude-sonnet-5-5", 1_000_000, 0, 1_000_000, 0, 0, false).unwrap() - 0.2).abs() < 0.000001);
     }
     #[test]
     fn bedrock_vertex_and_gateway_ids_price_like_first_party_ids() {

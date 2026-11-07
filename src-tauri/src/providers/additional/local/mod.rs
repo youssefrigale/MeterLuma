@@ -226,6 +226,23 @@ mod tests {
         std::fs::remove_dir_all(root).unwrap();
     }
     #[test]
+    fn an_oversized_line_is_skipped_without_dropping_later_lines_or_files() {
+        let root = std::env::temp_dir().join(format!(
+            "meterluma-jsonl-oversized-{}-{}",
+            std::process::id(),
+            chrono::Utc::now().timestamp_nanos_opt().unwrap()
+        ));
+        std::fs::create_dir_all(root.join("usage")).unwrap();
+        let record = |id: &str| json!({"type":"provider_usage","version":2,"id":id,"timestamp":chrono::Utc::now().to_rfc3339(),"model":"known-model","usage":{"totalInputTokens":10,"cacheReadInputTokens":0,"cacheWriteInputTokens":0,"outputTokens":5}});
+        let oversized = format!("{{\"type\":\"tool_output\",\"text\":\"{}\"}}", "x".repeat(3 * 1_048_576));
+        std::fs::write(root.join("usage/a.jsonl"), format!("{}\n{oversized}\n{}\n", record("first"), record("after-large-line"))).unwrap();
+        std::fs::write(root.join("usage/b.jsonl"), format!("{}\n", record("next-file"))).unwrap();
+        let totals = xal::totals(&root).unwrap();
+        assert!(totals.partial, "the skipped line is reported");
+        assert_eq!(totals.overall, 45, "lines and files after the oversized line still count");
+        std::fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
     fn zcode_database_is_read_only_and_cache_tokens_are_not_added_to_input_again() {
         let root = std::env::temp_dir().join(format!(
             "meterluma-zcode-fixture-{}-{}",

@@ -128,6 +128,20 @@ mod updates {
     }
 }
 
+/// Release builds have no console, so a failed start explains itself instead of silently vanishing.
+fn startup_failed(error: tauri::Error) -> ! {
+    let message = startup_message(&error.to_string());
+    eprintln!("{message}");
+    #[cfg(any(target_os = "macos", windows))]
+    let _ = rfd::MessageDialog::new().set_level(rfd::MessageLevel::Error).set_title("MeterLuma could not start")
+        .set_description(&message).set_buttons(rfd::MessageButtons::Ok).show();
+    std::process::exit(1)
+}
+
+fn startup_message(error: &str) -> String {
+    format!("MeterLuma could not start: {error}\n\nOpen MeterLuma again. If it keeps failing, email support@meterluma.com with this message.")
+}
+
 pub fn run() {
     #[cfg(target_os = "macos")]
     tray_status::configure_spacing();
@@ -157,6 +171,7 @@ pub fn run() {
             app.manage(providers::additional::AdditionalService::new().map_err(|error| format!("Additional provider networking could not be initialized: {error}"))?);
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+            notifications::present_while_active();
             quick::create(app)?;
             if let Err(error) = desktop_preferences::initialize(app.handle()) {
                 eprintln!("Could not initialize Start at login: {error}");
@@ -205,12 +220,12 @@ pub fn run() {
             _ => {}
         })
         .build(context)
-        .expect("MeterLuma failed to start")
-        .run(|app, event| {
+        .unwrap_or_else(|error| startup_failed(error))
+        .run(|app, event| match event {
             #[cfg(target_os = "macos")]
-            if let tauri::RunEvent::Reopen { .. } = event { quick::open(app, None); }
-            #[cfg(not(target_os = "macos"))]
-            let _ = (app, event);
+            tauri::RunEvent::Reopen { .. } => quick::open(app, None),
+            tauri::RunEvent::Exit => providers::stop_background_work(),
+            _ => { let _ = app; }
         });
 }
 
@@ -247,6 +262,12 @@ mod tests {
         assert!(!updates::accepts(Some(&json!({ "pubkey": "key", "endpoints": endpoints, "windows": { "installMode": "sideways" } }))));
         assert!(!updates::accepts(Some(&json!({ "endpoints": endpoints }))));
         assert!(!updates::accepts(None));
+    }
+    #[test]
+    fn a_failed_start_names_the_cause_and_where_to_get_help() {
+        let message = startup_message("Provider networking could not be initialized: no TLS roots");
+        assert!(message.starts_with("MeterLuma could not start: Provider networking could not be initialized"));
+        assert!(message.contains("support@meterluma.com"));
     }
     #[test]
     fn update_check_runs_at_start_and_then_daily() {

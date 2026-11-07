@@ -47,6 +47,28 @@ impl Scan {
         self.seen
             .insert(record.key, (record.timestamp, record.tokens));
     }
+    /// Consumes the rest of an oversized line within the read budget. False when reading must stop.
+    fn skip_rest_of_line(&mut self, reader: &mut BufReader<File>) -> bool {
+        loop {
+            let Ok(buffer) = reader.fill_buf() else {
+                return false;
+            };
+            if buffer.is_empty() {
+                return true;
+            }
+            let end = buffer.iter().position(|byte| *byte == b'\n');
+            let count = end.map_or(buffer.len(), |index| index + 1);
+            if count > self.budget {
+                self.budget = 0;
+                return false;
+            }
+            self.budget -= count;
+            reader.consume(count);
+            if end.is_some() {
+                return true;
+            }
+        }
+    }
     fn file(&mut self, path: &Path, parser: Parser) {
         let Ok(file) = File::open(path) else {
             self.totals.partial = true;
@@ -72,12 +94,20 @@ impl Scan {
             if length == 0 {
                 break;
             }
-            if length > self.budget || length > 1_048_576 || self.seen.len() >= ROW_LIMIT {
+            if length > self.budget || self.seen.len() >= ROW_LIMIT {
                 self.totals.partial = true;
                 self.budget = 0;
                 break;
             }
             self.budget -= length;
+            if length > 1_048_576 {
+                // One oversized line (a large tool output, say) is skipped; later lines and files still count.
+                self.totals.partial = true;
+                if line.last() != Some(&b'\n') && !self.skip_rest_of_line(&mut reader) {
+                    break;
+                }
+                continue;
+            }
             if line.iter().all(u8::is_ascii_whitespace) {
                 continue;
             }

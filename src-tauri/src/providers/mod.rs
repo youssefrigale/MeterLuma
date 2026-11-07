@@ -83,7 +83,7 @@ pub struct Snapshot {
 }
 
 struct Cache { fingerprint: [u8; 32], checked_at: Instant, until: Instant, result: Result<Snapshot, String> }
-struct Lookup { done: Instant, fingerprint: Option<[u8; 32]>, result: Result<Snapshot, String> }
+struct Lookup { started: Instant, done: Instant, fingerprint: Option<[u8; 32]>, result: Result<Snapshot, String> }
 
 fn before_reset(snapshot: &Snapshot) -> bool { snapshot.metrics.iter().all(|metric| metric.reset_at.is_none_or(|reset| reset > chrono::Utc::now().timestamp_millis())) }
 
@@ -93,6 +93,7 @@ pub struct ProviderService {
     local: Mutex<HashMap<String, Cache>>,
     connection_gates: std::sync::Mutex<HashMap<String, Arc<Mutex<()>>>>,
     claude_credential: fn(&Path, bool) -> Result<claude::SignIn, String>,
+    claude_account: fn(&Path, bool) -> Option<String>,
     codex: std::sync::Mutex<HashMap<String, Arc<Mutex<Option<Lookup>>>>>,
     codex_runner: fn(&Path) -> Result<serde_json::Value, String>,
     codex_token_runner: fn(&tokens::AccountToken) -> Result<serde_json::Value, String>,
@@ -105,6 +106,12 @@ pub struct ProviderService {
 // OS trust roots let antivirus HTTPS scanning and inspected networks verify; bundled roots cover an empty or unreadable OS store.
 fn client_builder() -> reqwest::ClientBuilder {
     reqwest::Client::builder().timeout(Duration::from_secs(15)).redirect(reqwest::redirect::Policy::none()).user_agent(USER_AGENT)
+}
+
+/// Ends child processes started for provider lookups. Called when the app exits.
+pub fn stop_background_work() {
+    #[cfg(target_os = "macos")]
+    claude::stop_renewals();
 }
 
 fn remove_legacy(cache: &Path) { for name in LEGACY_CACHES { let _ = std::fs::remove_file(cache.join(name)); } }
@@ -128,7 +135,7 @@ impl ProviderService {
         Ok(Self {
             client: client_builder().build().or_else(|_| client_builder().tls_built_in_native_certs(false).build())?,
             manual: Mutex::new(HashMap::new()),
-            local: Mutex::new(HashMap::new()), connection_gates: Default::default(), claude_credential: claude::sign_in, codex: Default::default(), codex_runner: codex::limits, codex_token_runner: codex::limits_with_token, manual_credential: tokens::load, cursor_credential: auth::cursor,
+            local: Mutex::new(HashMap::new()), connection_gates: Default::default(), claude_credential: claude::sign_in, claude_account: claude::account_id, codex: Default::default(), codex_runner: codex::limits, codex_token_runner: codex::limits_with_token, manual_credential: tokens::load, cursor_credential: auth::cursor,
             cooldowns: std::sync::Mutex::new(cooldowns::Cooldowns::load(folder.as_ref().map(|path| path.join("usage-cooldowns-v2.json")))),
             snapshots: std::sync::Mutex::new(snapshots::Snapshots::load(folder.map(|path| path.join("quota-snapshots-v1.json")))),
         })
@@ -159,13 +166,16 @@ impl ProviderService {
             slots.entry(key).or_default().clone()
         };
         let mut last = slot.lock().await;
-        if let Some(lookup) = last.as_ref().filter(|lookup| lookup.fingerprint == fingerprint && (lookup.done >= asked || (fresh_after.is_none() && fingerprint.is_some() && lookup.result.as_ref().is_ok_and(before_reset) && lookup.done.elapsed() < CODEX_FRESH))) { return lookup.result.clone(); }
+        // A poll shares a lookup that finished while it waited; a manual refresh only one that started after the click.
+        let shared = |lookup: &Lookup| fresh_after.map_or(lookup.done >= asked, |after| lookup.started >= after);
+        if let Some(lookup) = last.as_ref().filter(|lookup| lookup.fingerprint == fingerprint && (shared(lookup) || (fresh_after.is_none() && fingerprint.is_some() && lookup.result.as_ref().is_ok_and(before_reset) && lookup.done.elapsed() < CODEX_FRESH))) { return lookup.result.clone(); }
+        let started = Instant::now();
         let run = self.codex_runner;
         let lookup_root = root.clone();
         let mut result = tauri::async_runtime::spawn_blocking(move || run(&lookup_root)).await.map_err(|_| "The Codex quota lookup could not complete.".to_string())
             .and_then(|value| value).and_then(|value| map::map(ProviderId::Codex, &codex::normalized(&value)));
         if codex::auth_fingerprint(&root) != fingerprint { result = Err("Your Codex sign-in changed. Refresh again to read the current account.".into()); }
-        *last = Some(Lookup { done: Instant::now(), fingerprint, result: result.clone() });
+        *last = Some(Lookup { started, done: Instant::now(), fingerprint, result: result.clone() });
         result
     }
 
@@ -183,43 +193,51 @@ impl ProviderService {
         let key = cooldowns::key(id, &root);
         let gate = self.connection_gate(&key);
         let _turn = gate.lock().await;
-        let (credential, plan) = self.local_sign_in(id, &root, default_profile).await.map_err(|message| ProviderFailure::new(message, None, None))?;
+        let (credential, plan, account) = self.local_sign_in(id, &root, default_profile).await.map_err(|message| ProviderFailure::new(message, None, None))?;
         let fingerprint = credential.fingerprint();
-        // Cooldowns belong to the signed-in account, so signing in again is never blocked by the previous account's limit.
-        if let Some(until) = self.cooldowns.lock().ok().and_then(|store| store.until(&key, &fingerprint)) {
+        // Cooldowns and cached readings belong to the signed-in account: a renewed token for the same account keeps
+        // the provider's Retry-After deadline, and signing in to another account is never blocked by the previous one's limit.
+        if let Some(until) = self.cooldowns.lock().ok().and_then(|store| store.until(&key, &account)) {
             let seconds = (until.saturating_sub(chrono::Utc::now().timestamp_millis()).max(0) + 999) / 1000;
-            return Err(self.quota_failure(format!("The provider is limiting requests. MeterLuma will retry after {seconds} seconds."), &key, fingerprint, id));
+            return Err(self.quota_failure(format!("The provider is limiting requests. MeterLuma will retry after {seconds} seconds."), &key, account, id));
         }
         if let Some(previous) = self.local.lock().await.get(&key).filter(|row| row.fingerprint == fingerprint && row.until > Instant::now() && fresh_after.is_none_or(|asked| row.checked_at >= asked) && row.result.as_ref().map(before_reset).unwrap_or(true)) {
-            return previous.result.clone().map(|mut snapshot| { if let Some(plan) = plan { snapshot.plan = plan; } snapshot }).map_err(|message| self.quota_failure(message, &key, fingerprint, id));
+            return previous.result.clone().map(|mut snapshot| { if let Some(plan) = plan { snapshot.plan = plan; } snapshot }).map_err(|message| self.quota_failure(message, &key, account, id));
         }
+        // Freshness counts from when the request was sent, so a manual refresh never accepts a reading begun before it.
+        let started = Instant::now();
         let request = self.local_usage_request(id, &credential.token);
         let (mut result, retry_in) = response_result(request, id).await;
         if let (Ok(snapshot), Some(plan)) = (&mut result, plan) { snapshot.plan = plan; }
         if result.as_ref().err().is_some_and(|error| error.starts_with("The provider is limiting requests.")) {
-            if let Ok(mut store) = self.cooldowns.lock() { store.set(key.clone(), &fingerprint, retry_in); }
+            if let Ok(mut store) = self.cooldowns.lock() { store.set(key.clone(), &account, retry_in); }
         }
-        let current = self.local_sign_in(id, &root, default_profile).await.map_err(|message| ProviderFailure::new(message, None, None))?.0.fingerprint();
-        if current != fingerprint {
+        // A renewed token for the same account is not a changed sign-in.
+        let current = self.local_sign_in(id, &root, default_profile).await.map_err(|message| ProviderFailure::new(message, None, None))?.2;
+        if current != account {
             self.local.lock().await.remove(&key);
             return Err(self.quota_failure("Your provider sign-in changed. Refresh again to read the current account.".into(), &key, current, id));
         }
         if let Ok(snapshot) = &result {
-            if let Ok(mut store) = self.snapshots.lock() { store.put(key.clone(), fingerprint, snapshot.clone()); }
+            if let Ok(mut store) = self.snapshots.lock() { store.put(key.clone(), account, snapshot.clone()); }
         }
         let mut caches = self.local.lock().await;
         caches.retain(|_, row| row.until > Instant::now());
         if caches.len() >= 16 { caches.clear(); }
         let lifetime = result.as_ref().ok().filter(|_| matches!(id, ProviderId::Claude)).map(claude_cache_seconds).unwrap_or(retry_in.min(300));
-        caches.insert(key.clone(), Cache { fingerprint, checked_at: Instant::now(), until: Instant::now() + Duration::from_secs(lifetime), result: result.clone() });
-        result.map_err(|message| self.quota_failure(message, &key, fingerprint, id))
+        caches.insert(key.clone(), Cache { fingerprint, checked_at: started, until: Instant::now() + Duration::from_secs(lifetime), result: result.clone() });
+        result.map_err(|message| self.quota_failure(message, &key, account, id))
     }
 
-    async fn local_sign_in(&self, id: ProviderId, root: &Path, default_profile: bool) -> Result<(auth::Credential, Option<String>), String> {
-        let (cursor, claude, root) = (self.cursor_credential, self.claude_credential, root.to_path_buf());
+    /// The sign-in, its plan label and a one-way account identity that survives token renewal.
+    async fn local_sign_in(&self, id: ProviderId, root: &Path, default_profile: bool) -> Result<(auth::Credential, Option<String>, [u8; 32]), String> {
+        let (cursor, claude, claude_account, root) = (self.cursor_credential, self.claude_credential, self.claude_account, root.to_path_buf());
         tauri::async_runtime::spawn_blocking(move || match id {
-            ProviderId::Claude => claude(&root, default_profile).map(|login| (login.credential, Some(login.plan))),
-            _ => cursor(&root, default_profile).map(|credential| (credential, None)),
+            ProviderId::Claude => claude(&root, default_profile).map(|login| {
+                let account = claude_account(&root, default_profile).map_or_else(|| login.credential.fingerprint(), |account| auth::identity("claude-account", &account));
+                (login.credential, Some(login.plan), account)
+            }),
+            _ => cursor(&root, default_profile).map(|credential| { let account = credential.account(); (credential, None, account) }),
         }).await.map_err(|_| "Your local sign-in could not be read.".to_string())?
     }
 
@@ -391,6 +409,7 @@ mod tests {
         let mut service = ProviderService::with_cache(None).unwrap();
         service.client = client_builder().proxy(reqwest::Proxy::all(format!("http://{}", proxy.local_addr().unwrap())).unwrap()).timeout(Duration::from_secs(1)).build().unwrap();
         service.cursor_credential = fake_sign_in;
+        service.claude_account = |_, _| None;
         service.codex_runner = |_| panic!("The Codex CLI must not start in this test.");
         service
     }
@@ -401,6 +420,7 @@ mod tests {
         let proxy = listener();
         let mut service = offline(&proxy);
         service.cursor_credential = |_, _| panic!("Claude refresh must not read any sign-in.");
+        service.claude_credential = |_, _| panic!("Claude refresh must not read any sign-in.");
         for directory in [None, Some("relative/profile".to_string()), Some(std::env::temp_dir().join("meterluma-missing-claude-profile").to_string_lossy().into_owned())] {
             let failure = tauri::async_runtime::block_on(service.refresh(ProviderId::Claude, directory, None)).err().unwrap();
             assert_eq!(failure.message, CLAUDE_UNAVAILABLE);
@@ -429,6 +449,45 @@ mod tests {
         assert_ne!(failure.code, "rate_limited");
         assert!(failure.retry_at.is_none());
         assert!(proxy.accept().is_ok(), "a different sign-in must reach the network");
+    }
+
+    #[test]
+    fn a_renewed_token_for_the_same_account_keeps_the_rate_limit_but_another_account_does_not() {
+        fn jwt(subject: &str, issued: u32) -> String {
+            use base64::Engine;
+            format!("e30.{}.signature", base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(format!(r#"{{"sub":"{subject}","iat":{issued}}}"#)))
+        }
+        let proxy = listener();
+        let mut service = offline(&proxy);
+        let root = std::env::temp_dir().join("meterluma-cursor-rotation-fixture");
+        let key = cooldowns::key(ProviderId::Cursor, &root);
+        service.cursor_credential = |_, _| Ok(auth::Credential { token: jwt("auth0|user_1", 1) });
+        let first = (service.cursor_credential)(&root, false).unwrap();
+        service.cooldowns.lock().unwrap().set(key, &first.account(), 3600);
+        service.cursor_credential = |_, _| Ok(auth::Credential { token: jwt("auth0|user_1", 2) });
+        let failure = tauri::async_runtime::block_on(service.cursor(root.clone(), false, None)).err().unwrap();
+        assert_eq!(failure.code, "rate_limited", "a rotated token for the same account keeps the provider's Retry-After");
+        assert_eq!(proxy.accept().err().unwrap().kind(), std::io::ErrorKind::WouldBlock);
+        service.cursor_credential = |_, _| Ok(auth::Credential { token: jwt("auth0|user_2", 2) });
+        let failure = tauri::async_runtime::block_on(service.cursor(root, false, None)).err().unwrap();
+        assert_ne!(failure.code, "rate_limited");
+        assert!(proxy.accept().is_ok(), "another account must reach the network");
+    }
+
+    #[test]
+    fn codex_token_refresh_is_the_same_account_but_a_different_user_is_not() {
+        use base64::Engine;
+        let root = std::env::temp_dir().join(format!("meterluma-codex-identity-{}-{}", std::process::id(), chrono::Utc::now().timestamp_nanos_opt().unwrap()));
+        std::fs::create_dir_all(&root).unwrap();
+        let id_token = |subject: &str| format!("e30.{}.signature", base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(format!(r#"{{"sub":"{subject}"}}"#)));
+        let write = |subject: &str, access: &str| std::fs::write(root.join("auth.json"), serde_json::json!({"auth_mode":"chatgpt","OPENAI_API_KEY":null,"last_refresh":access,"tokens":{"access_token":access,"refresh_token":access,"id_token":id_token(subject),"account_id":"workspace-1"}}).to_string()).unwrap();
+        write("user-1", "first");
+        let before = codex::auth_fingerprint(&root);
+        write("user-1", "refreshed");
+        assert_eq!(codex::auth_fingerprint(&root), before, "Codex refreshing its tokens is not a changed sign-in");
+        write("user-2", "refreshed");
+        assert_ne!(codex::auth_fingerprint(&root), before, "another user in the same workspace is a changed sign-in");
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

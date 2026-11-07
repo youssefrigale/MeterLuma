@@ -50,22 +50,7 @@ impl TrayStatus {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use serde_json::json;
-    #[test]
-    fn tray_balances_keep_units_without_a_percentage_and_old_provider_statuses_still_decode() {
-        let balance: TrayStatus = serde_json::from_value(json!({"provider":"deepseek","value":"CNY 8.76","cached":false,"demo":false})).unwrap();
-        assert_eq!(balance.title().unwrap(), " CNY 8.76");
-        let legacy: TrayStatus = serde_json::from_value(json!({"provider":"codex","remaining":75,"cached":false,"demo":false})).unwrap();
-        assert_eq!(legacy.title().unwrap(), " 75%");
-        for modified in [json!({"provider":"deepseek","remaining":101}), json!({"provider":"unknown","remaining":50}), json!({"provider":"deepseek","value":"private\nvalue"}), json!({"provider":"deepseek","value":"CNY 1.00","remaining":50})] {
-            let mut payload = json!({"cached":false,"demo":false}); payload.as_object_mut().unwrap().extend(modified.as_object().unwrap().clone());
-            assert!(serde_json::from_value::<TrayStatus>(payload).unwrap().title().is_err());
-        }
-    }
-}
+
 
 #[cfg(target_os = "macos")]
 pub fn anchor(app: &tauri::AppHandle) -> Option<(f64, f64)> {
@@ -128,4 +113,21 @@ fn size_provider_image(image: &objc2_app_kit::NSImage, provider: Option<&str>) {
     size.width *= height / size.height;
     size.height = height;
     image.setSize(size);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+    #[test]
+    fn tray_balances_keep_units_without_a_percentage_and_old_provider_statuses_still_decode() {
+        let balance: TrayStatus = serde_json::from_value(json!({"provider":"deepseek","value":"CNY 8.76","cached":false,"demo":false})).unwrap();
+        assert_eq!(balance.title().unwrap(), " CNY 8.76");
+        let legacy: TrayStatus = serde_json::from_value(json!({"provider":"codex","remaining":75,"cached":false,"demo":false})).unwrap();
+        assert_eq!(legacy.title().unwrap(), " 75%");
+        for modified in [json!({"provider":"deepseek","remaining":101}), json!({"provider":"unknown","remaining":50}), json!({"provider":"deepseek","value":"private\nvalue"}), json!({"provider":"deepseek","value":"CNY 1.00","remaining":50})] {
+            let mut payload = json!({"cached":false,"demo":false}); payload.as_object_mut().unwrap().extend(modified.as_object().unwrap().clone());
+            assert!(serde_json::from_value::<TrayStatus>(payload).unwrap().title().is_err());
+        }
+    }
 }

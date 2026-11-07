@@ -23,17 +23,30 @@ const MAX_ENTRIES: usize = 200;
 const MAX_HEADERS: usize = 8;
 const CHECK_INTERVAL: Duration = Duration::from_secs(24 * 60 * 60);
 const RETRY_INTERVAL: Duration = Duration::from_secs(60 * 60);
-const RESERVED_HEADERS: [&str; 9] = [
+/// Headers a list may never set: credentials, framing and content headers, and the method-override
+/// headers some servers honour, which could turn an allowed request into a different method.
+const RESERVED_HEADERS: [&str; 17] = [
     "accept",
     "authorization",
     "connection",
+    "content-encoding",
     "content-length",
+    "content-type",
     "cookie",
+    "expect",
     "host",
     "proxy-authorization",
     "te",
+    "trailer",
     "transfer-encoding",
+    "upgrade",
+    "x-http-method",
+    "x-http-method-override",
+    "x-method-override",
 ];
+/// The list this build shipped with. Its version is the floor for every later list, so clearing the
+/// cache cannot reopen the door to an older signed list. It is part of the app, so it is not re-verified.
+const BUNDLED_LIST: &[u8] = include_bytes!("../../../../src/additional/provider-list.json");
 
 #[derive(Deserialize)]
 struct List {
@@ -85,13 +98,18 @@ pub(super) struct ProviderList {
 
 impl ProviderList {
     pub(super) fn new(cache: Option<PathBuf>) -> Self {
-        let overlay = cache
+        let bundled = overlay(BUNDLED_LIST)
+            .map(|(overlay, _)| overlay)
+            .unwrap_or_default();
+        // JSON escaping can double the saved list, plus the signature and field names.
+        let cached = cache
             .as_ref()
             .and_then(|path| std::fs::read(path).ok())
-            .filter(|bytes| bytes.len() <= MAX_LIST_BYTES * 2)
+            .filter(|bytes| bytes.len() <= (MAX_LIST_BYTES + MAX_SIGNATURE_BYTES) * 2 + 1024)
             .and_then(|bytes| serde_json::from_slice::<Saved>(&bytes).ok())
             .and_then(|saved| accept(saved.list.as_bytes(), &saved.signature, PUBLIC_KEY).ok())
-            .unwrap_or_default();
+            .filter(|cached| cached.version >= bundled.version);
+        let overlay = cached.unwrap_or(bundled);
         Self {
             state: tokio::sync::Mutex::new(State {
                 overlay: Arc::new(overlay),
@@ -118,25 +136,39 @@ impl ProviderList {
         client: &reqwest::Client,
         builtin: &ProviderSpec,
     ) -> ProviderSpec {
+        let current = {
+            let mut state = self.state.lock().await;
+            let due = state.checked.is_none_or(|(at, succeeded)| {
+                at.elapsed()
+                    >= if succeeded {
+                        CHECK_INTERVAL
+                    } else {
+                        RETRY_INTERVAL
+                    }
+            });
+            if !(self.online && due) {
+                return apply(&state.overlay, builtin);
+            }
+            // Claim the check, so concurrent refreshes use the current list instead of waiting on the
+            // download; an unfinished or failed check counts as failed and retries after an hour.
+            state.checked = Some((Instant::now(), false));
+            Arc::clone(&state.overlay)
+        };
+        let checked = Self::check(client).await;
         let mut state = self.state.lock().await;
-        let due = state.checked.is_none_or(|(at, succeeded)| {
-            at.elapsed()
-                >= if succeeded {
-                    CHECK_INTERVAL
-                } else {
-                    RETRY_INTERVAL
-                }
-        });
-        if self.online && due {
-            let succeeded = self.check(client, &mut state).await.is_ok();
-            state.checked = Some((Instant::now(), succeeded));
+        state.checked = Some((Instant::now(), checked.is_ok()));
+        if let Ok(Some((overlay, saved))) = checked {
+            if adopt(&mut state, overlay) {
+                super::super::persist(&self.cache, &saved);
+            }
         }
+        drop(current);
         apply(&state.overlay, builtin)
     }
 
-    async fn check(&self, client: &reqwest::Client, state: &mut State) -> Result<(), ()> {
+    async fn check(client: &reqwest::Client) -> Result<Option<(Overlay, Saved)>, ()> {
         let Some(list) = download(client, LIST_URL, MAX_LIST_BYTES).await? else {
-            return Ok(());
+            return Ok(None);
         };
         let signature = download(client, SIGNATURE_URL, MAX_SIGNATURE_BYTES)
             .await?
@@ -144,10 +176,7 @@ impl ProviderList {
         let signature = String::from_utf8(signature).map_err(|_| ())?;
         let overlay = accept(&list, &signature, PUBLIC_KEY)?;
         let list = String::from_utf8(list).map_err(|_| ())?;
-        if adopt(state, overlay) {
-            super::super::persist(&self.cache, &Saved { list, signature });
-        }
-        Ok(())
+        Ok(Some((overlay, Saved { list, signature })))
     }
 }
 
@@ -426,6 +455,10 @@ mod tests {
             ("X-Empty", ""),
             ("X-Control", "line\nbreak"),
             ("X-Template", "{credential}"),
+            ("X-HTTP-Method-Override", "DELETE"),
+            ("x-method-override", "PUT"),
+            ("Content-Type", "text/plain"),
+            ("Upgrade", "websocket"),
         ] {
             assert!(!allowed_header(name, value, "X-API-Key"), "{name}");
         }
@@ -433,10 +466,7 @@ mod tests {
 
     #[test]
     fn the_published_list_source_passes_every_rule() {
-        let (overlay, rejected) = overlay(include_bytes!(
-            "../../../../src/additional/provider-list.json"
-        ))
-        .unwrap();
+        let (overlay, rejected) = overlay(BUNDLED_LIST).unwrap();
         assert!(overlay.version >= 1);
         assert_eq!(
             rejected, 0,

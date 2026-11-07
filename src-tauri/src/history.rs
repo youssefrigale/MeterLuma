@@ -400,7 +400,7 @@ mod tests {
     #[test]
     fn codex_non_openai_sessions_are_excluded_and_provider_switches_keep_only_their_own_deltas() {
         let first=ago(5);let second=ago(4);
-        let rows=vec![serde_json::json!({"type":"session_meta","payload":{"model_provider":"ollama"}}).to_string(),codex_count(&first,100,0,10),serde_json::json!({"type":"turn_context","payload":{"model_provider":"openai","model":"gpt-6.1-sol"}}).to_string(),codex_count(&second,150,0,20)];
+        let rows=[serde_json::json!({"type":"session_meta","payload":{"model_provider":"ollama"}}).to_string(),codex_count(&first,100,0,10),serde_json::json!({"type":"turn_context","payload":{"model_provider":"openai","model":"gpt-6.1-sol"}}).to_string(),codex_count(&second,150,0,20)];
         let parsed=extract(ProviderId::Codex,Cursor::new(rows.join("\n")));
         assert_eq!(parsed.records.len(),1);assert_eq!(parsed.records[0].tokens.total_tokens,60);
         let unknown=extract(ProviderId::Codex,Cursor::new(codex_count(&first,100,0,10)));assert_eq!(unknown.records.len(),1);
@@ -422,7 +422,7 @@ mod tests {
     fn compressed_codex_rollouts_keep_usage_and_copied_plain_records_count_once() {
         let temp = Temp::new("compressed-codex"); let timestamp = ago(5);
         let text = format!("{{\"timestamp\":\"{timestamp}\",\"type\":\"turn_context\",\"payload\":{{\"model\":\"gpt-6.1-sol\"}}}}\n{}\n", codex_count(&timestamp, 100, 80, 10));
-        write(&temp.0.join("sessions/active.jsonl"), &[text.clone()]);
+        write(&temp.0.join("sessions/active.jsonl"), std::slice::from_ref(&text));
         std::fs::create_dir_all(temp.0.join("archived_sessions")).unwrap();
         std::fs::write(temp.0.join("archived_sessions/rollout.jsonl.zst"), zstd::stream::encode_all(text.as_bytes(), 1).unwrap()).unwrap();
         let history = run(ProviderId::Codex, &temp.0, LIMITS, &SyncMutex::default());
@@ -501,7 +501,7 @@ mod tests {
         #[cfg(windows)]
         let _guard = { use std::os::windows::fs::OpenOptionsExt; fs::OpenOptions::new().read(true).share_mode(0).open(&locked).unwrap() };
         #[cfg(unix)]
-        { use std::os::unix::fs::PermissionsExt; fs::set_permissions(&locked, fs::Permissions::from_mode(0)).unwrap(); if fs::File::open(&locked).is_ok() { return; } }
+        { use std::os::unix::fs::PermissionsExt; fs::set_permissions(&locked, fs::Permissions::from_mode(0o000)).unwrap(); if fs::File::open(&locked).is_ok() { return; } }
         let history = run(ProviderId::Claude, &temp.0, LIMITS, &SyncMutex::default());
         assert!(history.partial && history.available);
         assert_eq!(total(&history), 21_010);

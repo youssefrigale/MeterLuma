@@ -49,16 +49,18 @@ impl ProviderService {
         if let Some(saved) = self.manual.lock().await.get(&key).filter(|c| c.fingerprint == fingerprint && c.until > Instant::now() && fresh_after.is_none_or(|asked| c.checked_at >= asked) && c.result.as_ref().map(super::before_reset).unwrap_or(true)) {
             return saved.result.clone().map_err(|message| self.quota_failure(message, &key, fingerprint, id));
         }
+        let started = Instant::now();
         let (result, seconds) = self.token_lookup(id, &token).await;
+        // Record a provider's Retry-After first, so a failed token re-read below never loses the deadline.
+        if result.as_ref().err().is_some_and(|e| e.starts_with("The provider is limiting requests.")) {
+            if let Ok(mut store) = self.cooldowns.lock() { store.set(key.clone(), &fingerprint, seconds); }
+        }
         if saved_token(self.manual_credential,id).await.map(|current| current.fingerprint() != fingerprint).unwrap_or(true) {
             self.manual.lock().await.remove(&key);
             return Err(failure("The saved account token changed during refresh. Try again.".into()));
         }
-        if result.as_ref().err().is_some_and(|e| e.starts_with("The provider is limiting requests.")) {
-            if let Ok(mut store) = self.cooldowns.lock() { store.set(key.clone(), &fingerprint, seconds); }
-        }
         if let Ok(snapshot) = &result { if let Ok(mut store) = self.snapshots.lock() { store.put(key.clone(), fingerprint, snapshot.clone()); } }
-        self.manual.lock().await.insert(key.clone(), Cache { fingerprint, checked_at: Instant::now(), until: Instant::now() + Duration::from_secs(seconds), result: result.clone() });
+        self.manual.lock().await.insert(key.clone(), Cache { fingerprint, checked_at: started, until: Instant::now() + Duration::from_secs(seconds), result: result.clone() });
         result.map_err(|message| self.quota_failure(message, &key, fingerprint, id))
     }
 

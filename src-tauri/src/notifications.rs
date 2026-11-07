@@ -50,7 +50,7 @@ pub async fn request_notification_permission(window: tauri::WebviewWindow) -> Re
 pub async fn open_notification_settings() -> Result<(), String> {
     #[cfg(target_os = "macos")]
     return tauri::async_runtime::spawn_blocking(|| {
-        let status = std::process::Command::new("/usr/bin/open").args(["-b", "com.apple.systempreferences"])
+        let status = std::process::Command::new("/usr/bin/open").arg("x-apple.systempreferences:com.apple.Notifications-Settings.extension")
             .stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null())
             .status().map_err(|_| "System Settings could not be opened.")?;
         if status.success() { Ok(()) } else { Err("System Settings could not be opened.".into()) }
@@ -77,16 +77,52 @@ mod platform {
     pub fn permission() -> Result<Permission, String> { Ok(Permission::Unsupported) }
     pub fn request_permission() -> Result<Permission, String> { permission() }
     pub fn queue(_: &str, _: &str) -> Result<(), String> { Err("Desktop notifications require the bundled Mac app in this build.".into()) }
+    pub fn present_while_active() {}
 }
+
+/// Lets macOS show usage alerts while MeterLuma is the active app, such as when its panel is open.
+pub fn present_while_active() { platform::present_while_active(); }
 
 #[cfg(target_os = "macos")]
 mod platform {
     use super::Permission;
-    use block2::RcBlock;
-    use objc2::{runtime::Bool, rc::autoreleasepool};
-    use objc2_foundation::{NSError, NSString};
-    use objc2_user_notifications::{UNMutableNotificationContent, UNNotificationRequest, UNNotificationSettings, UNUserNotificationCenter, UNAuthorizationOptions};
+    use block2::{DynBlock, RcBlock};
+    use objc2::{define_class, msg_send, rc::{autoreleasepool, Retained}, runtime::{Bool, ProtocolObject}, AllocAnyThread};
+    use objc2_foundation::{NSError, NSObject, NSObjectProtocol, NSString};
+    use objc2_user_notifications::{UNMutableNotificationContent, UNNotification, UNNotificationPresentationOptions, UNNotificationRequest, UNNotificationSettings, UNUserNotificationCenter, UNUserNotificationCenterDelegate, UNAuthorizationOptions};
     use std::{ptr::NonNull, sync::mpsc, time::Duration};
+
+    // macOS hides banners from the active app unless its notification-center delegate asks to show them.
+    const FOREGROUND_PRESENTATION: UNNotificationPresentationOptions = UNNotificationPresentationOptions(UNNotificationPresentationOptions::Banner.0 | UNNotificationPresentationOptions::List.0);
+
+    define_class!(
+        // SAFETY: NSObject has no subclassing requirements, and this class adds no ivars or Drop.
+        #[unsafe(super(NSObject))]
+        #[name = "MeterLumaNotificationPresenter"]
+        struct Presenter;
+
+        unsafe impl NSObjectProtocol for Presenter {}
+
+        unsafe impl UNUserNotificationCenterDelegate for Presenter {
+            #[unsafe(method(userNotificationCenter:willPresentNotification:withCompletionHandler:))]
+            fn will_present(&self, _center: &UNUserNotificationCenter, _notification: &UNNotification, completion: &DynBlock<dyn Fn(UNNotificationPresentationOptions)>) {
+                completion.call((FOREGROUND_PRESENTATION,));
+            }
+        }
+    );
+
+    impl Presenter {
+        fn new() -> Retained<Self> { unsafe { msg_send![Self::alloc(), init] } }
+    }
+
+    pub fn present_while_active() {
+        // The notification center is unavailable to an unbundled development binary.
+        if !bundled() { return; }
+        let presenter = Presenter::new();
+        UNUserNotificationCenter::currentNotificationCenter().setDelegate(Some(ProtocolObject::from_ref(&*presenter)));
+        // The center holds its delegate weakly; this one lives as long as the app.
+        std::mem::forget(presenter);
+    }
 
     fn bundled() -> bool {
         std::env::current_exe().ok().is_some_and(|path| path.parent().is_some_and(|parent|
@@ -140,6 +176,16 @@ mod platform {
                 Err(_) => Err("macOS did not confirm the usage notification. Check notification settings.".into()),
             }
         })
+    }
+
+    #[cfg(test)]
+    #[test]
+    fn the_presenter_shows_alerts_while_the_app_is_active() {
+        use objc2::{runtime::NSObjectProtocol as _, sel};
+        let presenter = Presenter::new();
+        assert!(presenter.respondsToSelector(sel!(userNotificationCenter:willPresentNotification:withCompletionHandler:)));
+        assert!(FOREGROUND_PRESENTATION.contains(UNNotificationPresentationOptions::Banner));
+        assert!(FOREGROUND_PRESENTATION.contains(UNNotificationPresentationOptions::List));
     }
 
     #[cfg(test)]

@@ -1,11 +1,22 @@
 use serde_json::{json, Value};
 use std::{ffi::OsString, io::{BufRead, BufReader, Read, Write}, path::{Path, PathBuf}, process::{Child, Command, Stdio}, sync::mpsc, time::{Duration, Instant}};
 
+/// Identifies the signed-in Codex account. Codex rewrites auth.json when it refreshes its tokens,
+/// including during a MeterLuma lookup, so the account and user ids are used rather than the file.
 pub(super) fn auth_fingerprint(root: &Path) -> Option<[u8; 32]> {
     use sha2::{Digest, Sha256};
     let mut bytes = Vec::new();
     std::fs::File::open(root.join("auth.json")).ok()?.take(65_537).read_to_end(&mut bytes).ok()?;
     if bytes.is_empty() || bytes.len() > 65_536 { return None; }
+    if let Ok(auth) = serde_json::from_slice::<Value>(&bytes) {
+        let tokens = &auth["tokens"];
+        let account = tokens["account_id"].as_str().filter(|id| !id.is_empty());
+        let user = tokens["id_token"].as_str().and_then(super::auth::jwt_subject);
+        if account.is_some() || user.is_some() {
+            return Some(super::auth::identity("codex-account", &format!("{}\n{}", user.unwrap_or_default(), account.unwrap_or_default())));
+        }
+        if let Some(key) = auth["OPENAI_API_KEY"].as_str().filter(|key| !key.is_empty()) { return Some(super::auth::identity("codex-api-key", key)); }
+    }
     Some(Sha256::digest(&bytes).into())
 }
 

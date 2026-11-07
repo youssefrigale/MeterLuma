@@ -4,6 +4,9 @@ use std::{collections::BTreeMap, io::Read, path::PathBuf};
 
 const MAX_AGE: i64 = 86_400_000;
 
+// A one-way hash of the account identity tells sign-ins apart without storing the identity itself.
+fn hashed(identity: [u8; 32]) -> [u8; 32] { use sha2::{Digest, Sha256}; Sha256::digest(identity).into() }
+
 #[derive(Clone, Deserialize, Serialize)]
 struct Saved { fingerprint: [u8; 32], snapshot: Snapshot }
 #[derive(Default, Deserialize, Serialize)]
@@ -39,7 +42,7 @@ impl Snapshots {
     }
     pub fn get(&self, key: &str, fingerprint: [u8; 32], id: ProviderId, now: i64) -> Option<Snapshot> {
         let saved = self.entries.get(key)?;
-        if saved.fingerprint != fingerprint || std::mem::discriminant(&saved.snapshot.id) != std::mem::discriminant(&id) { return None; }
+        if saved.fingerprint != hashed(fingerprint) || std::mem::discriminant(&saved.snapshot.id) != std::mem::discriminant(&id) { return None; }
         let mut snapshot = saved.snapshot.clone();
         let age = now.checked_sub(snapshot.fetched_at)?;
         if !(0..=MAX_AGE).contains(&age) || snapshot.plan.len() > 120 || snapshot.metrics.len() > 16 { return None; }
@@ -54,7 +57,7 @@ impl Snapshots {
         if self.entries.len() >= 16 && !self.entries.contains_key(&key) {
             if let Some(oldest) = self.entries.iter().min_by_key(|(_, saved)| saved.snapshot.fetched_at).map(|(key, _)| key.clone()) { self.entries.remove(&oldest); }
         }
-        self.entries.insert(key, Saved { fingerprint, snapshot });
+        self.entries.insert(key, Saved { fingerprint: hashed(fingerprint), snapshot });
         super::persist(&self.path, &*self);
     }
 }
@@ -106,6 +109,18 @@ mod tests {
         assert!(loaded.get("profile", [1;32], ProviderId::Cursor, now + 700_000).is_none());
         let contents = std::fs::read_to_string(&path).unwrap();
         assert!(!contents.contains("accessToken") && !contents.contains("refreshToken"));
+        let _ = std::fs::remove_file(path);
+    }
+    #[test]
+    fn the_saved_file_never_contains_the_account_identity() {
+        let path = temporary("snapshots-identity");
+        let now = chrono::Utc::now().timestamp_millis();
+        let mut store = Snapshots::load(Some(path.clone()));
+        store.put("cursor".into(), [7; 32], snapshot(ProviderId::Cursor, now, &[Some(now + 600_000)]));
+        let saved: Snapshots = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        assert_ne!(saved.entries["cursor"].fingerprint, [7; 32]);
+        assert!(store.get("cursor", [7; 32], ProviderId::Cursor, now).is_some());
+        assert!(store.get("cursor", [8; 32], ProviderId::Cursor, now).is_none());
         let _ = std::fs::remove_file(path);
     }
     #[test]

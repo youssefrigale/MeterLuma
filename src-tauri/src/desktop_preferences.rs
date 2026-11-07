@@ -8,9 +8,29 @@ fn initialize_default(marker: &Path, enable: impl FnOnce() -> Result<(), String>
     std::fs::write(marker, b"initialized\n").map_err(|_| "The login default could not be saved.".into())
 }
 
+/// A copy opened from a mounted disk image, or from the temporary location macOS uses for unsigned
+/// downloads ("App Translocation"), goes away later, so it must not be registered to open at login.
+fn transient_location(executable: &Path) -> bool {
+    let path = executable.to_string_lossy();
+    path.starts_with("/Volumes/") || path.contains("/AppTranslocation/")
+}
+
+/// Points an existing login entry at this copy when the app was moved, for example from the
+/// Downloads folder to Applications, so Start at login does not silently open nothing.
+#[cfg(target_os = "macos")]
+fn refresh_login_location(app: &tauri::AppHandle, executable: &Path) {
+    let Some(agent) = dirs::home_dir().map(|home| home.join("Library/LaunchAgents").join(format!("{}.plist", app.package_info().name))) else { return };
+    let Ok(plist) = std::fs::read_to_string(&agent) else { return };
+    if !plist.contains(&*executable.to_string_lossy()) { let _ = app.autolaunch().enable(); }
+}
+
 pub fn initialize(app: &tauri::AppHandle) -> Result<(), String> {
     // Development runs must not register a temporary executable to launch at login.
     if tauri::is_dev() { return Ok(()); }
+    let executable = std::env::current_exe().and_then(|path| path.canonicalize()).map_err(|_| "The app location could not be read.")?;
+    if transient_location(&executable) { return Ok(()); }
+    #[cfg(target_os = "macos")]
+    refresh_login_location(app, &executable);
     let directory = app.path().app_data_dir().map_err(|_| "The login settings folder is unavailable.")?;
     std::fs::create_dir_all(&directory).map_err(|_| "The login settings folder could not be created.")?;
     initialize_default(&directory.join("startup-default-v1"), || {
@@ -48,6 +68,14 @@ mod tests {
         initialize_default(&marker, || { enabled.set(true); Ok(()) }).unwrap();
         assert!(!enabled.get(), "A later OS or app opt-out must survive restarting.");
         std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn copies_on_a_disk_image_or_in_quarantine_are_not_registered_for_login() {
+        assert!(transient_location(Path::new("/Volumes/MeterLuma/MeterLuma.app/Contents/MacOS/meterluma")));
+        assert!(transient_location(Path::new("/private/var/folders/xy/T/AppTranslocation/1A2B/d/MeterLuma.app/Contents/MacOS/meterluma")));
+        assert!(!transient_location(Path::new("/Applications/MeterLuma.app/Contents/MacOS/meterluma")));
+        assert!(!transient_location(Path::new("/Users/someone/Applications/MeterLuma.app/Contents/MacOS/meterluma")));
     }
 
     #[test]

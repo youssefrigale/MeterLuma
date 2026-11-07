@@ -48,7 +48,8 @@ fn detected(id: ProviderId, path: &Path) -> bool {
 
 // Local discovery does not contact a provider, open Claude credentials or return
 // credential contents to the WebView. A detected profile is not proof of login.
-#[tauri::command]
+// Runs off the main thread: reading a locked Cursor database can wait several seconds.
+#[tauri::command(async)]
 pub fn discover_local_providers(provider_ids: Vec<ProviderId>) -> Vec<ProviderId> {
     provider_ids.into_iter().take(3)
         .filter(|id| root(*id, None).is_ok_and(|path| detected(*id, &path))).collect()
@@ -77,7 +78,8 @@ fn checked_root_in(id: ProviderId, directory: &str, home: &Path) -> Result<PathB
     Ok(path)
 }
 
-#[tauri::command]
+// Runs off the main thread: reading a locked Cursor database can wait several seconds.
+#[tauri::command(async)]
 pub fn validate_profile(provider_id: ProviderId, directory: String) -> Result<String, String> {
     let path = checked_root(provider_id, &directory)?;
     if root(provider_id, None).ok().and_then(|root| root.canonicalize().ok()).is_some_and(|default| default == path) {
@@ -119,7 +121,7 @@ mod tests {
         let before = std::fs::read(&path).unwrap();
         assert_eq!(select_cursor_root(&[standard.clone(), redirected.clone()]), redirected);
         assert_eq!(std::fs::read(path).unwrap(), before);
-        assert_eq!(select_cursor_root(&[standard.clone()]), standard);
+        assert_eq!(select_cursor_root(std::slice::from_ref(&standard)), standard);
         std::fs::remove_dir_all(base).unwrap();
     }
     #[test]

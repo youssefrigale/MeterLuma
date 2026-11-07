@@ -19,7 +19,7 @@ fn remaining(value: &str) -> Option<f64> {
 fn subscription(line: &str, usage: &mut ProviderUsage) -> Option<()> {
     let (plan, balances) = line.strip_prefix("Amp ")?.split_once(" Subscription:")?;
     let (agent, orb) = balances.split_once(" usage and ")?;
-    let agent = remaining(agent.trim().split_whitespace().next()?)?;
+    let agent = remaining(agent.split_whitespace().next()?)?;
     let (orb, _) = orb.split_once(" orb usage remaining")?;
     let orb = remaining(orb)?;
     usage.plan = text(&Value::String(plan.into()));

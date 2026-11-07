@@ -4,6 +4,9 @@ use std::{io::Read, path::Path};
 
 #[cfg(target_os = "macos")]
 mod renewal;
+/// Stops any Claude Code renewal still running, so none outlives MeterLuma.
+#[cfg(target_os = "macos")]
+pub fn stop_renewals() { renewal::stop_all(); }
 const EXPIRED: &str = "Your Claude Code sign-in has expired.";
 
 pub struct SignIn { pub credential: Credential, pub plan: String }
@@ -42,6 +45,22 @@ fn file_sign_in(root: &Path) -> Result<SignIn, String> {
     parse(&bytes)
 }
 
+/// Claude Code's account id for this profile. Renewal replaces the OAuth token, which is opaque, so
+/// the account id keeps the profile's rate-limit deadline and cached reading across renewals. A custom
+/// profile reads only its own folder, never the default account.
+pub fn account_id(root: &Path, default_profile: bool) -> Option<String> {
+    #[derive(serde::Deserialize)]
+    struct Config { #[serde(rename = "oauthAccount")] account: Option<Account> }
+    #[derive(serde::Deserialize)]
+    struct Account { #[serde(rename = "accountUuid")] id: Option<String> }
+    const LIMIT: u64 = 16 * 1024 * 1024;
+    let path = if default_profile { dirs::home_dir()?.join(".claude.json") } else { root.join(".claude.json") };
+    let mut bytes = Vec::new();
+    std::fs::File::open(path).ok()?.take(LIMIT + 1).read_to_end(&mut bytes).ok()?;
+    if bytes.len() as u64 > LIMIT { return None; }
+    serde_json::from_slice::<Config>(&bytes).ok()?.account?.id.filter(|id| !id.is_empty() && id.len() <= 128)
+}
+
 pub fn sign_in(root: &Path, default_profile: bool) -> Result<SignIn, String> {
     let login = read_sign_in(root, default_profile);
     #[cfg(target_os = "macos")]
@@ -51,7 +70,7 @@ pub fn sign_in(root: &Path, default_profile: bool) -> Result<SignIn, String> {
 
 fn read_sign_in(root: &Path, default_profile: bool) -> Result<SignIn, String> {
     #[cfg(target_os = "macos")]
-    { return stored_sign_in(root, &keychain_services(root, default_profile), &super::auth::keychain); }
+    { stored_sign_in(root, &keychain_services(root, default_profile), &super::auth::keychain) }
     #[cfg(not(target_os = "macos"))]
     { let _ = default_profile; file_sign_in(root) }
 }
