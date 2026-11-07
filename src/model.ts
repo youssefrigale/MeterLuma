@@ -54,6 +54,8 @@ export interface Provider {
   fetchedAt?: number;
   history?: UsageHistory;
   historyLoading?: boolean;
+  // Local history arrived before the quota lookup settled; limits are still being read.
+  quotaLoading?: boolean;
   quotaState?: import('./providerState').QuotaState;
   retryAt?: number;
   cached?: boolean;
@@ -61,6 +63,8 @@ export interface Provider {
   historyOnly?: boolean;
   tokenOnly?: boolean;
 }
+// A function update is merged into the latest settings, so a change made after an await keeps concurrent changes.
+export type SettingsUpdate = Partial<Settings> | ((current: Settings) => Partial<Settings>);
 export const defaults: Settings = { theme: 'system', demo: false, remaining: true, refreshMinutes: 5, enabled: ['claude', 'codex', 'cursor'], liveProviders: [], tokenProviders: [], ignoredLocalProviders: [], resetStyle: 'relative', timeFormat: 'auto', providerOrder: ['claude', 'codex', 'cursor'], historyDays: 30, profiles: [], alerts: [], legalVersion: '' };
 export const SETTINGS_KEY = 'meterluma.settings.v2';
 const providerIds: ProviderId[] = ['claude', 'codex', 'cursor'];
@@ -110,9 +114,9 @@ export function readSettings(): Settings {
   } catch { return { ...defaults }; }
 }
 
-// Resets display preferences only. Consent, connections, local accounts and alerts are kept.
+// Resets display preferences only. Consent, connections, hidden providers, local accounts and alerts are kept.
 export function resetPreferences(current: Settings): Settings {
-  return { ...defaults, enabled: [...defaults.enabled], providerOrder: [...defaults.providerOrder], legalVersion: current.legalVersion, claudeLive: current.claudeLive, liveProviders: current.liveProviders, tokenProviders: current.tokenProviders ?? [], ignoredLocalProviders: current.ignoredLocalProviders ?? [], profiles: current.profiles, alerts: current.alerts, additionalConnections: current.additionalConnections, panelShortcut: current.panelShortcut, notifications: current.notifications };
+  return { ...defaults, enabled: [...current.enabled], providerOrder: [...defaults.providerOrder], legalVersion: current.legalVersion, claudeLive: current.claudeLive, liveProviders: current.liveProviders, tokenProviders: current.tokenProviders ?? [], ignoredLocalProviders: current.ignoredLocalProviders ?? [], profiles: current.profiles, alerts: current.alerts, additionalConnections: current.additionalConnections, panelShortcut: current.panelShortcut, notifications: current.notifications };
 }
 
 export const localDate = (value: Date) => `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;

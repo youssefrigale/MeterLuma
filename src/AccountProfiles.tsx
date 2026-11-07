@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { invoke, isTauri } from '@tauri-apps/api/core';
-import type { ProviderId, Settings } from './model';
+import type { ProviderId, Settings, SettingsUpdate } from './model';
 import { providerNames } from './format';
 
-export function AccountProfiles({ settings, update }: { settings: Settings; update: (value: Partial<Settings>) => void }) {
+export function AccountProfiles({ settings, update }: { settings: Settings; update: (value: SettingsUpdate) => void }) {
   const [providerId, setProviderId] = useState<ProviderId>('codex');
   const [label, setLabel] = useState('');
   const [directory, setDirectory] = useState('');
@@ -21,7 +21,7 @@ export function AccountProfiles({ settings, update }: { settings: Settings; upda
         if (settings.profiles.some(row => row.providerId === providerId && row.directory === canonical)) throw 'This local profile is already connected.';
         const tokenMode = settings.tokenProviders?.includes(providerId);
         if (tokenMode) await invoke('forget_account_token', { providerId });
-        update({ ...(tokenMode ? { tokenProviders: settings.tokenProviders?.filter(id => id !== providerId), liveProviders: settings.liveProviders.filter(id => id !== providerId) } : {}), profiles: [...settings.profiles, { key: crypto.randomUUID(), providerId, label: label.trim(), directory: canonical }], demo: false, enabled: [...new Set([...settings.enabled, providerId])] });
+        update(current => ({ ...(tokenMode ? { tokenProviders: current.tokenProviders?.filter(id => id !== providerId), liveProviders: current.liveProviders.filter(id => id !== providerId) } : {}), profiles: [...current.profiles, { key: crypto.randomUUID(), providerId, label: label.trim(), directory: canonical }], demo: false, enabled: [...new Set([...current.enabled, providerId])] }));
         setLabel(''); setDirectory('');
       } catch (reason) { setError(typeof reason === 'string' ? reason : 'This local profile could not be connected.'); }
       finally { setSaving(false); }

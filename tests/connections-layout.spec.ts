@@ -19,7 +19,7 @@ for (const theme of ['dark', 'light']) test(`${theme} Connections fits compactly
   await expect(page.getByLabel('Local profile directory', { exact: true })).toBeHidden();
   await expect.poll(() => page.viewportSize()!.height).toBeLessThan(600);
   await expect(page.getByText('More providers', { exact: true })).toBeInViewport({ ratio: 1 });
-  await expect(page.getByRole('button', { name: 'Options', exact: true })).toBeInViewport({ ratio: 1 });
+  await expect(page.getByRole('button', { name: /^MeterLuma .+ options$/ })).toBeInViewport({ ratio: 1 });
   expect(await page.locator('.quick-scroll').evaluate(element => element.scrollHeight - element.clientHeight)).toBeLessThanOrEqual(1);
   const compact = page.viewportSize()!.height;
   await page.screenshot({ path: testInfo.outputPath(`connections-${theme}-compact.png`) });

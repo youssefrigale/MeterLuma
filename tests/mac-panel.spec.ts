@@ -20,7 +20,7 @@ for (const theme of ['dark', 'light']) test(`${theme} compact Mac panel keeps na
     await expect(page.getByRole('button', { name, exact: true })).toBeInViewport();
     await page.getByRole('button', { name, exact: true }).click();
     expect(await page.locator('.quick-footer').boundingBox()).toEqual(footer);
-    await expect(page.getByRole('button', { name: 'Options', exact: true })).toBeInViewport();
+    await expect(page.getByRole('button', { name: /^MeterLuma .+ options$/ })).toBeInViewport();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     if (name === 'Codex details') {
       await expect(page.locator('.quick-plan')).toHaveText('Pro 5x');

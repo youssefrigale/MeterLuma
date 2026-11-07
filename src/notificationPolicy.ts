@@ -45,7 +45,7 @@ function candidate(reading: NotificationReading, kind: NoticeKind, suffix: strin
 
 function paceCandidates(reading: NotificationReading, now: number, episodes: Map<string, PaceEpisode>) {
   const projection = reading.usedPercent < 100 ? usageProjection(reading, now) : undefined;
-  if (!projection || projection.elapsedPercent < 5) return [];
+  if (!projection) return [];
   const level = projection.projected > 100 ? 2 : projection.projected >= 90 ? 1 : 0;
   const key = notificationMeterKey(reading); const previous = episodes.get(key);
   if (!previous || level === 0) { episodes.set(key, { level, episode: previous?.level === 0 ? previous.episode : now, pending: [] }); return []; }

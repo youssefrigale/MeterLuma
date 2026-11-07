@@ -13,7 +13,7 @@ test(`${theme} compact tray panel and Options have no accessibility violations`,
   await page.addInitScript(theme => localStorage.setItem('meterluma.settings.v2', JSON.stringify({ theme, demo: true })), theme);
   await page.goto('/');
   for (const open of [false, true]) {
-    if (open) await page.getByRole('button', { name: 'Options', exact: true }).click();
+    if (open) await page.getByRole('button', { name: /^MeterLuma .+ options$/ }).click();
     const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
     expect(results.violations).toEqual([]);
   }

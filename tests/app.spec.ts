@@ -15,7 +15,7 @@ test('the app is the tray panel: no dashboard pages, and old dashboard links ope
     await expect(page.getByRole('heading', { name: 'Overview', exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Your AI, in view.' })).toHaveCount(0);
   }
-  await page.getByRole('button', { name: 'Options', exact: true }).click();
+  await page.getByRole('button', { name: /^MeterLuma .+ options$/ }).click();
   await expect(page.getByRole('menuitem', { name: 'Open dashboard' })).toHaveCount(0);
   expect(errors).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

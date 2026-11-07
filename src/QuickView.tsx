@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { Icon, Mark } from './icons';
-import { readSettings, resetPreferences, sampleProviders, dailySpend, money, SETTINGS_KEY, type Provider, type Settings, type ProviderId } from './model';
+import { readSettings, resetPreferences, sampleProviders, dailySpend, money, SETTINGS_KEY, type Provider, type Settings, type SettingsUpdate, type ProviderId } from './model';
 import { hasQuotas, useLiveProviders } from './useLiveProviders';
 import { useLocalDiscovery } from './useLocalDiscovery';
 import { QuickSettings } from './QuickSettings';
@@ -12,7 +12,7 @@ import { Modal } from './Modal';
 import { QuickConnections } from './QuickConnections';
 import { UsageAlerts } from './Alerts';
 import { retryCountdown } from './providerState';
-import { APP_VERSION, LOW_ALLOWANCE_REMAINING, count, formatTime, planLabel, providerNames, visibleMetrics } from './format';
+import { APP_VERSION, LOW_ALLOWANCE_REMAINING, count, formatTime, planLabel, providerNames, quotaPercent, remainingPercent, visibleMetrics, wholeRemainingPercent } from './format';
 import { costRow } from './costRows';
 import { NotAffiliated } from './ProviderNotes';
 import { usePanelHeight } from './usePanelHeight';
@@ -39,6 +39,9 @@ function primaryTrayMetric(provider: Provider, now: number, selection: Settings[
 
 export default function QuickView() {
   const [settings, setSettings] = useState(readSettings);
+  // Updates merge into the newest settings, including changes made while a handler awaited.
+  const latestSettings = useRef(settings);
+  latestSettings.current = settings;
   const shortcut = usePanelShortcut(settings.panelShortcut, panelShortcut => updateSettings({ panelShortcut }));
   const [anchor] = useState(Date.now);
   const [, setClockTime] = useState(Date.now);
@@ -91,16 +94,16 @@ export default function QuickView() {
   const nextRefresh = settings.demo ? Math.max(1, Math.ceil((interval - (now - refreshed) % interval) / 60_000)) : Number.isFinite(nextRefreshAt) ? Math.max(1, Math.ceil((nextRefreshAt - now) / 60_000)) : Math.max(5, settings.refreshMinutes);
   const updateStatus = settings.demo ? 'Sample data only' : isProviderView && detail?.historyOnly ? detail.history ? `Scanned ${formatTime(detail.history.scannedAt, settings.timeFormat)}` : 'Recorded local history' : displayedFetchedAt ? `${isProviderView ? detail?.cached ? 'Cached from' : 'Fetched' : 'Updated'} ${formatTime(displayedFetchedAt, settings.timeFormat)}` : detail?.quotaState === 'rate_limited' ? 'Usage rate limited' : 'Connect to refresh';
   const updateHint = `${updateStatus}${detail?.retryAt && detail.retryAt > now ? `. Usage retry in ${retryCountdown(detail.retryAt, now)}` : ''}`;
-  const trayLimits = providers.flatMap(provider => { const metric = primaryTrayMetric(provider, now, settings.trayMetric); return metric ? [`${provider.name} ${metric.label} ${Math.round(Math.max(0, 100 - metric.usedPercent))}% left${provider.cached ? ' (cached)' : ''}`] : []; }).join(' · ');
+  const trayLimits = providers.flatMap(provider => { const metric = primaryTrayMetric(provider, now, settings.trayMetric); return metric ? [`${provider.name} ${metric.label} ${quotaPercent(remainingPercent(metric.usedPercent))}% left${provider.cached ? ' (cached)' : ''}`] : []; }).join(' · ');
   const traySummary = `${settings.demo ? 'Demo · ' : ''}${trayLimits.slice(0, 130) || (providers.length ? 'Recorded local history' : live.loading ? 'Reading usage…' : 'Choose your providers in Settings')}`;
   const trayProvider = [detail, ...providers].find(provider => provider && !provider.historyOnly && visibleMetrics(provider, now).length > 0);
   const trayMetric = trayProvider && primaryTrayMetric(trayProvider, now, settings.trayMetric);
-  const trayRemaining = trayMetric && Math.round(Math.min(100, Math.max(0, 100 - trayMetric.usedPercent)));
+  const trayRemaining = trayMetric && wholeRemainingPercent(trayMetric.usedPercent);
   const additionalTray = additionalActive?.snapshot ?? (!trayProvider ? additional.results.find(result => result.snapshot)?.snapshot : undefined);
   const additionalTrayMetric = additionalTray && selectTrayMetric(additionalTray.metrics.filter(metric => !additionalTray.cached || (metric.resetAt === null ? now - additionalTray.fetchedAt <= 300_000 : metric.resetAt > now)), settings.trayMetric);
   const additionalTrayValue = !additionalTrayMetric && additionalTray?.amounts[0] ? amountText(additionalTray.amounts[0]) : undefined;
   const displayedTrayMetric = additionalTray && (additionalTrayMetric || additionalTrayValue) ? additionalTrayMetric : trayMetric;
-  const usageSummary = additionalTray ? `${additionalTray.name} · ${additionalTrayMetric ? `${additionalTrayMetric.label} ${Math.round(Math.max(0, 100 - additionalTrayMetric.usedPercent))}% left` : additionalTray.amounts[0] ? `${additionalTray.amounts[0].label}: ${additionalTrayValue}` : 'Usage unavailable'}${additionalTray.cached ? ' (cached)' : ''}`.slice(0, 150) : traySummary;
+  const usageSummary = additionalTray ? `${additionalTray.name} · ${additionalTrayMetric ? `${additionalTrayMetric.label} ${quotaPercent(remainingPercent(additionalTrayMetric.usedPercent))}% left` : additionalTray.amounts[0] ? `${additionalTray.amounts[0].label}: ${additionalTrayValue}` : 'Usage unavailable'}${additionalTray.cached ? ' (cached)' : ''}`.slice(0, 150) : traySummary;
   const trayWarnings = settings.demo ? [] : trayWarningReasons(live.results, additional.results, trayProvider, { now, interval });
   const trayWarning = !settings.demo && displayedTrayMetric !== undefined && 100 - displayedTrayMetric.usedPercent <= LOW_ALLOWANCE_REMAINING;
   const menuSummary = (trayWarnings.length ? `${trayWarnings.join('; ')} · ${usageSummary}` : usageSummary).slice(0, 160);
@@ -147,14 +150,15 @@ export default function QuickView() {
   }, [options]);
   useEffect(() => {
     if (!isTauri()) return;
-    const status = additionalTray && (additionalTrayMetric || additionalTrayValue) ? { provider: additionalTray.id, ...(additionalTrayMetric ? { remaining: Math.round(Math.min(100, Math.max(0, 100 - additionalTrayMetric.usedPercent))) } : { value: additionalTrayValue }), cached: additionalTray.cached, demo: false, warning: trayWarning }
+    const status = additionalTray && (additionalTrayMetric || additionalTrayValue) ? { provider: additionalTray.id, ...(additionalTrayMetric ? { remaining: wholeRemainingPercent(additionalTrayMetric.usedPercent) } : { value: additionalTrayValue }), cached: additionalTray.cached, demo: false, warning: trayWarning }
       : trayProvider && trayRemaining !== undefined ? { provider: trayProvider.id, remaining: trayRemaining, cached: !!trayProvider.cached, demo: settings.demo, warning: trayWarning } : null;
     void invoke('set_tray_summary', { summary: menuSummary, status }).catch(() => setMessage('The menu-bar usage could not be updated.'));
   }, [menuSummary, trayProvider?.id, trayRemaining, trayProvider?.cached, additionalTray?.id, additionalTray?.cached, additionalTrayMetric?.usedPercent, additionalTrayValue, trayWarning, settings.demo]);
 
-  function updateSettings(update: Partial<Settings>) {
-    const next = { ...settings, ...update };
-    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(next)); setSettings(next); setMessage(''); return true; }
+  function updateSettings(update: SettingsUpdate) {
+    const current = latestSettings.current;
+    const next = { ...current, ...(typeof update === 'function' ? update(current) : update) };
+    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(next)); latestSettings.current = next; setSettings(next); setMessage(''); return true; }
     catch { setMessage('Your settings could not be saved on this device.'); return false; }
   }
   function cardFold(key: string) {
@@ -175,15 +179,15 @@ export default function QuickView() {
       <div className="quick-rail-bottom"><button className={view === 'connections' ? 'active' : ''} aria-label="Connections" aria-current={view === 'connections' ? 'page' : undefined} title="Connections" onClick={() => setView('connections')}><Icon name="link" size={20} selected={view === 'connections'}/></button><button className={view === 'help' ? 'active' : ''} aria-label="Help" aria-current={view === 'help' ? 'page' : undefined} title="Help" onClick={() => setView('help')}><Icon name="info" size={20} selected={view === 'help'}/></button><button className={view === 'settings' ? 'active' : ''} aria-label="Settings" aria-current={view === 'settings' ? 'page' : undefined} title="Settings" onClick={() => setView('settings')}><Icon name="settings" size={20} selected={view === 'settings'}/></button></div>
     </nav>
     <LicenseGate settings={settings} update={updateSettings}/>
-    <div className="quick-body"><div className="quick-scroll" tabIndex={0} ref={scroll} aria-label="Panel content"><div className="quick-content">
-      <header className="quick-header"><div><h1>{pageName}</h1>{settings.demo && <span className="quick-mode">Demo</span>}</div>{isProviderView && detail && <span className="quick-plan" title={detail.accountLabel}>{detail.historyOnly ? 'Local history' : detail.cached ? 'Cached quotas' : visibleMetrics(detail, now).length ? planLabel(detail) : detail.quotaState === 'rate_limited' ? 'Rate limited' : detail.quotaState === 'sign_in_required' ? 'Sign in' : 'Unavailable'}</span>}{additionalSpec && additionalActive?.snapshot?.plan && <span className="quick-plan">{additionalActive.snapshot.plan}</span>}<button className="quick-refresh" aria-label="Refresh usage" disabled={live.loading || additional.loading} onClick={refresh}><Icon name="refresh" size={15}/></button></header>
+    <div className="quick-body"><div className="quick-scroll" tabIndex={0} ref={scroll} role="region" aria-label="Panel content"><div className="quick-content">
+      <header className="quick-header"><div><h1>{pageName}</h1>{settings.demo && <span className="quick-mode">Demo</span>}</div>{isProviderView && detail && <span className="quick-plan" title={detail.accountLabel}>{detail.historyOnly ? 'Local history' : detail.cached ? 'Cached quotas' : visibleMetrics(detail, now).length ? planLabel(detail) : detail.quotaLoading ? 'Reading…' : detail.quotaState === 'rate_limited' ? 'Rate limited' : detail.quotaState === 'sign_in_required' ? 'Sign in' : 'Unavailable'}</span>}{additionalSpec && additionalActive?.snapshot?.plan && <span className="quick-plan">{additionalActive.snapshot.plan}</span>}<button className="quick-refresh" aria-label="Refresh usage" disabled={live.loading || additional.loading} onClick={refresh}><Icon name="refresh" size={15}/></button></header>
       <UsageAlerts settings={settings} providers={providers} now={now}/>{view === 'overview' && <><div className={`quick-providers${settings.compactOverview ? " is-compact" : ""}`}>{providers.map(provider => <QuickProvider key={provider.connectionKey ?? provider.id} provider={provider} settings={settings} now={now} fold={cardFold(`core:${provider.id}:${provider.connectionKey ?? provider.id}`)}/>)}{additional.results.map(result => <AdditionalProvider key={result.id} result={result} settings={settings} now={now} retry={additional.refresh} fold={cardFold(`additional:${result.id}`)}/>)}</div>{!providers.length && !additionalNavigation.length && !live.loading && <div className="quick-empty"><p>Keep your allowances in view.</p><button onClick={() => setView('connections')}>Choose providers <Icon name="arrow" size={14}/></button></div>}{settings.demo && providers.length > 0 && <button className="quick-cost-summary" onClick={() => setView('costs')}><span>Sample spend today</span><strong>{money(providers.reduce((sum, provider) => sum + provider.spendToday!, 0))}</strong><Icon name="chevron" size={13}/></button>}</>}
       {isProviderView && details.length > 1 && <label className="quick-account-picker">Local account<select value={detail.connectionKey} onChange={event => setProfileKey(event.target.value)}>{details.map(provider => <option key={provider.connectionKey} value={provider.connectionKey}>{provider.accountLabel ?? 'Default profile'}</option>)}</select></label>}
-      {isProviderView && (detail ? <QuickProvider provider={detail} settings={settings} now={now} detailed retry={refresh} connectionError={live.results.find(result => result.key === detail.connectionKey)?.error} reconnect={() => setView('connections')}/> : !live.loading && <div className="quick-empty"><p>This provider is not connected.</p><button onClick={() => setView('connections')}>Connection options <Icon name="arrow" size={14}/></button></div>)}
+      {isProviderView && (detail ? <QuickProvider provider={detail} settings={settings} now={now} detailed retry={refresh} busy={live.loading} connectionError={live.results.find(result => result.key === detail.connectionKey)?.error} reconnect={() => setView('connections')}/> : !live.loading && <div className="quick-empty"><p>This provider is not connected.</p><button onClick={() => setView('connections')}>Connection options <Icon name="arrow" size={14}/></button></div>)}
       {additionalSpec && <AdditionalProvider result={additionalActive ?? { id: additionalSpec.id, label: additionalNavigation.find(connection => connection.id === additionalSpec.id)?.label ?? additionalSpec.name, loading: true }} settings={settings} now={now} detailed retry={additional.refresh}/>}
       {view === 'costs' && <>
         <section className="quick-cost" aria-label="Provider costs">
-          <div className="quick-tabs" aria-label="Cost date range">{(['Today', 'Yesterday', '30 Days'] as const).map(value => <button key={value} aria-pressed={range === value} className={range === value ? 'selected' : ''} onClick={() => setRange(value)}>{value}</button>)}</div>
+          <div className="quick-tabs" role="group" aria-label="Cost date range">{(['Today', 'Yesterday', '30 Days'] as const).map(value => <button key={value} aria-pressed={range === value} className={range === value ? 'selected' : ''} onClick={() => setRange(value)}>{value}</button>)}</div>
           {pricedCosts.length > 0 ?
             <div className="quick-cost-total" role="group" aria-label={settings.demo ? `${range} simulated costs: ${money(total)}` : `${range} estimated API value: ${money(total)}`}>
               <div className="quick-cost-label"><span>{settings.demo ? 'Sample spending' : 'Estimated API value'}</span><span>USD</span></div>
@@ -205,7 +209,7 @@ export default function QuickView() {
       {view === 'help' && <section className="quick-help"><div className="quick-help-intro"><Mark size={38}/><h2>All your AI usage,<br/>one glance.</h2></div><p className="quick-help-lede">MeterLuma keeps your plan limits, reset times and recorded token history close while you work.</p><div className="quick-help-section"><h3>Connect your accounts</h3><p>Codex quotas come from its official CLI. Cursor's monthly allowance uses your local Cursor sign-in with an unofficial endpoint. Claude shows recorded token history, with optional session and weekly limits after you enable live Claude usage in Connections.</p><button className="quick-help-link" onClick={() => setView('connections')}>Manage connections <Icon name="arrow" size={14}/></button></div><DiagnosticTools settings={settings} core={live.results} additional={additional.results}/><div className="quick-help-section quick-help-legal"><p>MeterLuma v{APP_VERSION}{import.meta.env.DEV ? ' · development build' : ''}. Free for personal, noncommercial use only. Selling and redistribution are prohibited.</p><NotAffiliated/><div className="quick-help-actions"><button className="quick-help-link" onClick={() => setDialog('license')}>View license</button><button className="quick-help-link quick-help-quiet" onClick={() => setDialog('reset')}>Reset preferences</button></div></div></section>}
       {failures.filter(result => !(isProviderView && detail && result.key === detail.connectionKey)).map(result => <p className="quick-info" role="status" key={result.key}>{result.loading && !result.provider ? `Reading ${providerNames[result.id]}${result.label ? ` · ${result.label}` : ''}…` : `${providerNames[result.id]}${result.label ? ` · ${result.label}` : ''}: ${result.error}`}</p>)}
       {message && <p role="status" className="quick-info">{message}</p>}
-    </div></div><footer className="quick-footer"><button className="quick-version" aria-label="Options" title="MeterLuma options" ref={optionsButton} aria-haspopup="menu" aria-expanded={options} aria-controls="quick-options" onClick={() => setOptions(value => !value)}>MeterLuma {APP_VERSION}<Icon name="chevron" size={11}/></button><button className="quick-update" aria-label="Refresh now" disabled={live.loading || additional.loading} title={`${updateHint}. Click to refresh now.`} onClick={refresh}>Next update in {nextRefresh}m</button></footer></div>
+    </div></div><footer className="quick-footer"><button className="quick-version" aria-label={`MeterLuma ${APP_VERSION} options`} title="MeterLuma options" ref={optionsButton} aria-haspopup="menu" aria-expanded={options} aria-controls="quick-options" onClick={() => setOptions(value => !value)}>MeterLuma {APP_VERSION}<Icon name="chevron" size={11}/></button><button className="quick-update" aria-label={`Next update in ${nextRefresh}m, refresh now`} disabled={live.loading || additional.loading} title={`${updateHint}. Click to refresh now.`} onClick={refresh}>Next update in {nextRefresh}m</button></footer></div>
     {options && <div id="quick-options" className="quick-options" role="menu" aria-label="Options" ref={optionsMenu} onKeyDown={event => {
       if (event.key === 'Escape') { event.preventDefault(); setOptions(false); optionsButton.current?.focus(); }
       if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {

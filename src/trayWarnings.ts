@@ -15,7 +15,8 @@ export function trayWarningReasons(core: LiveResult[], additional: AdditionalRes
     if (result.snapshot) {
       reasons.push(...snapshotWarnings(result.snapshot, now, interval).map(reason => `${name}: ${reason}`));
       if (result.snapshot.warning) reasons.push(`${name}: provider reported a warning`);
-      reasons.push(...result.snapshot.metrics.filter(metric => metric.usedPercent >= 100).map(metric => `${name}: ${metric.label} exhausted`));
+      // A cached window that has already reset is no longer exhausted, matching core providers.
+      reasons.push(...visibleMetrics(result.snapshot, now).filter(metric => metric.usedPercent >= 100).map(metric => `${name}: ${metric.label} exhausted`));
     }
   }
   if (selected) reasons.push(...snapshotWarnings(selected, now, interval).map(reason => `${selected.name}: ${reason}`));

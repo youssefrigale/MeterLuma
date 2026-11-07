@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { invoke, isTauri } from '@tauri-apps/api/core';
-import type { ProviderId, Settings } from './model';
+import type { ProviderId, Settings, SettingsUpdate } from './model';
 import type { LiveResult } from './useLiveProviders';
 import { Icon } from './icons';
 import { Modal } from './Modal';
@@ -23,7 +23,7 @@ const connectDetail: Record<ProviderId, string> = {
   cursor: 'MeterLuma reads your existing Cursor sign-in in the native process and sends it only to Cursor to fetch your monthly allowance. No token is copied into settings or sent to MeterLuma servers. Cached quotas keep their original fetch time.',
 };
 
-export function QuickConnections({ settings, update, results, onTokenChange }: { settings: Settings; update: (value: Partial<Settings>) => boolean; results: LiveResult[]; onTokenChange: (id: ProviderId) => void }) {
+export function QuickConnections({ settings, update, results, onTokenChange }: { settings: Settings; update: (value: SettingsUpdate) => boolean; results: LiveResult[]; onTokenChange: (id: ProviderId) => void }) {
   const [pending, setPending] = useState<ProviderId | null>(null);
   const [tokenBusy, setTokenBusy] = useState(false);
   const [error, setError] = useState('');
@@ -32,7 +32,7 @@ export function QuickConnections({ settings, update, results, onTokenChange }: {
   async function disconnect(id: ProviderId) {
     setError('');
     try { if (tokenProviders.includes(id)) await invoke('forget_account_token', { providerId: id });
-      update({ liveProviders: settings.liveProviders.filter(value => value !== id), ignoredLocalProviders: [...new Set([...(settings.ignoredLocalProviders ?? []), id])] }); onTokenChange(id);
+      update(current => ({ liveProviders: current.liveProviders.filter(value => value !== id), ignoredLocalProviders: [...new Set([...(current.ignoredLocalProviders ?? []), id])] })); onTokenChange(id);
     } catch { setError('The saved token could not be removed. Try disconnecting again.'); }
   }
   function connectionState(id: ProviderId) {
@@ -52,7 +52,7 @@ export function QuickConnections({ settings, update, results, onTokenChange }: {
       try { await invoke('forget_account_token', { providerId: id }); } catch { setError('The saved token could not be removed. Try disconnecting again.'); return; }
     }
     // The browser preview cannot read local profiles, so it offers labeled sample data instead.
-    if (isTauri()) update({ demo: false, liveProviders: [...new Set([...settings.liveProviders, id])], tokenProviders: tokenProviders.filter(value => value !== id), ignoredLocalProviders: (settings.ignoredLocalProviders ?? []).filter(value => value !== id), profiles: settings.profiles.map(row => row.providerId === id ? { ...row, paused: false } : row), enabled: [...new Set([...settings.enabled, id])] });
+    if (isTauri()) update(current => ({ demo: false, liveProviders: [...new Set([...current.liveProviders, id])], tokenProviders: (current.tokenProviders ?? []).filter(value => value !== id), ignoredLocalProviders: (current.ignoredLocalProviders ?? []).filter(value => value !== id), profiles: current.profiles.map(row => row.providerId === id ? { ...row, paused: false } : row), enabled: [...new Set([...current.enabled, id])] }));
     else update({ demo: true });
     setPending(null);
   }
@@ -91,7 +91,7 @@ export function QuickConnections({ settings, update, results, onTokenChange }: {
       {isTauri() && pending === 'cursor' && <UnofficialNote className="modal-note"/>}
       <button className="button primary full-width" disabled={tokenBusy} onClick={() => connect(pending)}>{isTauri() ? 'Use local profile' : 'Explore sample data'} <Icon name="arrow" size={16}/></button>
       {isTauri() && pending !== 'claude' && <details className="license-details" open={tokenProviders.includes(pending) && settings.liveProviders.includes(pending)}><summary>Advanced: use an account token instead</summary><TokenConnection key={pending} providerId={pending} onBusy={setTokenBusy} onConnected={() => {
-        update({ demo: false, liveProviders: [...new Set([...settings.liveProviders, pending])], tokenProviders: [...new Set([...tokenProviders, pending])], enabled: [...new Set([...settings.enabled, pending])] });
+        update(current => ({ demo: false, liveProviders: [...new Set([...current.liveProviders, pending])], tokenProviders: [...new Set([...(current.tokenProviders ?? []), pending])], enabled: [...new Set([...current.enabled, pending])] }));
         onTokenChange(pending); setPending(null);
       }}/></details>}
     </Modal>}

@@ -10,7 +10,7 @@ import { CodexSubscription } from './CodexSubscription';
 import { dayValue } from './coverage';
 import { UnofficialBadge, UnofficialNote } from './ProviderNotes';
 import { CURSOR_HISTORY_NOTE } from './exportUsage';
-import { usageProjection } from './pacing';
+import { PACE_DISPLAY_LIMIT, usageProjection } from './pacing';
 import { OverviewCardHeading, type CardFold } from './OverviewCardHeading';
 
 const websites = {
@@ -23,6 +23,8 @@ export const colors = neutralColors;
 const sampleModels = { claude: [['Opus', 62], ['Sonnet', 35], ['Haiku', 3]], codex: [['Codex', 78], ['Codex Mini', 22]], cursor: [['Auto', 72], ['Selected model', 28]] } as const;
 export const thirtyDaySpend = (id: ProviderId) => [...dailySpend[id], ...dailySpend[id], ...dailySpend[id]].slice(-30).reduce((sum, value) => sum + value, 0);
 
+const paceText = (projected: number) => `${projected > PACE_DISPLAY_LIMIT ? `>${PACE_DISPLAY_LIMIT}` : quotaPercent(projected)}% used by reset`;
+
 export function QuotaMetric({ provider, metric, settings, now }: { provider: Pick<Provider, 'name' | 'cached'> & { id?: string }; metric: Metric; settings: Settings; now: number }) {
   const remaining = Math.max(0, 100 - Math.min(100, metric.usedPercent));
   const value = settings.remaining ? remaining : 100 - remaining;
@@ -30,7 +32,7 @@ export function QuotaMetric({ provider, metric, settings, now }: { provider: Pic
   const resetHint = metric.resetAt === null ? undefined : settings.resetStyle === 'absolute' ? countdown(metric.resetAt, now) : formatDateTime(metric.resetAt, settings.timeFormat);
   // Claude starts a window with its first request, so an unused window has no reset time yet (claude.ai says the same).
   const reset = provider.id === 'claude' && metric.resetAt === null && metric.usedPercent === 0 ? 'Starts on first use' : resetText(metric, now, settings);
-  const description = `${quotaPercent(value)}% ${settings.remaining ? 'left' : 'used'}. ${reset}${resetHint ? `. ${resetHint}` : ''}${projection ? `. At current pace: ${short(projection.projected)}% used by reset` : ''}`;
+  const description = `${quotaPercent(value)}% ${settings.remaining ? 'left' : 'used'}. ${reset}${resetHint ? `. ${resetHint}` : ''}${projection ? `. At current pace: ${paceText(projection.projected)}` : ''}`;
   return <div className="quick-metric">
     <div className="quick-metric-title"><h3 title={metric.label}>{metric.label}</h3><i role="img" className={remaining <= 10 ? 'critical' : remaining <= LOW_ALLOWANCE_REMAINING ? 'low' : ''} aria-label={remaining <= 10 ? 'Very little allowance left' : remaining <= LOW_ALLOWANCE_REMAINING ? 'Low allowance' : 'Allowance available'}/></div>
     <div className={`quick-meter${provider.cached ? ' is-cached' : ''}`} role="progressbar" aria-label={`${provider.cached ? 'Cached ' : ''}${provider.name} ${metric.label} ${settings.remaining ? 'remaining' : 'used'}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={value} aria-valuetext={description} title={description}>
@@ -38,7 +40,7 @@ export function QuotaMetric({ provider, metric, settings, now }: { provider: Pic
       {projection && <i className="quick-pace-marker" aria-hidden="true" style={{left:`${settings.remaining ? 100 - projection.elapsedPercent : projection.elapsedPercent}%`}}/>}
     </div>
     <div className="quick-metric-caption"><span>{quotaPercent(value)}% {settings.remaining ? 'left' : 'used'}</span><span title={resetHint}>{reset}</span></div>
-    {projection && <p className={`quick-pace ${projection.spare < 0 ? 'quick-pace-high' : ''}`} title={`${quotaPercent(projection.elapsedPercent)}% of this window has elapsed. Assumes the average usage rate so far continues.`}>At current pace: {short(projection.projected)}% used by reset</p>}
+    {projection && <p className={`quick-pace ${projection.spare < 0 ? 'quick-pace-high' : ''}`} title={`${quotaPercent(projection.elapsedPercent)}% of this window has elapsed. Assumes the average usage rate so far continues.`}>At current pace: {paceText(projection.projected)}</p>}
   </div>;
 }
 
@@ -49,13 +51,15 @@ function localSummary(provider: Provider) {
   return `Local history only · ${today ? `${short(today.totalTokens)} tokens today` : 'today not recorded'}`;
 }
 
-export function QuickProvider({ provider, settings, now, detailed = false, connectionError, reconnect, retry, fold }: { provider: Provider; settings: Settings; now: number; detailed?: boolean; connectionError?: string; reconnect?: () => void; retry?: () => void; fold?: CardFold }) {
+export function QuickProvider({ provider, settings, now, detailed = false, connectionError, reconnect, retry, busy = false, fold }: { provider: Provider; settings: Settings; now: number; detailed?: boolean; connectionError?: string; reconnect?: () => void; retry?: () => void; busy?: boolean; fold?: CardFold }) {
   const [linkError, setLinkError] = useState('');
   const needsSignIn = !connectionError || /sign.in|subscription|API.key|official.*CLI/i.test(connectionError);
   const limited = provider.quotaState === 'rate_limited';
   const timedOut = connectionError?.includes('lookup took too long');
   const metrics = visibleMetrics(provider, now);
   const coolingDown = limited && typeof provider.retryAt === 'number' && provider.retryAt > now;
+  const reading = !!provider.quotaLoading;
+  const signIn = !limited && needsSignIn;
   async function openWebsite(page: 'status' | 'usage') {
     if (!isTauri()) { window.open(websites[provider.id][page], '_blank', 'noopener,noreferrer'); return; }
     try { await invoke('open_provider_page', { providerId: provider.id, page }); }
@@ -67,8 +71,8 @@ export function QuickProvider({ provider, settings, now, detailed = false, conne
     {detailed && provider.id === 'cursor' && <UnofficialNote className="quick-info"/>}
     {provider.historyOnly && detailed && <section className="quick-subscription-unknown" aria-label="Claude subscription status"><h2>Subscription status unavailable</h2><p>Local history cannot show whether your plan is active or paused. Check your Claude account in the Usage dashboard.</p></section>}
     {provider.historyOnly && <p className="quick-info quick-local-note">{detailed ? CLAUDE_LOCAL : localSummary(provider)}</p>}
-    {!provider.historyOnly && !metrics.length && !detailed && <p className="quick-info">{provider.history?.available ? 'Live allowances unavailable. Open this provider to see recorded device activity.' : 'Live allowances unavailable.'}</p>}
-    {!provider.historyOnly && !metrics.length && detailed && <><div className="quick-metrics quick-metrics-unavailable" aria-label="Live quotas unavailable">{(provider.id === 'cursor' ? ['Monthly'] : ['Session', 'Weekly']).map(label => <div className="quick-metric" key={label}><div className="quick-metric-title"><h3>{label}</h3><i className="unavailable" aria-hidden="true"/></div><div className="quick-meter"><span/></div><div className="quick-metric-caption"><span>{limited ? 'Rate limited' : 'Unavailable'}</span><span>Reset unavailable</span></div></div>)}</div><div className="quick-reconnect" role="status"><span title={connectionError}>{limited ? coolingDown ? `Usage paused. Retrying in ${retryCountdown(provider.retryAt!, now)}.` : 'Usage requests are rate limited.' : needsSignIn ? `Renew your ${provider.name} sign-in to see limits.` : timedOut ? 'The usage lookup took too long. Try refreshing again.' : 'Live limits unavailable. Try refreshing.'}</span><button disabled={coolingDown} onClick={!limited && needsSignIn ? reconnect : retry}>{!limited && needsSignIn ? 'Connect' : coolingDown ? 'Waiting' : 'Retry'}</button></div></>}
+    {!provider.historyOnly && !metrics.length && !detailed && <p className="quick-info">{reading ? 'Reading limits…' : provider.history?.available ? 'Live allowances unavailable. Open this provider to see recorded device activity.' : 'Live allowances unavailable.'}</p>}
+    {!provider.historyOnly && !metrics.length && detailed && <><div className="quick-metrics quick-metrics-unavailable" role="group" aria-label={reading ? 'Reading live quotas' : 'Live quotas unavailable'}>{(provider.id === 'cursor' ? ['Monthly'] : ['Session', 'Weekly']).map(label => <div className="quick-metric" key={label}><div className="quick-metric-title"><h3>{label}</h3><i className="unavailable" aria-hidden="true"/></div><div className="quick-meter"><span/></div><div className="quick-metric-caption"><span>{limited ? 'Rate limited' : reading ? 'Reading…' : 'Unavailable'}</span><span>{reading ? '' : 'Reset unavailable'}</span></div></div>)}</div><div className="quick-reconnect" role="status"><span title={connectionError}>{limited ? coolingDown ? `Usage paused. Retrying in ${retryCountdown(provider.retryAt!, now)}.` : 'Usage requests are rate limited.' : reading ? 'Reading limits…' : needsSignIn ? `Renew your ${provider.name} sign-in to see limits.` : timedOut ? 'The usage lookup took too long. Try refreshing again.' : 'Live limits unavailable. Try refreshing.'}</span>{!reading && <button disabled={coolingDown || !signIn && busy} onClick={signIn ? reconnect : retry}>{signIn ? 'Connect' : coolingDown ? 'Waiting' : 'Retry'}</button>}</div></>}
     {provider.cached && metrics.length > 0 && <div className="quick-reconnect quick-cache-notice" role="status"><span>{limited && 'Usage checks are rate limited. '}Cached quotas from {formatTime(provider.fetchedAt!, settings.timeFormat)}{coolingDown ? `. Retrying automatically in ${retryCountdown(provider.retryAt!, now)}` : limited ? '. Retrying automatically' : '. Refresh unavailable'}.</span></div>}
     {metrics.length > 0 && <div className="quick-metrics">{(detailed ? metrics.slice(0, 2) : metrics).map(metric => <QuotaMetric key={metric.label} provider={provider} metric={metric} settings={settings} now={now}/>)}</div>}
     {provider.id === 'claude' && !settings.demo && <ClaudeExtraUsage provider={provider} now={now}/>}

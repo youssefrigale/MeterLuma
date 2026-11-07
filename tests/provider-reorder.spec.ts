@@ -107,5 +107,5 @@ test('many selected providers keep Settings reachable and let other pages shrink
   await page.getByRole('button', { name: 'Xal details', exact: true }).click();
   await expect.poll(() => page.viewportSize()!.height).toBeLessThan(500);
   await expect(page.getByRole('button', { name: 'Settings', exact: true })).toBeInViewport({ ratio: 1 });
-  await expect(page.getByRole('button', { name: 'Options', exact: true })).toBeInViewport({ ratio: 1 });
+  await expect(page.getByRole('button', { name: /^MeterLuma .+ options$/ })).toBeInViewport({ ratio: 1 });
 });

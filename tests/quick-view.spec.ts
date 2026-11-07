@@ -20,8 +20,8 @@ test('tray panel exposes costs, remaining limits, a fixed Options footer and Con
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.locator('.quick-scroll').evaluate(element => element.scrollTop = element.scrollHeight);
   await expect(page.getByRole('heading', { name: 'Cursor', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Options', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Options', exact: true }).click();
+  await expect(page.getByRole('button', { name: /^MeterLuma .+ options$/ })).toBeVisible();
+  await page.getByRole('button', { name: /^MeterLuma .+ options$/ }).click();
   await expect(page.getByRole('menuitem', { name: 'Open dashboard' })).toHaveCount(0);
   await page.getByRole('menuitem', { name: 'Connections' }).click();
   await expect(page.getByRole('heading', { name: 'Connections', exact: true })).toBeVisible();
@@ -32,16 +32,16 @@ test('tray panel exposes costs, remaining limits, a fixed Options footer and Con
 test('cost tabs recalculate samples and Options supports keyboard navigation to Settings', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Costs', exact: true }).click();
-  await page.getByRole('button', { name: 'Yesterday', exact: true }).click();
+  await page.getByRole('group', { name: 'Cost date range' }).getByRole('button', { name: 'Yesterday', exact: true }).click();
   await expect(page.getByRole('group', { name: 'Yesterday simulated costs: $5.90' })).toBeVisible();
   await page.getByRole('button', { name: '30 Days', exact: true }).click();
   await expect(page.getByRole('group', { name: /30 Days simulated costs:/ })).toBeVisible();
   await expect(page.locator('.quick-cost-legend')).toContainText('$');
-  await page.getByRole('button', { name: 'Options', exact: true }).click();
+  await page.getByRole('button', { name: /^MeterLuma .+ options$/ }).click();
   await expect(page.getByRole('menuitem', { name: 'Refresh now' })).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('menu')).not.toBeVisible();
-  await expect(page.getByRole('button', { name: 'Options', exact: true })).toBeFocused();
+  await expect(page.getByRole('button', { name: /^MeterLuma .+ options$/ })).toBeFocused();
   await page.keyboard.press('Enter');
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
@@ -50,7 +50,11 @@ test('cost tabs recalculate samples and Options supports keyboard navigation to 
   await expect(page.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: '5 min', exact: true })).toBeVisible();
   await expect(page.locator('.quick-version')).toHaveText(/MeterLuma \d+\.\d+\.\d+/);
+  // Accessible names start with the visible text (WCAG 2.5.3).
+  await expect(page.locator('.quick-version')).toHaveAccessibleName(/^MeterLuma \S+ options$/);
   await expect(page.locator('.quick-update')).toHaveText('Next update in 5m');
+  await expect(page.locator('.quick-update')).toHaveAccessibleName('Next update in 5m, refresh now');
+  await expect(page.getByRole('region', { name: 'Panel content' })).toBeVisible();
   await page.getByRole('button', { name: '15 min', exact: true }).click();
   await expect(page.locator('.quick-update')).toHaveText('Next update in 15m');
 });

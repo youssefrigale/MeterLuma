@@ -187,7 +187,7 @@ test('reset preferences asks first in the app and keeps consent, connections and
   await expect(confirm).toBeHidden();
   await expect(page.getByRole('status').filter({ hasText: 'Preferences reset' })).toBeVisible();
   const settings = await saved(page);
-  expect(settings).toMatchObject({ legalVersion: LEGAL, liveProviders: ['codex'], theme: 'system', timeFormat: 'auto', resetStyle: 'relative', historyDays: 30 });
+  expect(settings).toMatchObject({ legalVersion: LEGAL, liveProviders: ['codex'], enabled: ['codex'], theme: 'system', timeFormat: 'auto', resetStyle: 'relative', historyDays: 30 });
   expect(settings.alerts).toHaveLength(1);
   expect(settings.notifications).toEqual({ enabled: false, low: false, thresholds: true, pace: false, resetMinutes: 60 });
   await page.reload();

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { LEGAL, countCalls, holdNative, nativeBridge, nativeCalls, releaseNative } from './fixtures';
+import { LEGAL, SETTINGS_KEY, countCalls, holdNative, nativeBridge, nativeCalls, releaseNative } from './fixtures';
 
 const quota = { plan: 'Plus', metrics: [{ label: 'Session', usedPercent: 32, resetIn: 3_600_000 }] };
 const fixtureToken = 'synthetic-account-access-token';
@@ -138,4 +138,27 @@ test('failed removal keeps the connection selected and Claude has no token form'
   await page.getByRole('button', { name: 'Connect Claude', exact: true }).click();
   await expect(page.getByLabel('Account access token', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Use local profile', exact: true })).toBeVisible();
+});
+
+test('a token connection that finishes after another settings change keeps that change', async ({ page }) => {
+  await nativeBridge(page, { settings: { legalVersion: LEGAL, enabled: ['codex', 'cursor'], theme: 'dark' }, quotas: { codex: quota, cursor: quota } });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Connections', exact: true }).click();
+  await page.getByRole('button', { name: 'Connect Cursor', exact: true }).click();
+  await holdNative(page);
+  await page.getByText('Advanced: use an account token instead', { exact: true }).click();
+  await page.getByLabel('Account access token', { exact: true }).fill(fixtureToken);
+  await page.getByRole('button', { name: 'Connect with token', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Checking token…', exact: true })).toBeDisabled();
+  // Another change lands while the token check is pending (here from another window).
+  await page.evaluate(key => {
+    localStorage.setItem(key, JSON.stringify({ ...JSON.parse(localStorage.getItem(key)!), theme: 'light', liveProviders: ['codex'] }));
+    window.dispatchEvent(new StorageEvent('storage', { key }));
+  }, SETTINGS_KEY);
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await releaseNative(page);
+  await expect(page.getByRole('dialog')).not.toBeVisible();
+  const saved = await page.evaluate(key => JSON.parse(localStorage.getItem(key)!), SETTINGS_KEY);
+  expect(saved).toMatchObject({ theme: 'light', liveProviders: ['codex', 'cursor'], tokenProviders: ['cursor'] });
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
 });

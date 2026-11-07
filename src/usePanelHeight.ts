@@ -1,8 +1,6 @@
 import { useEffect, type RefObject } from 'react';
 import { invoke, isTauri } from '@tauri-apps/api/core';
 
-const SETTINGS_PANEL_HEIGHT = 850;
-
 function verticalInsets(style: CSSStyleDeclaration) {
   return parseFloat(style.paddingTop) + parseFloat(style.paddingBottom) + parseFloat(style.borderTopWidth) + parseFloat(style.borderBottomWidth);
 }
@@ -15,8 +13,10 @@ function railItemHeight(child: Element) {
     + Math.max(0, buttons.length - 1) * (parseFloat(getComputedStyle(child).rowGap) || 0);
 }
 
+// Every page, Settings included, asks for its natural height; the native side clamps it to the display
+// work area and the content scrolls only then. Content height never depends on the viewport height, so
+// a resize cannot feed back into the next measurement.
 function preferredHeight(panel: HTMLElement) {
-  if (panel.querySelector('.quick-settings')) return SETTINGS_PANEL_HEIGHT;
   const scroll = panel.querySelector<HTMLElement>('.quick-scroll')!;
   const content = panel.querySelector<HTMLElement>('.quick-content')!;
   const footer = panel.querySelector<HTMLElement>('.quick-footer')!;

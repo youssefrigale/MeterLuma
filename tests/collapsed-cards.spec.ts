@@ -111,7 +111,7 @@ test('collapsed additional cards preserve currency units and cached warnings, an
   await expect(page.getByRole('region', { name: 'DeepSeek reported amounts' })).toContainText('CNY 8.00');
   await page.screenshot({ path: testInfo.outputPath('collapsed-additional.png') });
   await page.clock.setFixedTime(new Date(now.getTime() + 61_000));
-  await page.getByRole('button', { name: 'Refresh now', exact: true }).click();
+  await page.getByRole('button', { name: /^Next update in \d+m, refresh now$/ }).click();
   await expect(page.getByRole('article', { name: 'Zed usage' }).getByRole('progressbar')).toHaveCount(0);
   await expect(page.getByRole('article', { name: 'Zed usage' })).toContainText('Cached usage from');
   expect((await normalizedSettings(page)).expandedCards).toEqual([]);
@@ -180,7 +180,7 @@ test('Mac height shrinks and grows with card disclosure while the footer stays r
   await page.getByRole('button', { name: 'Collapse Codex overview card', exact: true }).click();
   await expect.poll(() => page.viewportSize()!.height).toBeLessThan(expanded);
   const collapsed = page.viewportSize()!.height;
-  await expect(page.getByRole('button', { name: 'Options', exact: true })).toBeInViewport({ ratio: 1 });
+  await expect(page.getByRole('button', { name: /^MeterLuma .+ options$/ })).toBeInViewport({ ratio: 1 });
   await page.getByRole('button', { name: 'Expand Claude overview card', exact: true }).click();
   await expect.poll(() => page.viewportSize()!.height).toBeGreaterThan(collapsed);
 });

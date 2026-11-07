@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
-import { LEGAL, countCalls, history, nativeBridge, nativeCalls } from './fixtures';
+import AxeBuilder from '@axe-core/playwright';
+import { LEGAL, countCalls, history, holdNative, nativeBridge, nativeCalls, releaseNative } from './fixtures';
 import { usageProjection } from '../src/pacing';
+import { trayWarningReasons } from '../src/trayWarnings';
 
 test('pace is shown only for known live windows and menu selection persists independently of page', async ({ page }) => {
   await page.clock.install();
@@ -125,4 +127,100 @@ for (const remaining of [false, true]) test(`sub-one-percent usage is preserved 
   await page.goto('/');
   await expect(page.locator('.quick-metric-caption')).toContainText(remaining ? '>99.9% left' : '<0.1% used');
   await expect(page.locator('.quick-metric-caption span').last()).toHaveAttribute('title', /.+/);
+});
+
+test('limits still being read after local history arrives show a neutral loading state', async ({ page }) => {
+  await nativeBridge(page, { settings: { legalVersion: LEGAL, liveProviders: ['codex'], enabled: ['codex'] }, quotas: { codex: { metrics: [{ label: 'Session', usedPercent: 25, resetIn: 3_600_000 }] } }, histories: { codex: history() } });
+  await page.addInitScript(() => {
+    const bridge = (window as unknown as { __TAURI_INTERNALS__: { invoke: (command: string, args?: Record<string, unknown>) => Promise<unknown> } }).__TAURI_INTERNALS__;
+    const invoke = bridge.invoke;
+    let release = () => {};
+    const held = new Promise<void>(resolve => { release = resolve; });
+    Object.assign(window, { releaseQuota: () => release() });
+    bridge.invoke = async (command, args) => { if (command === 'refresh_provider') await held; return invoke(command, args); };
+  });
+  await page.goto('/');
+  await expect(page.getByRole('article').filter({ hasText: 'Codex' })).toContainText('Reading limits…');
+  await page.getByRole('button', { name: 'Codex details', exact: true }).click();
+  await expect(page.locator('.quick-reconnect')).toHaveText('Reading limits…');
+  await expect(page.locator('.quick-plan')).toHaveText('Reading…');
+  await expect(page.getByRole('group', { name: 'Reading live quotas' })).toBeVisible();
+  await expect(page.getByText('Renew your Codex sign-in', { exact: false })).toHaveCount(0);
+  await expect(page.locator('.quick-metrics-unavailable')).not.toContainText('Unavailable');
+  await expect(page.locator('.quick-reconnect button')).toHaveCount(0);
+  await page.evaluate(() => (window as unknown as { releaseQuota: () => void }).releaseQuota());
+  await expect(page.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '75');
+  await expect(page.locator('.quick-reconnect')).toHaveCount(0);
+});
+
+test('pace waits for 5% of the window and caps implausible projections', async ({ page }) => {
+  await page.clock.install();
+  await nativeBridge(page, { settings: { legalVersion: LEGAL, liveProviders: ['codex'], enabled: ['codex'], pacing: true, theme: 'light' }, quotas: { codex: { metrics: [
+    { label: 'Session', usedPercent: 30, periodMinutes: 300, resetIn: 280 * 60_000 },
+    { label: 'Weekly', usedPercent: 40, periodMinutes: 10_080, resetIn: 7056 * 60_000 },
+    { label: 'Daily', usedPercent: 20, periodMinutes: 1440, resetIn: 1390 * 60_000 },
+  ] } }, histories: { codex: history() } });
+  await page.goto('/');
+  await expect(page.locator('.quick-pace')).toHaveText(['At current pace: >200% used by reset', 'At current pace: 133.3% used by reset']);
+  await page.getByRole('button', { name: 'Codex details', exact: true }).click();
+  await expect(page.locator('.quick-pace-high').first()).toBeVisible();
+  const contrast = await new AxeBuilder({ page }).include('.quick-pace-high').withRules(['color-contrast']).analyze();
+  expect(contrast.violations).toEqual([]);
+  expect(contrast.passes.length).toBeGreaterThan(0);
+  const now = Date.now();
+  expect(usageProjection({ label: 'Session', usedPercent: 20, periodMinutes: 300, resetAt: now + 290 * 60_000 }, now)).toBeUndefined();
+});
+
+test('menu-bar text never rounds remaining allowance to 0% or 100%', async ({ page }) => {
+  await nativeBridge(page, { settings: { legalVersion: LEGAL, liveProviders: ['codex', 'cursor'], enabled: ['codex', 'cursor'] }, quotas: { codex: { metrics: [{ label: 'Session', usedPercent: 99.6, resetIn: 3_600_000 }] }, cursor: { metrics: [{ label: 'Monthly', usedPercent: .4, resetIn: 86_400_000 }] } }, histories: { codex: history() } });
+  await page.goto('/');
+  const menu = async () => (await nativeCalls(page)).filter(call => call.command === 'set_tray_summary').at(-1)?.args;
+  await expect.poll(async () => (await menu())?.summary).toContain('Codex Session 0.4% left · Cursor Monthly 99.6% left');
+  await expect.poll(async () => (await menu())?.status).toMatchObject({ provider: 'codex', remaining: 1 });
+  await page.getByRole('button', { name: 'Cursor details', exact: true }).click();
+  await expect.poll(async () => (await menu())?.status).toMatchObject({ provider: 'cursor', remaining: 99 });
+});
+
+test('Retry is disabled while a usage refresh is already running', async ({ page }) => {
+  await nativeBridge(page, { settings: { legalVersion: LEGAL, liveProviders: ['codex'], enabled: ['codex'] }, quotas: { codex: { error: 'Usage limits could not be read.' } }, histories: { codex: history() } });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Codex details', exact: true }).click();
+  await expect(page.getByRole('group', { name: 'Live quotas unavailable' })).toBeVisible();
+  const retry = page.getByRole('button', { name: 'Retry', exact: true });
+  await expect(retry).toBeEnabled();
+  await holdNative(page);
+  await retry.click();
+  await expect(retry).toBeDisabled();
+  await releaseNative(page);
+  await expect(retry).toBeEnabled();
+});
+
+test('a lookup that throws while settling does not block later refreshes', async ({ page }) => {
+  await nativeBridge(page, { settings: { legalVersion: LEGAL, liveProviders: ['codex'], enabled: ['codex'] }, quotas: { codex: { metrics: [{ label: 'Session', usedPercent: 25, resetIn: 3_600_000 }] } }, histories: { codex: history() } });
+  await page.addInitScript(() => {
+    const bridge = (window as unknown as { __TAURI_INTERNALS__: { invoke: (command: string, args?: Record<string, unknown>) => Promise<unknown> } }).__TAURI_INTERNALS__;
+    const invoke = bridge.invoke;
+    let malformed = true;
+    Object.assign(window, { repairQuota: () => { malformed = false; } });
+    // A malformed native failure whose message cannot be read.
+    bridge.invoke = (command, args) => {
+      if (command === 'refresh_provider' && malformed) return Promise.reject({ get message(): string { throw new Error('Synthetic malformed failure'); } });
+      return invoke(command, args);
+    };
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Codex details', exact: true }).click();
+  await expect(page.locator('.quick-reconnect')).toContainText('Live limits unavailable');
+  const refresh = page.getByRole('button', { name: 'Refresh usage', exact: true });
+  await expect(refresh).toBeEnabled();
+  await page.evaluate(() => (window as unknown as { repairQuota: () => void }).repairQuota());
+  await refresh.click();
+  await expect(page.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '75');
+});
+
+test('an additional provider window that has already reset is not reported as exhausted', () => {
+  const now = Date.UTC(2026, 10, 1, 12);
+  const result = (resetAt: number) => ({ id: 'opencode', label: 'OpenCode', snapshot: { id: 'opencode', name: 'OpenCode', plan: null, amounts: [], notice: null, fetchedAt: now - 600_000, cached: true, metrics: [{ label: 'Session', usedPercent: 100, resetAt }] } });
+  expect(trayWarningReasons([], [result(now - 1000)], undefined, { now, interval: 300_000 })).not.toContain('OpenCode: Session exhausted');
+  expect(trayWarningReasons([], [result(now + 3_600_000)], undefined, { now, interval: 300_000 })).toContain('OpenCode: Session exhausted');
 });

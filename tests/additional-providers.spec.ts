@@ -30,7 +30,7 @@ test('CLI readers require separate consent and unavailable providers never offer
 test('the footer countdown refreshes usage without changing provider connections', async ({ page }) => {
   await nativeBridge(page, { settings: { legalVersion: LEGAL, enabled: [], liveProviders: [], additionalConnections: [connection('deepseek')] }, additional: { deepseek: balance } });
   await page.goto('/');
-  const refresh = page.getByRole('button', { name: 'Refresh now', exact: true });
+  const refresh = page.getByRole('button', { name: /^Next update in \d+m, refresh now$/ });
   await expect(refresh).toBeEnabled();
   // Take the baseline after the startup lookups have rendered, so none of them can land after it.
   await expect(page.getByRole('article').filter({ hasText: 'DeepSeek' })).toContainText('8.76');
@@ -152,6 +152,6 @@ test('many connected providers keep the Mac footer and settings reachable on a s
   await last.scrollIntoViewIfNeeded(); await last.click();
   await expect(page.getByRole('heading', { name: providers.at(-1)!.name, exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Settings', exact: true })).toBeInViewport();
-  await expect(page.getByRole('button', { name: 'Options', exact: true })).toBeInViewport();
+  await expect(page.getByRole('button', { name: /^MeterLuma .+ options$/ })).toBeInViewport();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

@@ -130,7 +130,8 @@
   .quick-trend { margin: 25px 0; }
   .quick-trend h3 { display: flex; justify-content: space-between; }
   .quick-sparkbars { display: flex; align-items: end; gap: 4px; height: 42px; margin-top: 14px; }
-  .quick-sparkbars i { flex: 1; background: var(--panel-meter); border-radius: 2px 2px 0 0; opacity: .8; }
+  /* Activity bars use the brand colour in every theme; --brand-text is the darker gold that keeps 3:1 contrast on the light panel. */
+  .quick-sparkbars i { flex: 1; background: var(--brand-text); border-radius: 2px 2px 0 0; }
   .quick-models { border-top: 1px solid var(--panel-line); padding-top: 17px; }
   .quick-detail > .quick-info { margin-top: 22px; }
   .quick-detail .quick-provider-heading { margin-bottom: 12px; }
@@ -212,7 +213,7 @@
   .quick-inline-trend { display: grid; grid-template-columns: 85px minmax(0, 1fr); align-items: center; gap: 8px; margin: 16px 0; }
   .quick-inline-trend h3 { font-size: 12px; font-weight: 400; color: var(--panel-muted); }
   .quick-inline-trend .quick-sparkbars { height: 27px; margin: 0; gap: 2px; }
-  .quick-inline-trend .quick-sparkbars i { background: var(--panel-meter); opacity: 1; border-radius: 1px 1px 0 0; min-width: 0; }
+  .quick-inline-trend .quick-sparkbars i { border-radius: 1px 1px 0 0; min-width: 0; }
   .quick-detail .quick-models { border: 0; padding: 0; }
   .quick-models dl > div { font-size: 12px; }
   .quick-data-note { color: var(--panel-muted); font-size: 9px; margin-top: 12px; line-height: 1.5; }
@@ -300,7 +301,6 @@
 
   /* The Mac menu-bar panel uses tighter spacing while keeping data and controls readable. */
   .native-macos.tray-panel[data-theme='dark'] { --panel-bg: #232325; --panel-card: #28282a; --panel-track: #353537; --panel-text: #ededed; --panel-muted: #8a8a8a; --panel-line: #343436; --panel-meter: #ededed; }
-  .native-macos[data-theme='dark'] .quick-sparkbars i { background: var(--brand-color); opacity: 1; }
   .native-macos[data-theme='dark'] .provider-picker-row { background: #1c1c1e; }
   .native-macos[data-theme='dark'] .quick-cost { --panel-muted: #9b9b9b; }
   .native-macos[data-theme='dark'] .quick-connections, .native-macos[data-theme='dark'] .additional-connections { --panel-muted: #9b9b9b; }
@@ -344,6 +344,7 @@
 .quick-pace-marker { position: absolute; top: 0; bottom: 0; width: 3px; background: #111; border-inline: 1px solid var(--brand-color); transform: translateX(-50%); }
 .quick-pace { margin: 8px 0 0; font-size: 11px; color: var(--muted); }
 .quick-pace-high { color: #cf926f; }
+:root[data-theme='light'] .quick-pace-high { color: #9a4f26; }
 
 .quick-providers.is-compact .quick-provider { padding-block: 12px; }
 .quick-providers.is-compact .quick-provider-heading { margin-bottom: 10px; }

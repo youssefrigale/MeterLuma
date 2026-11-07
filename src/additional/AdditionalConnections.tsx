@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { invoke, isTauri } from '@tauri-apps/api/core';
-import type { Settings } from '../model';
+import type { Settings, SettingsUpdate } from '../model';
 import { Modal } from '../Modal';
 import { Icon } from '../icons';
 import { hasProviderConsent } from '../legal';
@@ -11,7 +11,7 @@ import { orderedAdditional } from '../providerOrder';
 import { useProviderReorder } from '../useProviderReorder';
 import { KeychainAccess } from '../KeychainAccess';
 
-export function AdditionalConnections({ settings, update, results, refresh }: { settings: Settings; update: (update: Partial<Settings>) => boolean; results: AdditionalResult[]; refresh: () => void }) {
+export function AdditionalConnections({ settings, update, results, refresh }: { settings: Settings; update: (update: SettingsUpdate) => boolean; results: AdditionalResult[]; refresh: () => void }) {
   const [selected, setSelected] = useState<string | null>(null); const [token, setToken] = useState('');
   const [identifier, setIdentifier] = useState('');
   const [label, setLabel] = useState(''); const [acknowledged, setAcknowledged] = useState(false);
@@ -28,7 +28,7 @@ export function AdditionalConnections({ settings, update, results, refresh }: { 
   async function disconnect(id: string) {
     if (removing) return;
     setRemoving(id); setError('');
-    try { await invoke('forget_additional_provider', { providerId: id }); update({ additionalConnections: settings.additionalConnections?.filter(connection => connection.id !== id) }); refresh(); }
+    try { await invoke('forget_additional_provider', { providerId: id }); update(current => ({ additionalConnections: current.additionalConnections?.filter(connection => connection.id !== id) })); refresh(); }
     catch { setError('The provider credential could not be removed. Try disconnecting again.'); }
     finally { setRemoving(null); }
   }
@@ -42,7 +42,7 @@ export function AdditionalConnections({ settings, update, results, refresh }: { 
     try {
       // The modal waits for secure storage; a UI timeout cannot cancel a native key replacement.
       const raw = await invoke<unknown>('connect_additional_provider', { providerId: spec.id, token: credential }); snapshotFromNative(raw, spec.id);
-      update({ demo: false, additionalConnections: [...(settings.additionalConnections ?? []).filter(connection => connection.id !== spec.id), { id: spec.id, label: label.trim().replace(/[\x00-\x1f\x7f]/g, '') || spec.name, consentVersion: 1, enabled: true }] });
+      update(current => ({ demo: false, additionalConnections: [...(current.additionalConnections ?? []).filter(connection => connection.id !== spec.id), { id: spec.id, label: label.trim().replace(/[\x00-\x1f\x7f]/g, '') || spec.name, consentVersion: 1, enabled: true }] }));
       refresh(); setSelected(null);
     } catch (reason) { setError(reason && typeof reason === 'object' && 'message' in reason && typeof reason.message === 'string' ? reason.message : typeof reason === 'string' ? reason : 'This provider could not be connected.'); }
     finally { setBusy(false); }

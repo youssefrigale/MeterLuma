@@ -14,9 +14,9 @@ export const hasQuotas = (id: ProviderId, settings: Settings) => id !== 'claude'
 // Cursor token history is not recorded locally, so it is never requested.
 export const hasHistory = (id: ProviderId) => id !== 'cursor';
 
-function historyProvider(id: ProviderId, history: UsageHistory | undefined, settings: Settings): Provider | undefined {
+function historyProvider(id: ProviderId, history: UsageHistory | undefined, settings: Settings, quotaLoading = false): Provider | undefined {
   if (!history || (hasQuotas(id, settings) && !history.available)) return undefined;
-  return { id, name: providerNames[id], plan: 'Local history', color: neutralColors[id], initials: '', spendToday: null, metrics: [], history, historyOnly: !hasQuotas(id, settings) };
+  return { id, name: providerNames[id], plan: 'Local history', color: neutralColors[id], initials: '', spendToday: null, metrics: [], history, historyOnly: !hasQuotas(id, settings), ...(quotaLoading ? { quotaLoading } : {}) };
 }
 
 export function useLiveProviders(settings: Settings) {
@@ -56,7 +56,8 @@ export function useLiveProviders(settings: Settings) {
       void historyRequest?.then(history => {
         if (active) setResults(current => current.map(row => {
           if (row.key !== key) return row;
-          const provider = row.provider ?? historyProvider(id, history, settings);
+          // History can arrive first; until the quota lookup settles its limits are still being read.
+          const provider = row.provider ?? historyProvider(id, history, settings, !!quotaRequest);
           return { ...row, historyLoading: false, provider: provider ? { ...provider, history, historyLoading: false, connectionKey: key, accountLabel: label } : undefined };
         }));
       }, () => {
@@ -74,11 +75,11 @@ export function useLiveProviders(settings: Settings) {
     })).then(results => {
       const fetched = results.flatMap(result => !result.provider?.cached && typeof result.provider?.fetchedAt === 'number' ? [result.provider.fetchedAt] : []);
       const scanned = results.flatMap(result => typeof result.provider?.history?.scannedAt === 'number' ? [result.provider.history.scannedAt] : []);
-      if (active) {
-        pending.current = false;
-        setUpdatedAt(fetched.length ? Math.min(...fetched) : scanned.length ? Math.max(...scanned) : null);
-      }
-    });
+      if (active) setUpdatedAt(fetched.length ? Math.min(...fetched) : scanned.length ? Math.max(...scanned) : null);
+    }).catch(() => {
+      // A defect while settling one lookup must not leave rows loading or block later refreshes.
+      if (active) setResults(current => current.map(row => row.loading ? { ...row, loading: false, historyLoading: false, error: row.error ?? 'Usage could not be read. Try refreshing.', provider: row.provider ? { ...row.provider, historyLoading: false, quotaLoading: false } : undefined } : row));
+    }).finally(() => { if (active) pending.current = false; });
     return () => { active = false; };
   }, [settings.demo, sources, request, settings.historyDays, permitted, claudeLive]);
   useUsageResume({ enabled: isTauri() && !settings.demo && permitted && sources !== '[]', intervalMs: interval, nextRefreshAt, lastStarted, pending, refresh: () => setRequest(current => current + 1) });

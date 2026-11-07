@@ -32,6 +32,14 @@ export function quotaPercent(value: number) {
   return value.toLocaleString(undefined, { maximumFractionDigits: 1 });
 }
 
+export const remainingPercent = (usedPercent: number) => Math.min(100, Math.max(0, 100 - usedPercent));
+// The native menu-bar title takes a whole number. Like quotaPercent, it never shows 0 while
+// allowance remains or 100 once any of it is used.
+export function wholeRemainingPercent(usedPercent: number) {
+  const remaining = remainingPercent(usedPercent);
+  return remaining > 0 && remaining < 100 ? Math.min(99, Math.max(1, Math.round(remaining))) : remaining;
+}
+
 export function countdown(resetAt: number | null, now: number): string {
   if (resetAt === null) return 'Reset time unavailable';
   const minutes = Math.max(0, Math.ceil((resetAt - now) / 60_000));
@@ -47,6 +55,6 @@ export function resetText(metric: Metric, now: number, settings: Pick<Settings, 
   return settings.resetStyle === 'absolute' ? `Resets ${formatDateTime(metric.resetAt, settings.timeFormat)}` : `Resets in ${reset}`;
 }
 // Cached quota windows that have already reset are no longer meaningful.
-export function visibleMetrics(provider: Provider, now: number) {
+export function visibleMetrics(provider: Pick<Provider, 'cached' | 'fetchedAt' | 'metrics'>, now: number) {
   return provider.cached ? provider.metrics.filter(metric => metric.resetAt === null ? now - (provider.fetchedAt ?? 0) <= 300_000 : metric.resetAt > now) : provider.metrics;
 }

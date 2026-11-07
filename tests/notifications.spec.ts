@@ -28,7 +28,7 @@ test('notifications require a separate opt-in, exclude account labels, group thr
   }
   const stored = await page.evaluate(key => localStorage.getItem(key), HISTORY);
   expect(stored).not.toMatch(/PRIVATE_|private_rule|Weekly|codex/);
-  await page.getByRole('button', { name: 'Refresh now', exact: true }).click();
+  await page.getByRole('button', { name: /^Next update in \d+m, refresh now$/ }).click();
   expect(await countCalls(page, 'queue_usage_notification')).toBe(1);
   await page.reload(); await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await expect(enabled).toBeChecked(); await expect(page.getByRole('button', { name: 'Refresh usage', exact: true })).toBeEnabled();
