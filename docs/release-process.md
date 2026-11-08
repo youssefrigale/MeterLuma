@@ -286,6 +286,12 @@ was distributed, and only after deleting both the draft release and the tag:
 1. Upload the installers, the `.sig` files, `SHA256SUMS.txt` and `BUILD-INFO.json` to the versioned folder, then `latest.json`.
 2. With the updater enabled, confirm that an installed previous version offers the update, asks for confirmation, and restarts into the new version.
 3. Publish the GitHub draft, or leave it as a draft; it stays private either way as the build record.
+4. Run `scripts/update-homebrew-cask.sh 0.2.0`. It refuses to run until `latest.json` offers that version, checks the
+   published disk image against `SHA256SUMS.txt`, and pushes the new `version` and `sha256` to `Casks/meterluma.rb` in
+   [MeterLuma/homebrew-tap](https://github.com/MeterLuma/homebrew-tap), which serves
+   `brew install --cask meterluma/tap/meterluma`. The cask sets `auto_updates true`, so installed copies keep using
+   the in-app updater; only new installs (and `brew upgrade --greedy`) read the cask's version.
+5. Update the version, download links and JSON-LD on the website (`website/`) and deploy it.
 
 ## Secrets and variables reference
 

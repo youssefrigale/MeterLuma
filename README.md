@@ -122,11 +122,17 @@ MeterLuma 0.1.3 is free for personal use on macOS and Windows.
 | macOS | macOS 13 Ventura or later, Apple silicon or Intel | [MeterLuma_0.1.3_universal.dmg](https://downloads.meterluma.com/0.1.3/MeterLuma_0.1.3_universal.dmg) |
 | Windows | Windows 10 or 11, x64 | [MeterLuma_0.1.3_x64-setup.exe](https://downloads.meterluma.com/0.1.3/MeterLuma_0.1.3_x64-setup.exe) |
 
+On a Mac you can also install it with [Homebrew](https://github.com/MeterLuma/homebrew-tap):
+
+```sh
+brew install --cask meterluma/tap/meterluma
+```
+
 Verify downloads with [SHA256SUMS.txt](https://downloads.meterluma.com/0.1.3/SHA256SUMS.txt). The same files are attached to the [GitHub release](https://github.com/youssefrigale/MeterLuma/releases/latest).
 
 Both installers are **unsigned**:
 
-- **macOS:** open the disk image and drag MeterLuma to Applications. The first time you open it, macOS says it cannot verify the developer. Open **System Settings → Privacy & Security**, then choose **Open Anyway** next to the MeterLuma message.
+- **macOS:** open the disk image and drag MeterLuma to Applications, or install it with Homebrew. The first time you open it, macOS says it cannot verify the developer. Open **System Settings → Privacy & Security**, then choose **Open Anyway** next to the MeterLuma message.
 - **Windows:** if SmartScreen shows "Windows protected your PC", choose **More info → Run anyway**. The installer is per-user and downloads Microsoft WebView2 if it is missing.
 
 MeterLuma checks for updates signed with the project's update key and asks before installing one. Use is limited to personal, noncommercial purposes; selling, commercial use and redistribution are not permitted.
