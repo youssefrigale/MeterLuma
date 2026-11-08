@@ -13,10 +13,14 @@ function railItemHeight(child: Element) {
     + Math.max(0, buttons.length - 1) * (parseFloat(getComputedStyle(child).rowGap) || 0);
 }
 
-// Every page, Settings included, asks for its natural height; the native side clamps it to the display
-// work area and the content scrolls only then. Content height never depends on the viewport height, so
-// a resize cannot feed back into the next measurement.
+// Settings is taller than most displays, so it keeps a fixed height and scrolls inside (owner decision,
+// reaffirmed 2026-11-08) instead of filling the screen. Every other page asks for its natural height; the
+// native side clamps each request to the display work area. Content height never depends on the viewport
+// height, so a resize cannot feed back into the next measurement.
+const SETTINGS_PANEL_HEIGHT = 850;
+
 function preferredHeight(panel: HTMLElement) {
+  if (panel.querySelector('.quick-settings')) return SETTINGS_PANEL_HEIGHT;
   const scroll = panel.querySelector<HTMLElement>('.quick-scroll')!;
   const content = panel.querySelector<HTMLElement>('.quick-content')!;
   const footer = panel.querySelector<HTMLElement>('.quick-footer')!;

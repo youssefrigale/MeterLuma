@@ -36,7 +36,7 @@
 
 ### Changed
 
-- Mac Settings sizes to its content like every other page, per the 2026-10-26 owner decision. It is taller than a display, so it opens at the available display height and scrolls.
+- Mac Settings keeps its 850-point height again and scrolls inside, instead of filling the whole screen. A 7 November change had removed the limit; the owner asked for it back.
 - Native tests run on every push to main and every pull request. Release builds compile without secrets, and only the bundling step can use the signing keys. Workflow actions are pinned to commit SHAs.
 - **About** has a compact header (logo beside the tagline), evenly ruled sections, and actions that share the text's left edge. Diagnostics export and refresh are equal-width buttons, and the version, license and affiliation notes are grouped with **View license** and **Reset preferences** at the end.
 
