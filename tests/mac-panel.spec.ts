@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { LEGAL, history, nativeBridge, nativeCalls } from './fixtures';
+import { LEGAL, SETTINGS_KEY, history, nativeBridge, nativeCalls } from './fixtures';
 
 test.use({ viewport: { width: 360, height: 440 }, userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 Version/17.0 Safari/605.1.15' });
 
@@ -85,4 +85,67 @@ test('Mac menu-bar omits a percentage for local history without subscription quo
   await page.goto('/');
   await expect(page.getByText(/Local history only · .* tokens today/)).toBeVisible();
   await expect.poll(async () => (await nativeCalls(page)).filter(call => call.command === 'set_tray_summary').at(-1)?.args.status).toBeNull();
+});
+
+const additionalConnection = (id: string) => ({ id, label: id, enabled: true, consentVersion: 1 });
+const menuBarSetup = (settings: Record<string, unknown> = {}) => ({
+  settings: { legalVersion: LEGAL, liveProviders: ['claude', 'codex', 'cursor'], additionalConnections: [additionalConnection('deepseek'), additionalConnection('opencode')], ...settings },
+  histories: { claude: history(), codex: history() },
+  quotas: {
+    codex: { metrics: [{ label: 'Session', usedPercent: 27, resetIn: 3_600_000 }, { label: 'Weekly', usedPercent: 65, resetIn: 86_400_000 }] },
+    cursor: { metrics: [{ label: 'Monthly', usedPercent: 80, resetIn: 86_400_000 }] },
+  },
+  additional: {
+    deepseek: { amounts: [{ label: 'Balance', value: 8.76, currency: 'CNY', unit: '' }] },
+    opencode: { metrics: [{ label: 'Monthly', usedPercent: 40, resetAt: null }] },
+  },
+});
+const lastTrayCall = async (page: import('@playwright/test').Page) => (await nativeCalls(page)).filter(call => call.command === 'set_tray_summary').at(-1)?.args;
+
+test('Mac menu bar can show several providers side by side in sidebar order', async ({ page }) => {
+  await nativeBridge(page, menuBarSetup());
+  await page.goto('/');
+  await expect.poll(async () => (await lastTrayCall(page))?.status).toEqual({ provider: 'codex', remaining: 73, cached: false, demo: false, warning: false });
+  expect(await lastTrayCall(page)).not.toHaveProperty('items');
+
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  const section = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Menu bar providers', exact: true }) });
+  await expect(section.getByRole('button', { name: 'One', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await section.getByRole('button', { name: 'Up to 3', exact: true }).click();
+  // Claude reads local history only, so it has no allowance to show; a low allowance carries the warning.
+  await expect.poll(async () => { const call = await lastTrayCall(page); return call && { items: call.items, more: call.more }; }).toEqual({
+    items: [
+      { provider: 'codex', remaining: 73, cached: false, demo: false, warning: false },
+      { provider: 'cursor', remaining: 20, cached: false, demo: false, warning: true },
+      { provider: 'deepseek', value: 'CNY 8.76', cached: false, demo: false, warning: false },
+    ],
+    more: 1,
+  });
+  expect(JSON.parse(await page.evaluate(key => localStorage.getItem(key)!, SETTINGS_KEY)).trayProviders).toBe(3);
+
+  await section.getByRole('button', { name: 'Up to 5', exact: true }).click();
+  await expect.poll(async () => { const call = await lastTrayCall(page); return call && [(call.items as { provider: string }[]).map(item => item.provider), call.more]; })
+    .toEqual([['codex', 'cursor', 'deepseek', 'opencode'], 0]);
+
+  await section.getByRole('button', { name: 'One', exact: true }).click();
+  await expect.poll(async () => (await lastTrayCall(page))?.items).toBeUndefined();
+  expect((await lastTrayCall(page))?.status).toEqual({ provider: 'codex', remaining: 73, cached: false, demo: false, warning: false });
+});
+
+test('Mac menu-bar providers follow the chosen weekly window and keep cached readings marked', async ({ page }) => {
+  await nativeBridge(page, {
+    ...menuBarSetup({ trayProviders: 5, trayMetric: 'weekly' }),
+    quotas: {
+      codex: { error: { code: 'rate_limited', message: 'Please retry later.' }, retryIn: 3_600_000, snapshot: { ageMs: 120_000, metrics: [{ label: 'Weekly', usedPercent: 65, resetIn: 86_400_000 }] } },
+      cursor: { metrics: [{ label: 'Monthly', usedPercent: 10, resetIn: 86_400_000 }] },
+    },
+  });
+  await page.goto('/');
+  await expect.poll(async () => (await lastTrayCall(page))?.items).toEqual([
+    { provider: 'codex', remaining: 35, cached: true, demo: false, warning: false },
+    { provider: 'cursor', remaining: 90, cached: false, demo: false, warning: false },
+    { provider: 'deepseek', value: 'CNY 8.76', cached: false, demo: false, warning: false },
+    { provider: 'opencode', remaining: 60, cached: false, demo: false, warning: false },
+  ]);
+  expect((await lastTrayCall(page))?.summary).toContain('Codex Weekly 35% left (cached)');
 });

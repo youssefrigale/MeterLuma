@@ -55,7 +55,7 @@ rfd = { version = "0.16", default-features = false, features = ["common-controls
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6.5"
 block2 = "0.6.2"
-objc2-foundation = { version = "0.3.2", default-features = false, features = ["NSString", "NSError", "NSObject", "NSDictionary", "NSUserDefaults", "NSValue"] }
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["NSString", "NSError", "NSObject", "NSDictionary", "NSUserDefaults", "NSValue", "NSArray", "NSData", "NSAttributedString"] }
 objc2-user-notifications = { version = "0.3.2", default-features = false, features = ["std", "block2", "UNNotification", "UNNotificationContent", "UNNotificationRequest", "UNNotificationSettings", "UNNotificationTrigger", "UNUserNotificationCenter"] }
-objc2-app-kit = { version = "0.3.2", default-features = false, features = ["NSColor", "NSView", "NSWindow", "NSButton", "NSControl", "NSCell", "NSFont", "NSImage", "NSStatusItem", "NSStatusBarButton", "NSScreen", "objc2-core-foundation", "objc2-quartz-core"] }
+objc2-app-kit = { version = "0.3.2", default-features = false, features = ["NSColor", "NSView", "NSWindow", "NSButton", "NSControl", "NSCell", "NSFont", "NSImage", "NSStatusItem", "NSStatusBarButton", "NSStatusBar", "NSScreen", "NSAttributedString", "NSStringDrawing", "NSGraphics", "block2", "objc2-core-foundation", "objc2-quartz-core"] }
 

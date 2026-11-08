@@ -31,6 +31,8 @@ export interface Settings {
   pacing?: boolean;
   compactOverview?: boolean;
   trayMetric?: 'session' | 'weekly' | 'lowest';
+  // How many providers the macOS menu bar shows side by side; 1 keeps the single provider you have open.
+  trayProviders?: 1 | 3 | 5;
   panelShortcut?: string;
   notifications?: NotificationPreferences;
   expandedCards?: string[];
@@ -97,6 +99,7 @@ export function settingsFromValue(value: unknown): Settings {
     expandedCards: overviewCardKeys(parsed.expandedCards),
     additionalProviderOrder: additionalProviderOrder(parsed.additionalProviderOrder),
     trayMetric: parsed.trayMetric === 'weekly' || parsed.trayMetric === 'lowest' ? parsed.trayMetric : 'session',
+    trayProviders: parsed.trayProviders === 3 || parsed.trayProviders === 5 ? parsed.trayProviders : 1,
     profiles: Array.isArray(parsed.profiles) ? parsed.profiles.filter((row): row is AccountProfile => !!row && typeof row === 'object' && typeof row.key === 'string' && /^[a-zA-Z0-9_-]{1,80}$/.test(row.key) && providerIds.includes(row.providerId) && typeof row.label === 'string' && row.label.trim().length > 0 && row.label.length <= 60 && typeof row.directory === 'string' && row.directory.trim().length > 0 && row.directory.length <= 1024).filter((row, index, rows) => rows.findIndex(other => other.key === row.key) === index).slice(0, 12).map(row => ({ ...row, paused: row.paused === true })) : [],
     alerts: Array.isArray(parsed.alerts) ? parsed.alerts.filter((row): row is AlertRule => !!row && typeof row === 'object' && typeof row.key === 'string' && /^[a-zA-Z0-9_-]{1,80}$/.test(row.key) && providerIds.includes(row.providerId) && (row.providerId !== 'claude' || parsed.claudeLive === true) && typeof row.threshold === 'number' && Number.isFinite(row.threshold) && row.threshold >= 1 && row.threshold <= 100 && typeof row.enabled === 'boolean').filter((row, index, rows) => rows.findIndex(other => other.key === row.key) === index).slice(0, 12) : [],
     providerOrder: Array.isArray(parsed.providerOrder) ? [...new Set(parsed.providerOrder.filter((id): id is ProviderId => providerIds.includes(id as ProviderId))), ...providerIds.filter(id => !(parsed.providerOrder as unknown[]).includes(id))] : [...providerIds],

@@ -32,14 +32,18 @@ fn tooltip(summary: &str) -> String {
 }
 
 #[tauri::command]
-fn set_tray_summary(app: tauri::AppHandle, summary: String, status: Option<tray_status::TrayStatus>) -> Result<(), String> {
+fn set_tray_summary(app: tauri::AppHandle, summary: String, status: Option<tray_status::TrayStatus>, items: Option<Vec<tray_status::TrayStatus>>, more: Option<u8>) -> Result<(), String> {
     if summary.chars().count() > 160 {
         return Err("Tray summary is too long".into());
     }
     if let Some(status) = &status { status.title()?; }
+    // Several providers chosen for the macOS menu bar; the Windows notification area shows the icon only.
+    let strip = tray_status::Strip::new(items.unwrap_or_default(), more.unwrap_or(0))?;
     let tray = app.tray_by_id("meterluma").ok_or("Tray is unavailable")?;
     #[cfg(target_os = "macos")]
-    tray_status::update(&app, &tray, status.as_ref())?;
+    tray_status::update(&app, &tray, status.as_ref(), &strip)?;
+    #[cfg(not(target_os = "macos"))]
+    let _ = strip;
     tray.set_tooltip(Some(tooltip(&summary)))
         .map_err(|_| "The tray tooltip could not be updated".into())
 }

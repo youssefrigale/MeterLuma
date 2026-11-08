@@ -6,6 +6,8 @@
   .quick-view { position: relative; padding: 0; margin: 0; width: 100%; height: 100dvh; min-height: 0; display: flex; flex-direction: row; overflow: hidden; border: 1px solid var(--panel-line); border-radius: 14px; background: var(--panel-bg); color: var(--panel-text); font-size: 12px; }
   /* Let Windows draw one outer edge; a second HTML curve leaves lines inside its corners. */
   .native-windows .quick-view { border: 0; border-radius: 0; }
+  /* The Windows notification area shows an icon only. */
+  .native-windows .quick-menu-bar-providers { display: none; }
   .quick-body { display: flex; flex-direction: column; flex: 1; min-width: 0; }
   .quick-rail { flex: 0 0 45px; padding: 14px 0 10px; display: flex; flex-direction: column; gap: 8px; border-right: 1px solid var(--panel-line); background: var(--panel-rail); }
   .quick-rail button { position: relative; display: grid; place-items: center; width: 100%; height: 40px; color: var(--panel-muted); }

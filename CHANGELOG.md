@@ -2,7 +2,13 @@
 
 ## Unreleased
 
+### Added
+
+- **Settings → Menu bar providers** (Mac): show up to 3 or 5 providers side by side in the menu bar, each with its logo and remaining allowance, in sidebar order. Providers without a menu-bar logo show their name; a low allowance carries ⚠, a cached reading is dimmed, and `+N` counts providers that did not fit. **One** (the default) keeps the single provider you have open.
+
 ### Fixed
+
+- The whole menu-bar item stays clickable when its reading gets wider; the click area used to keep the width it had when the icon was last replaced.
 
 - Claude Code sign-in renewal backs off after each unsuccessful attempt (1, 2, 5, 15, then 60 minutes) instead of starting a new session every poll, stops waiting as soon as the CLI exits, never makes other profiles wait, and is stopped when MeterLuma quits.
 - A renewed Claude, Cursor or Codex token for the same account keeps the provider's rate-limit deadline and cached reading, and is no longer reported as a changed sign-in. A different account is still never blocked by the previous account's limit.

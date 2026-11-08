@@ -18,7 +18,7 @@ import { NotAffiliated } from './ProviderNotes';
 import { usePanelHeight } from './usePanelHeight';
 import { orderedAdditional } from './providerOrder';
 import { useAdditionalProviders } from './additional/useAdditionalProviders';
-import { additionalConnections, additionalProvider } from './additional/model';
+import { additionalConnections, additionalProvider, type AdditionalSnapshot } from './additional/model';
 import { AdditionalProvider, amountText } from './additional/AdditionalProvider';
 import { AdditionalLogo } from './additional/AdditionalLogo';
 import { AdditionalConnections } from './additional/AdditionalConnections';
@@ -35,6 +35,31 @@ type Range = 'Today' | 'Yesterday' | '30 Days';
 function primaryTrayMetric(provider: Provider, now: number, selection: Settings['trayMetric']) {
   const metrics = visibleMetrics(provider, now);
   return selectTrayMetric(metrics,selection);
+}
+
+function snapshotTrayMetric(snapshot: AdditionalSnapshot, now: number, selection: Settings['trayMetric']) {
+  return selectTrayMetric(snapshot.metrics.filter(metric => !snapshot.cached || (metric.resetAt === null ? now - snapshot.fetchedAt <= 300_000 : metric.resetAt > now)), selection);
+}
+
+type TrayItem = { provider: string; remaining?: number; value?: string; cached: boolean; demo: boolean; warning: boolean };
+
+// Several providers side by side in the macOS menu bar, in sidebar order: core providers, then additional ones.
+// One entry per provider; history-only connections have no allowance to show.
+function trayStrip(providers: Provider[], additional: AdditionalSnapshot[], now: number, settings: Settings): TrayItem[] {
+  const items: TrayItem[] = [];
+  for (const provider of providers) {
+    if (provider.historyOnly || items.some(item => item.provider === provider.id)) continue;
+    const metric = primaryTrayMetric(provider, now, settings.trayMetric);
+    if (metric) items.push({ provider: provider.id, remaining: wholeRemainingPercent(metric.usedPercent), cached: !!provider.cached, demo: settings.demo, warning: !settings.demo && 100 - metric.usedPercent <= LOW_ALLOWANCE_REMAINING });
+  }
+  for (const snapshot of additional) {
+    if (items.some(item => item.provider === snapshot.id)) continue;
+    const metric = snapshotTrayMetric(snapshot, now, settings.trayMetric);
+    const value = !metric && snapshot.amounts[0] ? amountText(snapshot.amounts[0]) : undefined;
+    if (metric) items.push({ provider: snapshot.id, remaining: wholeRemainingPercent(metric.usedPercent), cached: snapshot.cached, demo: false, warning: 100 - metric.usedPercent <= LOW_ALLOWANCE_REMAINING });
+    else if (value) items.push({ provider: snapshot.id, value, cached: snapshot.cached, demo: false, warning: false });
+  }
+  return items;
 }
 
 export default function QuickView() {
@@ -100,13 +125,17 @@ export default function QuickView() {
   const trayMetric = trayProvider && primaryTrayMetric(trayProvider, now, settings.trayMetric);
   const trayRemaining = trayMetric && wholeRemainingPercent(trayMetric.usedPercent);
   const additionalTray = additionalActive?.snapshot ?? (!trayProvider ? additional.results.find(result => result.snapshot)?.snapshot : undefined);
-  const additionalTrayMetric = additionalTray && selectTrayMetric(additionalTray.metrics.filter(metric => !additionalTray.cached || (metric.resetAt === null ? now - additionalTray.fetchedAt <= 300_000 : metric.resetAt > now)), settings.trayMetric);
+  const additionalTrayMetric = additionalTray && snapshotTrayMetric(additionalTray, now, settings.trayMetric);
   const additionalTrayValue = !additionalTrayMetric && additionalTray?.amounts[0] ? amountText(additionalTray.amounts[0]) : undefined;
   const displayedTrayMetric = additionalTray && (additionalTrayMetric || additionalTrayValue) ? additionalTrayMetric : trayMetric;
   const usageSummary = additionalTray ? `${additionalTray.name} · ${additionalTrayMetric ? `${additionalTrayMetric.label} ${quotaPercent(remainingPercent(additionalTrayMetric.usedPercent))}% left` : additionalTray.amounts[0] ? `${additionalTray.amounts[0].label}: ${additionalTrayValue}` : 'Usage unavailable'}${additionalTray.cached ? ' (cached)' : ''}`.slice(0, 150) : traySummary;
   const trayWarnings = settings.demo ? [] : trayWarningReasons(live.results, additional.results, trayProvider, { now, interval });
   const trayWarning = !settings.demo && displayedTrayMetric !== undefined && 100 - displayedTrayMetric.usedPercent <= LOW_ALLOWANCE_REMAINING;
   const menuSummary = (trayWarnings.length ? `${trayWarnings.join('; ')} · ${usageSummary}` : usageSummary).slice(0, 160);
+  const trayLimit = settings.trayProviders ?? 1;
+  const trayCandidates = trayLimit > 1 ? trayStrip(providers, additional.results.flatMap(result => result.snapshot ? [result.snapshot] : []), now, settings) : [];
+  const trayItems = trayCandidates.slice(0, trayLimit);
+  const trayStripKey = trayLimit > 1 ? JSON.stringify({ items: trayItems, more: trayCandidates.length - trayItems.length }) : '';
   const pageNames: Record<string, string> = { overview: 'Overview', costs: 'Cost', connections: 'Connections', settings: 'Settings', help: 'About MeterLuma', ...providerNames };
   const pageName = additionalSpec?.name ?? pageNames[view] ?? 'MeterLuma';
 
@@ -152,8 +181,9 @@ export default function QuickView() {
     if (!isTauri()) return;
     const status = additionalTray && (additionalTrayMetric || additionalTrayValue) ? { provider: additionalTray.id, ...(additionalTrayMetric ? { remaining: wholeRemainingPercent(additionalTrayMetric.usedPercent) } : { value: additionalTrayValue }), cached: additionalTray.cached, demo: false, warning: trayWarning }
       : trayProvider && trayRemaining !== undefined ? { provider: trayProvider.id, remaining: trayRemaining, cached: !!trayProvider.cached, demo: settings.demo, warning: trayWarning } : null;
-    void invoke('set_tray_summary', { summary: menuSummary, status }).catch(() => setMessage('The menu-bar usage could not be updated.'));
-  }, [menuSummary, trayProvider?.id, trayRemaining, trayProvider?.cached, additionalTray?.id, additionalTray?.cached, additionalTrayMetric?.usedPercent, additionalTrayValue, trayWarning, settings.demo]);
+    // With several providers chosen, the menu bar draws the strip instead of the single status.
+    void invoke('set_tray_summary', { summary: menuSummary, status, ...(trayStripKey ? JSON.parse(trayStripKey) : {}) }).catch(() => setMessage('The menu-bar usage could not be updated.'));
+  }, [menuSummary, trayProvider?.id, trayRemaining, trayProvider?.cached, additionalTray?.id, additionalTray?.cached, additionalTrayMetric?.usedPercent, additionalTrayValue, trayWarning, settings.demo, trayStripKey]);
 
   function updateSettings(update: SettingsUpdate) {
     const current = latestSettings.current;
